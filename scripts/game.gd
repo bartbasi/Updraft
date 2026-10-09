@@ -47,8 +47,10 @@ func _ready() -> void:
 ## until the game is drawing smoothly, then launches.
 func _throw_when_ready() -> void:
 	var smooth_frames := 0
-	while smooth_frames < 10:
+	var waited := 0.0
+	while smooth_frames < 10 and waited < 4.0:
 		await get_tree().process_frame
+		waited += get_process_delta_time()
 		smooth_frames = smooth_frames + 1 if get_process_delta_time() < 0.05 else 0
 	await get_tree().create_timer(0.6).timeout
 	plane.release()
