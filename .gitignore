@@ -1,0 +1,13 @@
+# Godot cache and generated Android project
+.godot/
+/android/
+
+# Build output
+/build/
+*.apk
+*.aab
+*.idsig
+
+# OS clutter
+Thumbs.db
+.DS_Store
