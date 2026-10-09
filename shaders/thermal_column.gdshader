@@ -15,7 +15,7 @@ void vertex() {
 void fragment() {
 	// Brightest where we look through the middle of the column, fading at its silhouette.
 	float facing = abs(dot(NORMAL, VIEW));
-	float body = facing * facing;
+	float body = pow(facing, 1.3);
 	float ends = smoothstep(0.0, 0.12, along) * (1.0 - smoothstep(0.65, 1.0, along));
 	// Wavy streaks that drift upward.
 	float y = along * height;

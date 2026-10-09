@@ -63,7 +63,7 @@ extends Resource
 
 @export_group("Thermals")
 ## Upward air speed in the middle of a thermal (units/s). Each thermal can scale this.
-@export var thermal_strength := 4.5
+@export var thermal_strength := 5.0
 
 @export_group("Collisions")
 ## A hit with at least this much speed straight into the surface can end the run...

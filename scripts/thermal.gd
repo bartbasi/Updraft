@@ -56,7 +56,7 @@ func _build_column() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = COLUMN_SHADER
 	mat.set_shader_parameter("height", height)
-	mat.set_shader_parameter("tint", Color(1.0, 0.82, 0.66, 0.32) if look == Look.WARM_AIR else Color(0.92, 0.96, 1.0, 0.3))
+	mat.set_shader_parameter("tint", Color(1.0, 0.74, 0.52, 0.6) if look == Look.WARM_AIR else Color(0.93, 0.97, 1.0, 0.45))
 	var column := MeshInstance3D.new()
 	column.mesh = mesh
 	column.material_override = mat
@@ -81,7 +81,7 @@ func _build_wisps() -> void:
 	var fade := Gradient.new()
 	if look == Look.WARM_AIR:
 		# Drifting dust motes and heat haze across the whole column.
-		p.amount = 70
+		p.amount = 110
 		p.lifetime = 4.0
 		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 		p.emission_box_extents = Vector3(radius * 0.6, 0.3, radius * 0.6)
@@ -90,7 +90,7 @@ func _build_wisps() -> void:
 		p.initial_velocity_min = 1.0
 		p.initial_velocity_max = 1.9
 		p.gravity = Vector3(0.0, 0.25, 0.0)
-		quad.size = Vector2(0.35, 0.35)
+		quad.size = Vector2(0.45, 0.45)
 		p.scale_amount_min = 0.5
 		p.scale_amount_max = 1.2
 		fade.set_color(0, Color(1.0, 0.9, 0.7, 0.0))
@@ -99,7 +99,7 @@ func _build_wisps() -> void:
 		fade.add_point(0.75, Color(1.0, 0.92, 0.75, 0.6))
 	else:
 		# Soft steam puffs from the source that spread as they rise.
-		p.amount = 40
+		p.amount = 56
 		p.lifetime = 3.6
 		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 		p.emission_sphere_radius = 0.3
@@ -107,7 +107,8 @@ func _build_wisps() -> void:
 		p.spread = 16.0
 		p.initial_velocity_min = 1.8
 		p.initial_velocity_max = 2.6
-		p.gravity = Vector3(0.0, 0.3, 0.0)
+		# Drift from the source toward the middle of the column as the steam rises.
+		p.gravity = Vector3(-source_offset.x, 0.0, -source_offset.z) * 0.45 + Vector3(0.0, 0.3, 0.0)
 		p.damping_min = 0.2
 		p.damping_max = 0.4
 		quad.size = Vector2(1.3, 1.3)

@@ -22,6 +22,8 @@ var distance := 0.0
 var flight_time := 0.0
 ## The input used this physics tick: x = pitch, y = roll.
 var input := Vector2.ZERO
+## While held, the plane sits still (waiting on the shelf before the throw).
+var held := false
 
 var _inside := {}
 var _visual: Node3D
@@ -63,8 +65,16 @@ func is_ended() -> bool:
 	return model.is_ended()
 
 
+## Lets go of a held plane. The phone's current angle becomes "level" for this run.
+func release() -> void:
+	held = false
+	var gravity := Controls.read_gravity()
+	if gravity.length_squared() >= 1.0:
+		controls.calibrate(gravity)
+
+
 func _physics_process(delta: float) -> void:
-	if model.is_ended():
+	if model.is_ended() or held:
 		return
 	if autopilot.is_valid():
 		input = autopilot.call(self)
