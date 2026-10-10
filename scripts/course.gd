@@ -28,7 +28,11 @@ const LAMP := Vector3(0.0, 5.5, -45.0)  ## Bottom centre of the hanging lamp sha
 const LAMP_SHADE_RADIUS := 1.7  ## At its bottom rim.
 const DINING_TABLE_TOP := 2.8  ## The gap between table and shade is the lamp moment's dive.
 const KETTLE := Vector3(7.0, 3.7, -69.0)
-const KETTLE_THERMAL := Vector3(3.0, 4.2, -69.0)  ## Steam drifts toward the room.
+## The steam drifts toward the room, and reaches down low enough to catch planes coming in
+## just over the counter (its top stays at y 11.2).
+const KETTLE_THERMAL := Vector3(3.0, 3.0, -69.0)
+const KETTLE_STEAM_HEIGHT := 8.2
+const KETTLE_SPOUT_TIP := KETTLE + Vector3(-1.45, 0.95, 0.0)  ## Where the steam puffs come out.
 ## Outdoors: a sun-warmed hay field past the garden fence, left of the line out of the window,
 ## with warm air rising over it (x, z; it stands on the ground). Seen through the kitchen window.
 const MEADOW_THERMAL := Vector2(-6.0, -118.0)
@@ -241,7 +245,7 @@ func _build() -> void:
 	_add_box_zone("Skylight", SKYLIGHT_ORIGIN, SKYLIGHT_SIZE, Thermal.Look.SUNBEAM, SKYLIGHT_STRENGTH, 1.19, Vector3.DOWN, UP_CEILING - SKYLIGHT_ORIGIN.y)
 	_add_box_zone("StairDowndraft", DOWNDRAFT_ORIGIN, DOWNDRAFT_SIZE, Thermal.Look.DOWNDRAFT, DOWNDRAFT_STRENGTH, 1.0)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
-	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, 7.0, Thermal.Look.STEAM, 1.26, Vector3(2.55, 0.45, 0.0))
+	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, KETTLE_STEAM_HEIGHT, Thermal.Look.STEAM, 1.26, KETTLE_SPOUT_TIP - KETTLE_THERMAL)
 	var meadow := Vector3(MEADOW_THERMAL.x, ground_height(MEADOW_THERMAL.x, MEADOW_THERMAL.y), MEADOW_THERMAL.y)
 	_add_thermal("MeadowHeat", meadow, MEADOW_THERMAL_RADIUS, MEADOW_THERMAL_HEIGHT, Thermal.Look.WARM_AIR, 0.9, Vector3.ZERO)
 

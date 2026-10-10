@@ -310,3 +310,26 @@ func test_shadow_shows_over_painted_ground() -> void:
 		check(shadow.visible, "a shadow under the plane at %s" % spot)
 		var painted := ground + Course.PAINT_LIFT
 		check(shadow.global_position.y > painted + 0.05, "the shadow is above the painted ground at %s (%.3f vs %.3f)" % [spot, shadow.global_position.y, painted])
+
+
+## Planes that come into the kitchen low (just over the counter) still catch the kettle steam,
+## and it carries them up and out of the window (fun review 2, item 1).
+func test_low_planes_catch_the_kettle_steam_and_make_the_window() -> void:
+	for y in [4.2, 4.5, 4.8]:
+		for x in [1.5, 3.0]:
+			var game := _start(func(p: PaperPlane) -> Vector2:
+				var goal := Vector3(Course.KETTLE_THERMAL.x, 0.0, Course.KETTLE_THERMAL.z) if p.global_position.z > Course.KETTLE_THERMAL.z else Vector3(0.0, 0.0, Course.FAR_Z - 7.0)
+				var to := goal - p.global_position
+				return Vector2(0.0, clampf(-wrapf(atan2(-to.x, -to.z) - p.model.heading, -PI, PI) * 2.0, -1.0, 1.0)))
+			var plane := game.get_node("Plane") as PaperPlane
+			plane.launch(Vector3(float(x), float(y), -60.0), 0.0)
+			var steam := [false]
+			plane.entered_thermal.connect(func(z: Thermal) -> void: steam[0] = steam[0] or z.name == "KettleSteam")
+			var frames := 0
+			while frames < 60 * 12 and not plane.is_ended() and not game.reached_outside:
+				await tree.physics_frame
+				frames += 1
+			var label := "into the kitchen at y %.1f, x %.1f" % [y, x]
+			check(steam[0], "%s: the plane catches the steam" % label)
+			check(game.reached_outside, "%s: and it carries it out of the window (%s at %s)" % [label, "crashed" if plane.model.crashed else "ended", plane.global_position])
+			await cleanup()

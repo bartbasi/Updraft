@@ -54,6 +54,10 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   shade is a little narrower and the table 0.3 lower. To undo: revert the commit "Phase B fix 3:
   more room under the dining lamp" (it also carries the test that needs the room), but keep its
   longer test watchdog (`TIME_LIMIT` in `tests/run_tests.gd`).
+- The kettle steam now reaches down to y 3.0 (it started at 4.2) and is taller, so its top
+  stays at 11.2 (fun review 2, item 1): planes coming into the kitchen low catch it instead of
+  hitting the counter under the window. To undo: revert the commit "Phase B round 2, fix 1:
+  the kettle steam reaches low planes" (it also carries the test).
 - Close calls (fun review 1, item 5): rushing past a surface within 1 unit at 7.5 u/s or more,
   and getting clear again without touching it, gives a soft whoosh and a short swell of wind
   (once clear, so flying into a wall never sounds like a reward). It needs a small proximity
@@ -100,6 +104,8 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   the top of the view; the shade's top is now y 7.1, so a plane skimming just over the lamp at
   y 7.2-7.4 can catch it (it visibly overlaps); and some gentle divers who now get under the
   lamp come in too low for the kettle steam and hit the counter under the window.
+- Frame rate in the kitchen on the phone: the steam's see-through column is now taller and
+  reaches below the counter top.
 - Frame rate while circling in the meadow thermal on the phone: its see-through column is the
   largest in the game (radius about 4.5, 12 high, 110 motes) and the camera flies inside it for
   a second or two. No cost on PC. Fallbacks: fewer motes, or draw only the column's front faces.
