@@ -166,10 +166,10 @@ func _build_visuals() -> void:
 
 
 func _update_visuals(delta: float) -> void:
-	_visual_yaw = lerp_angle(_visual_yaw, model.heading, 1.0 - exp(-14.0 * delta)) if delta > 0.0 else model.heading
+	_visual_yaw = lerp_angle(_visual_yaw, model.heading, 1.0 - exp(-tuning.visual_turn_speed * delta)) if delta > 0.0 else model.heading
 	_wobble_time += delta
-	_wobble = maxf(_wobble - delta * 2.5, 0.0)
-	var jiggle := _wobble * sin(_wobble_time * 32.0) * 0.35
+	_wobble = maxf(_wobble - delta * tuning.bump_wobble_fade, 0.0)
+	var jiggle := _wobble * sin(_wobble_time * tuning.bump_wobble_speed) * tuning.bump_wobble_angle
 	_visual.basis = Basis.from_euler(Vector3(model.pitch, _visual_yaw, -model.bank + jiggle))
 	_update_shadow()
 

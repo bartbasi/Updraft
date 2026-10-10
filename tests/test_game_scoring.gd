@@ -112,6 +112,32 @@ func test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp() -> voi
 		await cleanup()
 
 
+## The wind sound survives its quietest settings: silent at low speed and the same speed for
+## quiet and loud, through a flight and its end (no -inf or NaN volume).
+func test_wind_survives_its_quietest_settings() -> void:
+	var game := MAIN.instantiate()
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.tuning = Tuning.new()
+	plane.tuning.wind_quiet = 0.0
+	plane.tuning.wind_quiet_speed = 100.0
+	plane.tuning.wind_loud_speed = 100.0
+	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	add_node(game)
+	var wind: AudioStreamPlayer = game._wind
+	var bad := []
+	var frames := 0
+	var ended_frames := 0
+	while ended_frames < 60 and frames < 60 * 30:
+		await tree.process_frame
+		frames += 1
+		ended_frames += 1 if plane.is_ended() else 0
+		if not (is_finite(wind.volume_db) and is_finite(wind.pitch_scale)) and bad.size() < 3:
+			bad.append("frame %d: volume %s, pitch %s" % [frames, wind.volume_db, wind.pitch_scale])
+	check(plane.is_ended(), "the hands-off flight ends")
+	check(bad.is_empty(), "the wind's volume and pitch stay real numbers: %s" % [bad])
+	await cleanup()
+
+
 ## Every moment's pop-up, plain and perfect, sits in the middle of the screen and grows from its
 ## middle, whatever the length of its title.
 func test_style_popups_are_centred() -> void:
@@ -126,7 +152,8 @@ func test_style_popups_are_centred() -> void:
 			await tree.process_frame
 			var centre := popup.position.x + popup.size.x * 0.5
 			check(absf(centre - ui.size.x * 0.5) < 1.0, "'%s' is centred (%.0f of %.0f)" % [popup.text, centre, ui.size.x])
-			check(popup.get_minimum_size().x * 1.25 <= ui.size.x, "'%s' fits on screen at full size" % popup.text)
+			var biggest: float = maxf(game.plane.tuning.popup_scale, game.plane.tuning.popup_perfect_scale) * 1.1  # the pop overshoots a little
+			check(popup.get_minimum_size().x * biggest <= ui.size.x, "'%s' fits on screen at full size" % popup.text)
 			check(popup.pivot_offset.is_equal_approx(popup.size * 0.5), "'%s' grows from its middle" % popup.text)
 	await cleanup()
 

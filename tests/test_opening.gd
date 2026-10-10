@@ -78,7 +78,7 @@ func test_opening_camera_eases_from_the_kids_eye_into_follow() -> void:
 	check(intro_ended_at > 0.0 and intro_ended_at <= 1.0, "from the first frame, the camera is in the follow position within a second (%.2f s)" % intro_ended_at)
 	check(biggest_step < 0.4, "the move is smooth, no jumps (largest frame step %.2f)" % biggest_step)
 	check(biggest_roll_step < 2.0, "the lean eases in, no sudden roll (largest %.1f deg in a frame)" % biggest_roll_step)
-	var behind := plane.global_position - plane.model.forward_flat() * camera.distance
+	var behind := plane.global_position - plane.model.forward_flat() * plane.tuning.camera_distance
 	check(camera.global_position.distance_to(behind) < 2.5, "ends behind the plane (%.1f away)" % camera.global_position.distance_to(behind))
 
 

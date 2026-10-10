@@ -12,6 +12,9 @@ extends Resource
 ##    "More lift from heat" raise `thermal_strength`.
 ##    "Turns too slowly"   raise `turn_rate_deg`.
 ##    "Tilt too twitchy"   lower `sensitivity`.
+##    "Camera too far back" lower `camera_distance`; "too jerky" lower `camera_follow_speed`.
+##    "Wind too quiet in the dive" raise `wind_loud`.
+##    "Style points too stingy" raise `style_full_fraction`, or a moment's radius in `style_moments`.
 ##  If you change `gravity` or `lift` a lot, scale `stall_speed` and
 ##  `stall_recover_speed` by the square root of the same factor.
 ##
@@ -99,6 +102,83 @@ extends Resource
 @export var invert_tilt_roll := false
 ## How quickly keyboard input ramps to full (per second).
 @export var key_response := 4.0
+
+@export_group("Camera")
+## How far behind and above the plane the chase camera sits (units).
+@export var camera_distance := 3.4
+@export var camera_height := 1.0
+## How far ahead of the plane the camera looks (units).
+@export var camera_look_ahead := 3.0
+## How quickly the camera catches up with the plane and its heading (per second).
+## Lower = lazier and smoother, higher = tighter.
+@export var camera_follow_speed := 3.5
+@export var camera_look_speed := 6.0
+## How much the camera leans with the plane's bank (0 = never, 1 = fully).
+@export_range(0.0, 1.0) var camera_lean := 0.25
+## Field of view (degrees). Wider feels faster; narrower feels calmer.
+@export_range(40.0, 110.0) var camera_fov := 70.0
+## The camera aims this far above the plane's path ahead (units).
+@export var camera_look_above := 0.3
+## Opening shot: seconds to ease from the kid's eye into the chase position.
+@export var camera_intro_duration := 0.65
+## Camera shake (units) on a bump and on a crash, dying away at `shake_fade` units per second.
+@export var bump_shake := 0.04
+@export var crash_shake := 0.12
+@export var shake_fade := 0.8
+
+@export_group("Sound")
+## Loudness of each sound (decibels; 0 = as recorded, -6 = about half as loud). A bump's tap
+## is quieter still when the bump is soft.
+@export var chime_volume_db := -5.0
+@export var downdraft_volume_db := -4.0
+@export var tap_volume_db := -3.0
+@export var crumple_volume_db := -1.0
+@export var style_good_volume_db := -6.0
+@export var style_perfect_volume_db := -4.0
+## A bump's tap: full loudness at this impact speed (units/s) and above, never quieter than
+## `tap_min_loudness` (0..1); its pitch varies at random between these two.
+@export var tap_full_strength := 4.0
+@export_range(0.01, 1.0) var tap_min_loudness := 0.35
+@export_range(0.1, 4.0) var tap_pitch_min := 0.9
+@export_range(0.1, 4.0) var tap_pitch_max := 1.15
+## Wind loudness (0..1) at or below `wind_quiet_speed`, rising to `wind_loud` at
+## `wind_loud_speed` (airspeed, units/s).
+@export_range(0.001, 1.0) var wind_quiet := 0.12
+@export_range(0.001, 1.0) var wind_loud := 0.7
+@export var wind_quiet_speed := 2.0
+@export var wind_loud_speed := 12.0
+## Wind pitch at those two speeds.
+@export_range(0.1, 4.0) var wind_pitch_low := 0.8
+@export_range(0.1, 4.0) var wind_pitch_high := 1.35
+## How quickly the wind's loudness and pitch follow a change of airspeed (per second).
+## Higher = the wind swells sooner in a dive.
+@export var wind_swell_rate := 4.0
+@export var wind_pitch_rate := 3.0
+
+@export_group("Pop-ups and end card")
+## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass
+## starts smaller and grows bigger, so it bounces more.
+@export var popup_start_scale := 0.7
+@export var popup_scale := 1.0
+@export var popup_perfect_start_scale := 0.5
+@export var popup_perfect_scale := 1.25
+## Seconds the pop-up takes to grow, stays, and takes to fade.
+@export var popup_grow_time := 0.25
+@export var popup_hold := 0.7
+@export var popup_perfect_hold := 0.9
+@export var popup_fade_time := 0.35
+## Seconds before the end card appears after a crash, and after the plane comes to rest.
+@export var card_delay_crash := 0.45
+@export var card_delay_landed := 0.4
+
+@export_group("The plane's look")
+## How quickly the drawn plane swings round to its heading (per second).
+@export var visual_turn_speed := 14.0
+## A bump makes the plane wobble: this far (radians), this fast, dying away at `bump_wobble_fade`
+## per second.
+@export var bump_wobble_angle := 0.35
+@export var bump_wobble_speed := 32.0
+@export var bump_wobble_fade := 2.5
 
 @export_group("Launch and scoring")
 ## Speed of the throw (units/s).

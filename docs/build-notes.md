@@ -8,7 +8,7 @@ decision from the designer or the owner, is written down here rather than settle
 | Where | Plan | Built | Why | Needs |
 |---|---|---|---|---|
 | Sunbeam angle | Sun about 40° from vertical; window x 85–93, y 15–24.5 | Sun about 18° from vertical (`SUNBEAM_SUN`); window x 83–93.5, y 14.7–24.9 | The lift follows the visible light exactly (code-review fix). At 40° the lift would hug the south wall, away from the centre line the player flies after the turn. The steeper light keeps lift and light on the line. Trade-off: the shaft reads as a high window/clerestory more than a low window. | Designer sign-off (Phase B) |
-| Opening shot length | 0.9 s ease | 0.65 s ease (`intro_duration`) | The brief asks for the follow camera "within the first second" counted from the first frame; the plane also waits a few frames for smooth drawing. The designer's Phase A review approved it. | None |
+| Opening shot length | 0.9 s ease | 0.65 s ease (`camera_intro_duration`) | The brief asks for the follow camera "within the first second" counted from the first frame; the plane also waits a few frames for smooth drawing. The designer's Phase A review approved it. | None |
 | Door posts | Square jambs | Rounded posts, radius 0.6, drawn as they collide | A sharp corner turns a light clip into a head-on crash; rounded posts turn it into a bump. | None |
 | Cones and lamp shades | (not in plan) | Collide exactly as drawn (convex hull) | They used to collide as full cylinders, an invisible wall (code-review blocker). This also changes the existing living-room lamp shade and the outdoor trees slightly. | None |
 | Mobile in the bedroom | (dressing) | No collision | Soft paper birds on strings; the plane brushes through. | None |
@@ -16,6 +16,16 @@ decision from the designer or the owner, is written down here rather than settle
 | Arch header | Rise 4 over 5.7 (35°) | Rise 6 over 8.6 (still 35°), top drawn as a visible ledge, darker underside band | Catches floaters arriving up to y 17.5 as well as those the downdraft brings lower; the floater sweep (18 never-diving pilots) has 0 arch crashes with it and 17 without. | Designer sign-off (Phase B) |
 | Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
 | Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
+
+## What lives in `scripts/tuning.gd`
+
+Every number that changes how the game feels: flight, air, collisions, controls, camera
+(distance, height, look-ahead, smoothing, lean, field of view, opening shot, shake), sound
+(volumes, wind swell, tap), style pop-ups, end-card delays, the plane's turn and bump wobble,
+and scoring. Left in code on purpose, as look or layout rather than feel: lighting and colours,
+screen layout of the readouts and end card, the "tilt to fly" hint, the end card's 0.25 s
+fade-in, the crash crumple animation, the camera's clearance from walls, and the start-of-run
+hold (the throw waits for a few smooth frames, at most 2 s).
 
 ## Designer's Phase A review (`docs/review-phase-a.md`): where each item went
 
@@ -49,7 +59,6 @@ decision from the designer or the owner, is written down here rather than settle
 - The banister boards now reach the top of the drawn handrail (what you see is what you hit), so a
   full-strength dive (-1.0) that turns early (x 12) crashes on flight 1's handrail instead of
   glancing off its top. The handrail is visible there; designer to judge whether that is fair.
-- Camera and sound feel values move into `scripts/tuning.gd` (the brief's "one place" rule).
 - Crash-to-flying time and frame rate need checking on a real phone ("Fly again" rebuilds the
   house in code).
 - Through the arch at speed the camera trails about 6 units behind, and the white plane, seen

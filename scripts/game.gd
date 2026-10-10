@@ -91,10 +91,13 @@ func _process(delta: float) -> void:
 	if not reached_outside and Course.is_outside(plane.global_position):
 		reached_outside = true
 	# Wind rises and falls with airspeed.
-	var t := 0.0 if plane.is_ended() else clampf((plane.model.velocity.length() - 2.0) / 10.0, 0.0, 1.0)
-	var volume := linear_to_db(lerpf(0.12, 0.7, t)) if not plane.is_ended() else -50.0
-	_wind.volume_db = lerpf(_wind.volume_db, volume, 1.0 - exp(-4.0 * delta))
-	_wind.pitch_scale = lerpf(_wind.pitch_scale, lerpf(0.8, 1.35, t), 1.0 - exp(-3.0 * delta))
+	var tune := plane.tuning
+	var span := maxf(tune.wind_loud_speed - tune.wind_quiet_speed, 0.01)
+	var t := 0.0 if plane.is_ended() else clampf((plane.model.velocity.length() - tune.wind_quiet_speed) / span, 0.0, 1.0)
+	# Never quite silent: -inf decibels would turn the smoothing below into NaN.
+	var volume := linear_to_db(maxf(lerpf(tune.wind_quiet, tune.wind_loud, t), 0.001)) if not plane.is_ended() else -50.0
+	_wind.volume_db = lerpf(_wind.volume_db, volume, 1.0 - exp(-tune.wind_swell_rate * delta))
+	_wind.pitch_scale = lerpf(_wind.pitch_scale, lerpf(tune.wind_pitch_low, tune.wind_pitch_high, t), 1.0 - exp(-tune.wind_pitch_rate * delta))
 	_hud.text = "%.0f m" % scoring.distance_meters()  # rounded the same way as on the end card
 	if _fps:
 		_fps_timer -= delta
@@ -110,10 +113,11 @@ func distance_meters() -> float:
 # --- Events --------------------------------------------------------------------
 
 func _on_bumped(strength: float) -> void:
-	_tap.pitch_scale = randf_range(0.9, 1.15)
-	_tap.volume_db = linear_to_db(clampf(strength / 4.0, 0.35, 1.0)) - 3.0
+	var tune := plane.tuning
+	_tap.pitch_scale = randf_range(tune.tap_pitch_min, tune.tap_pitch_max)
+	_tap.volume_db = linear_to_db(clampf(strength / maxf(tune.tap_full_strength, 0.01), tune.tap_min_loudness, 1.0)) + tune.tap_volume_db
 	_tap.play()
-	camera.shake(0.04)
+	camera.shake(tune.bump_shake)
 
 
 func _on_entered_thermal(zone: Thermal) -> void:
@@ -125,29 +129,30 @@ func _on_entered_thermal(zone: Thermal) -> void:
 ## A cheerful pop-up and sound for style points; a near-perfect pass gets a bigger, golden
 ## pop-up and a brighter sparkle.
 func _on_style_awarded(_id: StringName, title: String, points: int, quality: float) -> void:
-	var perfect := quality >= plane.tuning.style_perfect_quality
+	var tune := plane.tuning
+	var perfect := quality >= tune.style_perfect_quality
 	(_style_perfect if perfect else _style_good).play()
 	_popup.text = ("Perfect %s!  +%d" % [title.to_lower(), points]) if perfect else ("%s  +%d" % [title, points])
 	_popup.add_theme_color_override("font_color", GOLD if perfect else INK)
 	_popup.pivot_offset = _popup.size * 0.5
-	_popup.scale = Vector2.ONE * (0.5 if perfect else 0.7)
+	_popup.scale = Vector2.ONE * (tune.popup_perfect_start_scale if perfect else tune.popup_start_scale)
 	_popup.modulate.a = 1.0
 	if _popup_tween:
 		_popup_tween.kill()
 	_popup_tween = create_tween()
-	_popup_tween.tween_property(_popup, "scale", Vector2.ONE * (1.25 if perfect else 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_popup_tween.tween_interval(0.9 if perfect else 0.7)
-	_popup_tween.tween_property(_popup, "modulate:a", 0.0, 0.35)
+	_popup_tween.tween_property(_popup, "scale", Vector2.ONE * (tune.popup_perfect_scale if perfect else tune.popup_scale), tune.popup_grow_time).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_popup_tween.tween_interval(tune.popup_perfect_hold if perfect else tune.popup_hold)
+	_popup_tween.tween_property(_popup, "modulate:a", 0.0, tune.popup_fade_time)
 
 
 func _on_crashed() -> void:
 	_crumple.play()
-	camera.shake(0.12)
-	_finish("Crumpled!", 0.45)
+	camera.shake(plane.tuning.crash_shake)
+	_finish("Crumpled!", plane.tuning.card_delay_crash)
 
 
 func _on_stopped() -> void:
-	_finish("You flew outside!" if reached_outside else "Touchdown", 0.4)
+	_finish("You flew outside!" if reached_outside else "Touchdown", plane.tuning.card_delay_landed)
 
 
 func _finish(title: String, delay: float) -> void:
@@ -232,12 +237,13 @@ func _setup_post_fx() -> void:
 
 func _setup_audio() -> void:
 	_wind = _player("res://audio/wind.wav", -40.0)
-	_chime = _player("res://audio/chime.wav", -5.0)
-	_tap = _player("res://audio/tap.wav", -3.0)
-	_crumple = _player("res://audio/crumple.wav", -1.0)
-	_downdraft = _player("res://audio/downdraft.wav", -4.0)
-	_style_good = _player("res://audio/style_good.wav", -6.0)
-	_style_perfect = _player("res://audio/style_perfect.wav", -4.0)
+	var tune := plane.tuning
+	_chime = _player("res://audio/chime.wav", tune.chime_volume_db)
+	_tap = _player("res://audio/tap.wav", tune.tap_volume_db)
+	_crumple = _player("res://audio/crumple.wav", tune.crumple_volume_db)
+	_downdraft = _player("res://audio/downdraft.wav", tune.downdraft_volume_db)
+	_style_good = _player("res://audio/style_good.wav", tune.style_good_volume_db)
+	_style_perfect = _player("res://audio/style_perfect.wav", tune.style_perfect_volume_db)
 	var wind_stream := _wind.stream as AudioStreamWAV
 	if wind_stream and wind_stream.loop_mode == AudioStreamWAV.LOOP_DISABLED:
 		wind_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
