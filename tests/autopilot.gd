@@ -34,7 +34,11 @@ func _init(p_line: PackedVector3Array, p_seed := 1) -> void:
 
 ## A good line from the throw in the bedroom onward (it grows as the course is built).
 static func course_line() -> PackedVector3Array:
-	return PackedVector3Array([Course.START, Vector3(100.0, 19.6, 51.0), Vector3(100.0, 19.3, 47.0)])
+	return PackedVector3Array([
+		Course.START, Vector3(100.0, 19.6, 51.0), Vector3(100.0, 19.3, 47.0),  # down the bedroom
+		Vector3(98.4, 19.1, 43.1), Vector3(94.5, 19.0, 41.5), Vector3(90.0, 20.0, 41.5),  # the door turn
+		Vector3(80.0, 20.5, 41.5),
+	])
 
 
 ## A good line through the downstairs part, from Course.LIVING_ROOM_ENTRY.
@@ -48,6 +52,15 @@ static func downstairs_line() -> PackedVector3Array:
 		Vector3(1.0, 8.0, -80.0), Vector3(0.0, 7.5, -88.0),  # out of the window
 		Vector3(0.0, 6.0, -100.0), Vector3(0.0, 2.0, -180.0),
 	])
+
+
+## A first-time player who reacts really late, so some of them turn only after the door.
+static func late_novice(p_line: PackedVector3Array, p_seed: int) -> Autopilot:
+	var pilot := novice(p_line, p_seed)
+	pilot.reaction = pilot.rng.randf_range(0.3, 0.9)
+	pilot.lookahead = pilot.rng.randf_range(1.0, 2.5)
+	pilot.lookahead_time = 0.0
+	return pilot
 
 
 ## A first-time player: late, wobbly and a bit heavy-handed.

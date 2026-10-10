@@ -43,6 +43,13 @@ const KID_EYE := Vector3(100.0, 21.9, 76.5)
 ## The plane starts in the air, just thrown, heading -Z toward the door.
 const START := Vector3(100.0, 21.5, 74.5)
 const START_HEADING := 0.0
+## The upper landing outside the bedroom door, and the gallery running west from it.
+const LANDING_EAST_X := 108.5
+const LANDING_SOUTH_Z := 33.0
+const GALLERY_Z := Vector2(37.0, 46.0)  ## South and north walls (inner faces).
+## The landing's south wall angles back to the gallery's south wall along this line (x, z).
+const TAPER_FROM := Vector2(94.0, LANDING_SOUTH_Z)
+const TAPER_TO := Vector2(79.0, GALLERY_Z.x)
 
 # --- Palette (sRGB pastels) ------------------------------------------------------
 const LIVING_WALL := Color("f2e3d5")
@@ -103,6 +110,7 @@ func _build() -> void:
 
 	builder = Art.Builder.new()
 	CourseUpstairs.build_bedroom(self)
+	CourseUpstairs.build_landing(self)
 	_add_mesh("Upstairs")
 
 	builder = Art.Builder.new()

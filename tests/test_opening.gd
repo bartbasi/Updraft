@@ -159,3 +159,135 @@ func test_cones_collide_exactly_as_drawn() -> void:
 			check(space.intersect_shape(probe).is_empty(), "nothing to hit just outside the tent (height %.1f, %d deg)" % [h, int(rad_to_deg(a))])
 			probe.transform = Transform3D(Basis.IDENTITY, axis + Vector3(0.0, h, 0.0) + dir * (reach + PaperPlane.RADIUS - 0.15))
 			check(not space.intersect_shape(probe).is_empty(), "but the tent itself is solid (height %.1f, %d deg)" % [h, int(rad_to_deg(a))])
+
+
+func _flight_through_turn(pilot: Callable, seconds: float) -> Dictionary:
+	var game := _game(pilot)
+	var plane := game.get_node("Plane") as PaperPlane
+	var result := {"bumps": 0, "crashed": false, "turned": false, "plane": plane}
+	plane.bumped.connect(func(_s: float) -> void: result["bumps"] += 1)
+	await _until_released(plane)
+	var frames := 0
+	while frames < int(seconds * 60.0) and not plane.is_ended():
+		await tree.physics_frame
+		frames += 1
+		if plane.global_position.x < 85.0 and plane.global_position.z < Course.GALLERY_Z.y:
+			result["turned"] = true
+			break
+	result["crashed"] = plane.model.crashed
+	return result
+
+
+func test_scripted_turn_clears_the_doorway() -> void:
+	var pilot := Autopilot.new(Autopilot.course_line())
+	var r := await _flight_through_turn(pilot.fly, 12.0)
+	check(r["turned"], "the good line makes the turn into the gallery")
+	check(r["bumps"] == 0 and not r["crashed"], "without touching anything (%d bumps)" % r["bumps"])
+
+
+func test_flying_straight_on_ends_at_the_landing_wall() -> void:
+	var r := await _flight_through_turn(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO, 15.0)
+	var plane: PaperPlane = r["plane"]
+	check(not r["turned"], "no input means no turn")
+	check(plane.is_ended() and plane.model.crashed, "the run ends at the landing wall instead of getting stuck")
+	check(absf(plane.global_position.z - (Course.LANDING_SOUTH_Z + PaperPlane.RADIUS)) < 0.2, "right at the landing's wall (z %.2f)" % plane.global_position.z)
+
+
+func test_most_first_time_pilots_make_the_turn() -> void:
+	var made_it := 0
+	var runs := 20
+	for i in runs:
+		var pilot := Autopilot.novice(Autopilot.course_line(), i + 100)
+		var r := await _flight_through_turn(pilot.fly, 12.0)
+		if r["turned"] and not r["crashed"]:
+			made_it += 1
+		await cleanup()
+	print("        novices through the turn: %d/%d" % [made_it, runs])
+	check(made_it >= int(runs * 0.6), "a first-time player gets through the door turn most of the time (%d/%d)" % [made_it, runs])
+
+
+func _probe(game: Node, at: Vector3) -> bool:
+	var space := (game as Node3D).get_world_3d().direct_space_state
+	var query := PhysicsShapeQueryParameters3D.new()
+	var ball := SphereShape3D.new()
+	ball.radius = PaperPlane.RADIUS
+	query.shape = ball
+	query.collision_mask = PaperPlane.WORLD_LAYER
+	query.transform = Transform3D(Basis.IDENTITY, at)
+	return not space.intersect_shape(query).is_empty()
+
+
+func test_taper_wall_collides_exactly_as_drawn() -> void:
+	var game := _game()
+	await physics_frames(2)
+	var a := Course.TAPER_FROM
+	var b := Course.TAPER_TO
+	var dir := Vector2(b.x - a.x, b.y - a.y).normalized()
+	var inward := Vector3(dir.y, 0.0, -dir.x)
+	if inward.z < 0.0:
+		inward = -inward
+	for i in range(1, 10):
+		var on_line := Vector3(lerpf(a.x, b.x, i / 10.0), 0.0, lerpf(a.y, b.y, i / 10.0))
+		for y in [14.0, 19.0, 24.0]:
+			var face := on_line + Vector3(0.0, y, 0.0)
+			check(not _probe(game, face + inward * (PaperPlane.RADIUS + 0.06)), "clear just in front of the taper at %s" % [face])
+			check(_probe(game, face + inward * (PaperPlane.RADIUS - 0.1)), "solid at the taper's face at %s" % [face])
+
+
+func test_north_wall_has_no_gaps() -> void:
+	var game := _game()
+	await physics_frames(2)
+	var x := Course.TAPER_TO.x + 0.5
+	while x < Course.LANDING_EAST_X:
+		var in_door := x > Course.BEDROOM_DOOR_X.x - 1.0 and x < Course.BEDROOM_DOOR_X.y + 1.0
+		if not in_door:
+			for y in [14.0, 19.5, 25.0]:
+				check(_probe(game, Vector3(x, y, Course.GALLERY_Z.y + 0.05)), "the north wall is solid at x %.1f, y %.1f" % [x, y])
+		x += 1.0
+
+
+func test_late_turns_scrape_the_taper_but_do_not_crash() -> void:
+	# Late turners: half bank starting after the door, or full bank starting later still.
+	for setup in [[0.5, 46.0, 6.5], [0.5, 44.0, 6.5], [1.0, 40.0, 6.5], [0.5, 46.0, 9.0]]:
+		var bank: float = setup[0]
+		var start_z: float = setup[1]
+		var speed: float = setup[2]
+		var game := _game(func(p: PaperPlane) -> Vector2: return Vector2(0.0, -bank if p.global_position.z < start_z and p.model.heading < PI / 2.0 - 0.05 else 0.0))
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.launch(Vector3(100.0, 19.5, 52.0), 0.0)  # near the door, so the speed is the speed at the turn
+		var taper_bumps := [0]
+		plane.bumped.connect(func(_s: float) -> void:
+			if plane.global_position.x < Course.TAPER_FROM.x + 0.5:
+				taper_bumps[0] += 1)
+		await _until_released(plane)
+		plane.model.velocity = Vector3(0.0, 0.0, -speed)
+		var through := false
+		var frames := 0
+		while frames < 600 and not plane.is_ended():
+			await tree.physics_frame
+			frames += 1
+			if plane.global_position.x < 85.0:
+				through = true
+				break
+		var label := "bank %.1f from z < %.0f at %.1f u/s" % [bank, start_z, speed]
+		check(taper_bumps[0] >= 1, "%s: scrapes the angled wall (%d bumps)" % [label, taper_bumps[0]])
+		check(not plane.model.crashed and through, "%s: and carries on into the gallery" % label)
+		await cleanup()
+
+
+func test_late_first_time_pilots_mostly_make_the_turn() -> void:
+	var made_it := 0
+	var scraped := 0
+	var runs := 20
+	for i in runs:
+		var pilot := Autopilot.late_novice(Autopilot.course_line(), i + 300)
+		var r := await _flight_through_turn(pilot.fly, 15.0)
+		# Made it = didn't crash: through the turn, or still flying after a scrape when time ran out.
+		if not r["crashed"] and (r["turned"] or not (r["plane"] as PaperPlane).is_ended()):
+			made_it += 1
+		if int(r["bumps"]) > 0:
+			scraped += 1
+		await cleanup()
+	print("        late first-timers through the turn: %d/%d (%d scraped a wall)" % [made_it, runs, scraped])
+	check(made_it >= int(runs * 0.6), "late first-time players still get through most of the time (%d/%d)" % [made_it, runs])
+	check(scraped >= 2, "and some of them really are late (%d scraped a wall)" % scraped)

@@ -158,3 +158,57 @@ static func _drawing(c: Course, at: Vector3) -> void:
 	c.box(at + Vector3(0.1, -0.05, 0.03), Vector3(0.9, 0.12, 0.02), Color("a9c8e8"), false, Basis(Vector3.BACK, -0.25))
 	c.box(at + Vector3(0.7, 0.55, 0.03), Vector3(0.35, 0.35, 0.02), Color("f4dc9b"), false)
 	c.box(at + Vector3(0.0, 0.92, 0.03), Vector3(0.12, 0.25, 0.02), Color("f19e8f"), false)
+
+
+## Upper landing outside the bedroom door, where the player banks left into the gallery.
+## Its south wall angles away at 15 degrees so a late turner scrapes rather than crashes.
+static func build_landing(c: Course) -> void:
+	var f := Course.UP_FLOOR
+	var top := Course.UP_CEILING
+	var t := Course.IN_WALL
+	var east := Course.LANDING_EAST_X
+	var south := Course.LANDING_SOUTH_Z
+	var taper_from := Course.TAPER_FROM
+	var taper_to := Course.TAPER_TO
+	var north := Course.GALLERY_Z.y
+	# Floor and ceiling over the landing and the taper.
+	_planks(c, taper_to.x, east + t, south - t, north)
+	c.solid_span(Vector3(taper_to.x, f - 0.5, south - t), Vector3(east + t, f, north))
+	c.span(Vector3(taper_to.x, top, south - t), Vector3(east + t, top + 0.5, north), Course.CEILING_COLOR)
+	# East end wall, the landing's south wall, and the north wall from the bedroom's corner
+	# back to where the gallery starts.
+	c.span(Vector3(east, f, south - t), Vector3(east + t, top, north), GALLERY_WALL)
+	c.span(Vector3(taper_to.x, f, north), Vector3(Course.BEDROOM_MIN.x - t, top, north + t), GALLERY_WALL)
+	c.span(Vector3(taper_to.x, f, north - 0.12), Vector3(Course.BEDROOM_MIN.x - t, f + 0.6, north), Color("e8d6bc"), false)
+	c.span(Vector3(taper_from.x, f, south - t), Vector3(east + t, top, south), GALLERY_WALL)
+	# The taper: a straight wall from the landing's corner back to the gallery's south wall.
+	var along := Vector3(taper_to.x - taper_from.x, 0.0, taper_to.y - taper_from.y)
+	var length := along.length()
+	var dir := along / length
+	var inward := Vector3(dir.z, 0.0, -dir.x)
+	if inward.z < 0.0:
+		inward = -inward
+	var basis := Basis(Vector3.UP, atan2(-dir.z, dir.x))
+	var mid := Vector3((taper_from.x + taper_to.x) * 0.5, (f + top) * 0.5, (taper_from.y + taper_to.y) * 0.5) - inward * t * 0.5
+	# Lengthened only at the landing end (to seal that corner); the gallery end stops flush.
+	mid -= dir * t * 0.25
+	c.box(mid, Vector3(length + t * 0.5, top - f, t), GALLERY_WALL, true, basis)
+	c.box(mid + inward * 0.27 + Vector3(0, f + 0.3 - (f + top) * 0.5, 0), Vector3(length, 0.6, 0.04), Color("e8d6bc"), false, basis)
+	# Skirting along the landing.
+	c.span(Vector3(taper_from.x, f, south), Vector3(east, f + 0.6, south + 0.12), Color("e8d6bc"), false)
+	c.span(Vector3(east - 0.12, f, south), Vector3(east, f + 0.6, north), Color("e8d6bc"), false)
+	# A low laundry basket and a picture on the end wall; nothing tall near the turn.
+	c.cylinder(Vector3(106.6, f, 36.0), 1.0, 1.1, 1.8, Color("e9d7b6"), true, 10)
+	c.span(Vector3(105.8, f + 1.6, 35.4), Vector3(107.2, f + 2.1, 36.6), Color("a9c8e8"), false)
+	_poster(c, Vector3(east - 0.05, 19.5, 39.5), -1.0, Color("f6cfa8"), Color("f19e8f"))
+
+
+## Floor boards running along the gallery (x), between two x and two z values.
+static func _planks(c: Course, x0: float, x1: float, z0: float, z1: float) -> void:
+	var z := z0
+	var i := 0
+	while z < z1:
+		var z_next := minf(z + 1.0, z1)
+		c.span(Vector3(x0, Course.UP_FLOOR - 0.5, z), Vector3(x1, Course.UP_FLOOR, z_next), Color("e3c8a5") if i % 2 == 0 else Color("dcc09b"), false)
+		z = z_next
+		i += 1
