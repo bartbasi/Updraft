@@ -113,6 +113,67 @@ def crumple(rng):
     return out
 
 
+def downdraft(rng):
+    """Cool sinking air: a soft hiss whose pitch slides down, over a low falling tone."""
+    n = int(1.3 * RATE)
+    noise = [rng.uniform(-1, 1) for _ in range(n)]
+    out = []
+    lp = 0.0
+    lp2 = 0.0
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        k = t / 1.3
+        cutoff = 2600.0 * (1.0 - k) + 500.0
+        a = 1.0 - math.exp(-2.0 * math.pi * cutoff / RATE)
+        lp += a * (noise[i] - lp)
+        lp2 += a * (lp - lp2)
+        env = min(1.0, t / 0.15) * (1.0 - k) ** 1.5
+        phase += 2 * math.pi * (330.0 - 140.0 * k) / RATE
+        out.append((lp2 * 2.2 + 0.18 * math.sin(phase)) * env)
+    return out
+
+
+def bell_notes(notes, length, decay=0.5):
+    """Soft bell plucks: notes is a list of (start_s, freq, gain)."""
+    n = int(length * RATE)
+    out = [0.0] * n
+    for start, freq, gain in notes:
+        s0 = int(start * RATE)
+        for i in range(n - s0):
+            t = i / RATE
+            env = min(1.0, t / 0.003) * math.exp(-t / decay)
+            v = math.sin(2 * math.pi * freq * t) + 0.25 * math.sin(2 * math.pi * freq * 2.0 * t) * math.exp(-t / 0.12)
+            out[s0 + i] += gain * env * v
+    return out
+
+
+def style_good():
+    """A cheerful two-note pop for a style pass."""
+    return bell_notes([(0.0, 1318.5, 0.8), (0.07, 1760.0, 1.0)], 0.7, 0.18)
+
+
+def style_perfect():
+    """A brighter rising sparkle for a near-perfect pass."""
+    return bell_notes([(0.0, 1046.5, 0.7), (0.06, 1318.5, 0.75), (0.12, 1568.0, 0.8), (0.18, 2093.0, 1.0), (0.26, 2637.0, 0.45)], 1.1, 0.3)
+
+
+def whoosh(rng):
+    """A soft airy swell, for rushing past things and bursting outside."""
+    n = int(0.8 * RATE)
+    noise = [rng.uniform(-1, 1) for _ in range(n)]
+    out = []
+    lp = 0.0
+    for i in range(n):
+        t = i / RATE
+        k = t / 0.8
+        cutoff = 600.0 + 2400.0 * math.sin(math.pi * k)
+        a = 1.0 - math.exp(-2.0 * math.pi * cutoff / RATE)
+        lp += a * (noise[i] - lp)
+        out.append(lp * math.sin(math.pi * k) ** 1.5)
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -120,6 +181,10 @@ def main():
     write_wav("chime.wav", chime(), peak=0.6)
     write_wav("tap.wav", tap(rng), peak=0.75)
     write_wav("crumple.wav", crumple(rng), peak=0.8)
+    write_wav("downdraft.wav", downdraft(rng), peak=0.6)
+    write_wav("style_good.wav", style_good(), peak=0.55)
+    write_wav("style_perfect.wav", style_perfect(), peak=0.6)
+    write_wav("whoosh.wav", whoosh(rng), peak=0.6)
 
 
 if __name__ == "__main__":

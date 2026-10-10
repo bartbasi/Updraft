@@ -10,10 +10,15 @@ extends Camera3D
 @export var look_speed := 6.0
 ## Fraction of the plane's bank the camera leans with.
 @export var lean := 0.25
+## Opening shot: seconds to ease from the thrower's eye into the chase position.
+@export var intro_duration := 0.9
 
 var target: PaperPlane
+var _follow := Vector3.ZERO  ## Where the chase camera would be, smoothed.
 var _look := Vector3.ZERO
 var _shake := 0.0
+var _intro_eye := Vector3.ZERO
+var _intro_time := -1.0  ## Seconds into the opening shot; negative when not in it.
 
 
 func _ready() -> void:
@@ -30,9 +35,26 @@ func shake(amount: float) -> void:
 ## Jumps straight to the resting spot behind the plane.
 func snap() -> void:
 	var p := target.global_position
-	global_position = _unblocked(p, _resting_spot(p))
+	_follow = _unblocked(p, _resting_spot(p))
+	global_position = _follow
 	_look = _look_point(p)
-	_aim()
+	_intro_time = -1.0
+	_aim(lean)
+
+
+## Starts the opening shot: looking at the plane from `eye` (the thrower), then easing into
+## the chase camera once the plane is flying.
+func start_intro(eye: Vector3) -> void:
+	snap()
+	_intro_eye = eye
+	_intro_time = 0.0
+	global_position = eye
+	_look = target.global_position
+	_aim(0.0)
+
+
+func in_intro() -> bool:
+	return _intro_time >= 0.0
 
 
 func _process(delta: float) -> void:
@@ -40,9 +62,21 @@ func _process(delta: float) -> void:
 		return
 	var p := target.get_global_transform_interpolated().origin
 	var want := _unblocked(p, _resting_spot(p))
-	global_position = _unblocked(p, global_position.lerp(want, 1.0 - exp(-follow_speed * delta)))
-	_look = _look.lerp(_look_point(p), 1.0 - exp(-look_speed * delta))
-	_aim()
+	_follow = _unblocked(p, _follow.lerp(want, 1.0 - exp(-follow_speed * delta)))
+	var look_goal := _look_point(p)
+	if in_intro():
+		if not target.held:
+			_intro_time += delta
+		var k := smoothstep(0.0, 1.0, _intro_time / intro_duration) if intro_duration > 0.0 else 1.0
+		global_position = _intro_eye.lerp(_follow, k)
+		_look = p.lerp(look_goal, k)
+		_aim(lean * k)  # no lean from the thrower's eye, easing in with the move
+		if _intro_time >= intro_duration:
+			_intro_time = -1.0
+	else:
+		global_position = _follow
+		_look = _look.lerp(look_goal, 1.0 - exp(-look_speed * delta))
+		_aim(lean)
 	if _shake > 0.0:
 		h_offset = randf_range(-_shake, _shake)
 		v_offset = randf_range(-_shake, _shake)
@@ -52,10 +86,10 @@ func _process(delta: float) -> void:
 		v_offset = 0.0
 
 
-func _aim() -> void:
+func _aim(lean_amount := 0.0) -> void:
 	if global_position.distance_squared_to(_look) > 0.0001:
 		look_at(_look, Vector3.UP)
-		rotate_object_local(Vector3.BACK, -target.model.bank * lean)
+		rotate_object_local(Vector3.BACK, -target.model.bank * lean_amount)
 
 
 func _resting_spot(p: Vector3) -> Vector3:

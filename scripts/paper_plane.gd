@@ -116,19 +116,20 @@ func _physics_process(delta: float) -> void:
 		stopped.emit()
 
 
-## Sum of the updrafts at the plane. Emits entered_thermal when the plane flies into one.
+## Sum of the rising and sinking air at the plane. Emits entered_thermal when the plane
+## flies into a thermal or a downdraft.
 func _wind_here() -> Vector3:
 	var up := 0.0
 	for node in get_tree().get_nodes_in_group("thermals"):
-		var thermal := node as Thermal
-		var full := tuning.thermal_strength * thermal.strength_scale
-		var lift := thermal.updraft_at(global_position, tuning.thermal_strength)
-		up += lift
-		if lift > 0.25 * full and not _inside.has(thermal):
-			_inside[thermal] = true
-			entered_thermal.emit(thermal)
-		elif lift < 0.05 * full:
-			_inside.erase(thermal)
+		var zone := node as Thermal
+		var full := zone.peak_speed(tuning)
+		var air := zone.vertical_air_speed(global_position, tuning)
+		up += air
+		if absf(air) > 0.25 * full and not _inside.has(zone):
+			_inside[zone] = true
+			entered_thermal.emit(zone)
+		elif absf(air) < 0.05 * full:
+			_inside.erase(zone)
 	return Vector3(0.0, up, 0.0)
 
 

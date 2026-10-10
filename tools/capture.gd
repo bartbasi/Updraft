@@ -6,7 +6,7 @@ var _times: Array[float] = [0.3, 4.6, 5.6, 8.2, 9.6, 12.8, 15.4, 18.0, 23.0]
 var _out := "user://screens"
 var _game: Node
 var _plane: PaperPlane
-var _pilot := Autopilot.new()  # Held here: a Callable alone does not keep its object alive.
+var _pilot := Autopilot.new(Autopilot.course_line())  # Held here: a Callable alone does not keep its object alive.
 var _shot := 0
 var _ended_at := -1.0
 

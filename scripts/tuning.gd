@@ -61,9 +61,11 @@ extends Resource
 ## Turn rate at full bank (degrees/second).
 @export var turn_rate_deg := 65.0
 
-@export_group("Thermals")
+@export_group("Thermals and downdrafts")
 ## Upward air speed in the middle of a thermal (units/s). Each thermal can scale this.
 @export var thermal_strength := 5.0
+## Downward air speed in the middle of a downdraft (units/s). Each downdraft can scale this.
+@export var downdraft_strength := 3.5
 
 @export_group("Collisions")
 ## A hit with at least this much speed straight into the surface can end the run...
@@ -103,3 +105,30 @@ extends Resource
 @export var launch_speed := 6.0
 ## World scale used when showing distance: 4 units = 1 metre.
 @export var units_per_meter := 4.0
+
+@export_group("Scoring")
+## Points for each metre of progress along the course.
+@export var points_per_meter := 10.0
+## Style points: full marks while the average distance from the optimal path stays within
+## this fraction of the corridor radius...
+@export_range(0.0, 0.9) var style_full_fraction := 0.25
+## ...then the award falls smoothly to zero at the corridor edge. Above 1 the fall is
+## steeper near the path (harder); below 1 it is gentler.
+@export_range(0.25, 4.0) var style_curve_power := 1.0
+## A pass at or above this quality (0..1) gets the "perfect" pop-up and sound.
+@export_range(0.0, 1.0) var style_perfect_quality := 0.85
+## A moment starts counting once the plane comes within this many corridor radii of its
+## path; skipped stretches count as this far off.
+@export_range(1.0, 4.0) var style_capture_factor := 2.0
+## Points and corridor radius (units) for each style moment. The optimal paths are part of
+## the course layout (scripts/course.gd).
+@export var style_moments := {
+	"bedroom_turn": {"points": 100, "radius": 2.5},
+	"sunbeam": {"points": 80, "radius": 2.0},
+	"stair_downdraft": {"points": 120, "radius": 2.0},
+	"landing_turn": {"points": 150, "radius": 2.0},
+	"radiator": {"points": 100, "radius": 2.5},
+	"lamp": {"points": 150, "radius": 1.5},
+	"kettle": {"points": 100, "radius": 2.5},
+	"window": {"points": 150, "radius": 2.0},
+}

@@ -34,7 +34,7 @@ func test_scene_has_two_thermals() -> void:
 
 
 func test_autopilot_flies_the_whole_course() -> void:
-	var pilot := Autopilot.new()
+	var pilot := Autopilot.new(Autopilot.course_line())
 	var game := _start(pilot.fly)
 	var plane := game.get_node("Plane") as PaperPlane
 	var thermals := [0]
@@ -42,12 +42,11 @@ func test_autopilot_flies_the_whole_course() -> void:
 	var bumps := [0]
 	plane.bumped.connect(func(_s: float) -> void: bumps[0] += 1)
 	await _fly_until_end(plane, 90.0)
-	print("        route times: %s, ended at %.1f s, %.1f m, %d bumps" % [pilot.times, plane.flight_time, game.distance_meters(), bumps[0]])
+	print("        ended at %.1f s, %.1f m, %d bumps" % [plane.flight_time, game.distance_meters(), bumps[0]])
 	check(not plane.model.crashed, "autopilot should not crash (at %s)" % plane.global_position)
 	check(game.reached_outside, "autopilot should fly out of the window")
 	check(plane.is_ended() and Course.is_outside(plane.global_position), "flight should end on the grass outside")
 	check(thermals[0] >= 2, "both thermals should be flown through (%d)" % thermals[0])
-	check(pilot.times.get("radiator", 99.0) <= 6.5, "first thermal reached within about 6 s")
 	check_between(plane.flight_time, 22.0, 40.0, "flight time (s)")
 
 

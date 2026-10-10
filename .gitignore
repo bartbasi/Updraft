@@ -11,3 +11,8 @@
 # OS clutter
 Thumbs.db
 .DS_Store
+
+# Signing keys and export credentials never go in git
+*.keystore
+*.jks
+export_credentials.cfg
