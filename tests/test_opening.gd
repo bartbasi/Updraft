@@ -638,3 +638,45 @@ func test_stairwell_downdraft_pushes_the_plane_down() -> void:
 	print("        bottom of flight 1: y %.1f at %.1f u/s with the downdraft, y %.1f at %.1f u/s without" % [heights[0], speeds[0], heights[1], speeds[1]])
 	check(heights[0] < heights[1] - 1.5, "the downdraft pulls the plane down the stairs (y %.1f vs %.1f without)" % [heights[0], heights[1]])
 	check(speeds[0] > speeds[1] + 0.2, "and adds speed to the dive (%.1f vs %.1f u/s without)" % [speeds[0], speeds[1]])
+
+
+## Climbing in warm air, the camera rises with the plane and looks down on it (not edge-on), and
+## motes near the camera fade away (fun review 2, item 2).
+func test_camera_looks_down_on_the_plane_in_rising_air() -> void:
+	var game := _game(func(p: PaperPlane) -> Vector2:
+		var to := Vector3(Course.RADIATOR_THERMAL.x, 0.0, Course.RADIATOR_THERMAL.z - 6.0) - p.global_position
+		return Vector2(0.2, clampf(-wrapf(atan2(-to.x, -to.z) - p.model.heading, -PI, PI) * 2.0, -1.0, 1.0)))
+	var plane := game.get_node("Plane") as PaperPlane
+	var camera := game.get_node("Camera") as FollowCamera
+	plane.launch(Vector3(Course.RADIATOR_THERMAL.x, 6.5, Course.RADIATOR_THERMAL.z + 8.0), 0.0)
+	camera.snap()
+	await _until_released(plane)
+	var lowest := 90.0  # the shallowest the camera looks down on the plane while it climbs
+	var climbing := 0
+	var frames := 0
+	while frames < 60 * 4 and not plane.is_ended():
+		await tree.process_frame
+		frames += 1
+		if plane.model.velocity.y > 2.0:
+			climbing += 1
+			var to_plane := plane.global_position - camera.global_position
+			lowest = minf(lowest, rad_to_deg(asin(-to_plane.normalized().y)))
+	check(climbing > 20, "the plane climbs in the radiator's warm air (%d frames)" % climbing)
+	check(lowest >= 5.0, "and the camera keeps looking down on it, never edge-on (at least %.1f degrees)" % lowest)
+	var zones := _nodes_in_group_under(game, "thermals")
+	check(zones.size() >= 6, "every air zone is checked (%d)" % zones.size())
+	for zone in zones:
+		for child in zone.get_children():
+			if child is CPUParticles3D:
+				var mat := ((child as CPUParticles3D).mesh as QuadMesh).material as StandardMaterial3D
+				check(mat.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA and mat.distance_fade_min_distance < mat.distance_fade_max_distance,
+					"%s: its motes fade out as they come close to the camera" % zone.name)
+	await cleanup()
+
+
+func _nodes_in_group_under(root_node: Node, group: String) -> Array[Node]:
+	var found: Array[Node] = []
+	for node in tree.get_nodes_in_group(group):
+		if root_node.is_ancestor_of(node):
+			found.append(node)
+	return found

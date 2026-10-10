@@ -9,6 +9,10 @@ extends Node3D
 
 enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT }
 enum Shape { CYLINDER, BOX }
+## Motes and puffs fade out when closer to the camera than WISP_FADE_FAR, and are gone by
+## WISP_FADE_NEAR, so flying through warm air never hides the plane.
+const WISP_FADE_NEAR := 1.2
+const WISP_FADE_FAR := 3.5
 
 const COLUMN_SHADER := preload("res://shaders/thermal_column.gdshader")
 const SHAFT_SHADER := preload("res://shaders/light_shaft.gdshader")
@@ -199,6 +203,10 @@ func _build_wisps() -> void:
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.vertex_color_use_as_albedo = true
 	mat.albedo_texture = Art.soft_dot()
+	# Motes and puffs right in front of the camera fade away instead of filling the screen.
+	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	mat.distance_fade_min_distance = WISP_FADE_NEAR
+	mat.distance_fade_max_distance = WISP_FADE_FAR
 	quad.material = mat
 	p.mesh = quad
 	p.direction = Vector3.UP

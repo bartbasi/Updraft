@@ -107,6 +107,10 @@ extends Resource
 ## How far behind and above the plane the chase camera sits (units).
 @export var camera_distance := 3.4
 @export var camera_height := 1.0
+## Whenever the plane climbs (mostly in rising air, but also pulling up from a dive or after a
+## bounce), the camera also rises this many seconds' worth of the climb, so it looks down on the
+## plane rather than seeing it edge-on.
+@export var camera_lift_lead := 0.25
 ## How far ahead of the plane the camera looks (units).
 @export var camera_look_ahead := 3.0
 ## How quickly the camera catches up with the plane and its heading (per second).

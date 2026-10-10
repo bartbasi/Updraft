@@ -25,5 +25,7 @@ void fragment() {
 	float bands = 0.5 + 0.5 * sin(y * 1.6 - t * rise_speed * 3.0);
 	float shimmer = mix(0.45, 1.0, streaks * bands);
 	ALBEDO = tint.rgb;
-	ALPHA = tint.a * body * ends * shimmer;
+	// Seen from inside or close by, the column thins out, so it never washes over the plane.
+	float near_fade = mix(0.35, 1.0, smoothstep(2.0, 8.0, length(VERTEX)));
+	ALPHA = tint.a * body * ends * shimmer * near_fade;
 }

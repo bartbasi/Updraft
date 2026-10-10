@@ -95,7 +95,8 @@ func _wanted_fov() -> float:
 
 
 func _resting_spot(p: Vector3) -> Vector3:
-	return p - target.model.forward_flat() * _t().camera_distance + Vector3.UP * _t().camera_height
+	var lift := maxf(target.model.velocity.y, 0.0) * _t().camera_lift_lead
+	return p - target.model.forward_flat() * _t().camera_distance + Vector3.UP * (_t().camera_height + lift)
 
 
 func _look_point(p: Vector3) -> Vector3:
