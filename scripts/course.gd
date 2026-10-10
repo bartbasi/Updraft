@@ -109,6 +109,41 @@ func _ready() -> void:
 	_build()
 
 
+## The course's centre line. Distance is the furthest progress along it.
+static func spine() -> PackedVector3Array:
+	return PackedVector3Array([
+		START, Vector3(100.0, 19.5, 47.5), Vector3(97.6, 19.2, 42.6), Vector3(94.5, 19.5, 41.5),
+		Vector3(16.5, 21.0, 41.5), Vector3(7.0, 13.6, 41.5), Vector3(0.0, 11.4, 38.6),
+		Vector3(-3.0, 8.5, 31.0), Vector3(-3.0, 7.5, 22.0), Vector3(-2.0, 8.5, 15.0),
+		Vector3(-4.5, 8.0, -22.0), Vector3(0.0, 5.0, -45.0), Vector3(0.0, 5.5, -52.0),
+		Vector3(2.5, 7.0, -69.0), Vector3(0.0, 7.5, -88.5), Vector3(0.0, 4.0, -130.0),
+		Vector3(0.0, 6.0, -220.0),
+	])
+
+
+## The key moments and the optimal path through each (see docs/opening-plan.md).
+## Points and corridor sizes are in Tuning.style_moments.
+static func style_moment_defs() -> Array:
+	return [
+		{"id": &"bedroom_turn", "title": "Door turn", "path": PackedVector3Array([
+			Vector3(100, 19.6, 51), Vector3(100, 19.3, 47), Vector3(98.4, 19.1, 43.1), Vector3(94.5, 19.0, 41.5), Vector3(90, 20.0, 41.5)])},
+		{"id": &"sunbeam", "title": "Sunbeam", "path": PackedVector3Array([
+			Vector3(95, 19.0, 41.5), Vector3(91, 20.7, 41.5), Vector3(87, 22.9, 41.5), Vector3(83, 23.5, 41.5), Vector3(79, 23.4, 41.5)])},
+		{"id": &"stair_downdraft", "title": "Downdraft dive", "path": PackedVector3Array([
+			Vector3(17, 20.5, 41.5), Vector3(13, 18.0, 41.5), Vector3(10, 15.8, 41.5), Vector3(7, 13.6, 41.5)])},
+		{"id": &"landing_turn", "title": "Landing turn", "path": PackedVector3Array([
+			Vector3(7, 13.6, 41.5), Vector3(3.5, 12.2, 40.6), Vector3(0, 11.4, 38.6), Vector3(-2.5, 9.8, 34.5), Vector3(-3, 7.5, 26), Vector3(-2, 8.5, 15.5)])},
+		{"id": &"radiator", "title": "Radiator lift", "path": PackedVector3Array([
+			Vector3(-3.5, 7.0, -12), Vector3(-4.5, 7.5, -18.5), Vector3(-5, 9.0, -22), Vector3(-5, 10.5, -25.5), Vector3(-4.5, 10.8, -30)])},
+		{"id": &"lamp", "title": "Under the lamp", "path": PackedVector3Array([
+			Vector3(-1.5, 6.5, -36), Vector3(0, 4.2, -42), Vector3(0, 4.05, -45), Vector3(0, 4.2, -48), Vector3(-0.5, 5.2, -52)])},
+		{"id": &"kettle", "title": "Kettle steam", "path": PackedVector3Array([
+			Vector3(0.5, 5.2, -58), Vector3(2.5, 5.5, -65), Vector3(3, 7.0, -69), Vector3(3, 9.0, -72), Vector3(2, 10.0, -76)])},
+		{"id": &"window", "title": "Out the window", "path": PackedVector3Array([
+			Vector3(1, 9.0, -79), Vector3(0.3, 8.0, -84), Vector3(0, 7.5, -88.5), Vector3(0, 7.2, -93)])},
+	]
+
+
 ## Outdoors starts just beyond the window wall.
 static func is_outside(pos: Vector3) -> bool:
 	return pos.z < FAR_Z - WALL

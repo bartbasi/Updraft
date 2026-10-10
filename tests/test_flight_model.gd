@@ -150,3 +150,22 @@ func test_sliding_to_a_stop_ends_run() -> void:
 		seconds += DT
 	check(m.stopped and not m.crashed, "plane should slide to a stop")
 	check(seconds < 4.0, "stopping should not take long (%.1f s)" % seconds)
+
+
+## The game steps physics at a fixed 60 Hz whatever the frame rate; the flight model must also
+## stay stable and give nearly the same flight if the tick rate were different.
+func test_flight_is_stable_and_consistent_at_different_tick_rates() -> void:
+	var ends := []
+	for rate in [30.0, 60.0, 120.0]:
+		var m := _plane()
+		var dt := 1.0 / float(rate)
+		var t := 0.0
+		while t < 12.0:
+			m.input_pitch = -0.6 if t < 3.0 else (0.4 if t < 6.0 else 0.0)
+			m.input_roll = 1.0 if t > 7.0 and t < 8.5 else 0.0
+			m.step(dt)
+			t += dt
+		check(m.position.is_finite() and m.velocity.is_finite(), "no blow-ups at %d Hz" % int(rate))
+		ends.append(m.position)
+	check(ends[0].distance_to(ends[1]) < 2.0 and ends[2].distance_to(ends[1]) < 1.0, "30/60/120 Hz flights end close together: %s" % [ends])
+	check(int(ProjectSettings.get_setting("physics/common/physics_ticks_per_second")) == 60, "physics runs at a fixed 60 Hz")

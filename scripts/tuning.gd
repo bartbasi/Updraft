@@ -125,8 +125,8 @@ extends Resource
 @export var style_moments := {
 	"bedroom_turn": {"points": 100, "radius": 2.5},
 	"sunbeam": {"points": 80, "radius": 2.0},
-	"stair_downdraft": {"points": 120, "radius": 2.0},
-	"landing_turn": {"points": 150, "radius": 2.0},
+	"stair_downdraft": {"points": 120, "radius": 1.5},
+	"landing_turn": {"points": 150, "radius": 3.0},
 	"radiator": {"points": 100, "radius": 2.5},
 	"lamp": {"points": 150, "radius": 1.5},
 	"kettle": {"points": 100, "radius": 2.5},

@@ -34,7 +34,12 @@ decision from the designer or the owner, is written down here rather than settle
 - A skilled run is about 52 s; the brief's goal is at least 60 s for a well-flown run. The
   designer's measured levers: gravity 8 → 7 (about +3 s), and a 15-unit longer gallery (about
   +3 s). See `docs/opening-plan.md` section 8.
-- The lamp style moment (under the lamp) was not earned in any test-pilot run; show it can be flown.
+- The lamp style moment (under the lamp) can be flown: a test pilot with a firm hand on the
+  pitch follows the course's own paths and earns it (83-101 points, quality 0.55-0.67), then the
+  kettle and window (`test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp`). But
+  the standard test pilot, which pitches gently, crashes into the lamp shade at about
+  (0.2, 5.5, -43) on that path, and no novice run earns it (0/10). Designer to judge whether
+  real players will thread it, or whether the dip under the shade wants more room.
 - Late first-timers (test pilot with 0.3–0.9 s reaction lag, seeds 300–319): 15–16/20 get
   through the door turn, but the lag makes them weave afterwards; measured to the gallery mouth
   (x 79) only 11/20 survive: four hit the angled wall up in the sunbeam (x 80–83, y about 24),
@@ -47,6 +52,10 @@ decision from the designer or the owner, is written down here rather than settle
 - Camera and sound feel values move into `scripts/tuning.gd` (the brief's "one place" rule).
 - Crash-to-flying time and frame rate need checking on a real phone ("Fly again" rebuilds the
   house in code).
+- Through the arch at speed the camera trails about 6 units behind, and the white plane, seen
+  from behind, sits over the white coffee-table top and pink rug and is hard to pick out
+  (screenshots at 24-25 s). Designer to judge: plane colour or outline, camera distance, or
+  the furniture.
 - Frame rate in the stair dive on the phone: the downdraft's see-through column (the camera flies
   through it), two light shafts and three sets of motes and wisps can all be in view on top of the
   watercolour pass; the designer measured 40-51 fps on PC in this stretch. Fallbacks if it drops:

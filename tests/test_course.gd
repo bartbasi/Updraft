@@ -48,7 +48,7 @@ func test_autopilot_flies_the_downstairs_course() -> void:
 	var bumps := [0]
 	plane.bumped.connect(func(_s: float) -> void: bumps[0] += 1)
 	await _fly_until_end(plane, 90.0)
-	print("        ended at %.1f s, %.1f m, %d bumps" % [plane.flight_time, game.distance_meters(), bumps[0]])
+	print("        ended at %.1f s, flew %.1f m, %d bumps" % [plane.flight_time, plane.distance / plane.tuning.units_per_meter, bumps[0]])
 	check(not plane.model.crashed, "autopilot should not crash (at %s)" % plane.global_position)
 	check(game.reached_outside, "autopilot should fly out of the window")
 	check(plane.is_ended() and Course.is_outside(plane.global_position), "flight should end on the grass outside")

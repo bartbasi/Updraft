@@ -6,8 +6,13 @@ extends RefCounted
 const PATH := "user://best_score.json"
 const MAX_SCORE := 10_000_000
 
+## Where the game keeps its best score (the test runner points this at a scratch file).
+static var file_path := PATH
 
-static func load_best(path := PATH) -> int:
+
+static func load_best(path := "") -> int:
+	if path == "":
+		path = file_path
 	if not FileAccess.file_exists(path):
 		return 0
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -31,7 +36,9 @@ static func load_best(path := PATH) -> int:
 
 
 ## Writes to a temporary file first, so a crash mid-save can't wipe the old best.
-static func save_best(score: int, path := PATH) -> bool:
+static func save_best(score: int, path := "") -> bool:
+	if path == "":
+		path = file_path
 	var temp := path + ".tmp"
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:

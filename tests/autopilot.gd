@@ -18,9 +18,11 @@ var wobble := 0.0
 var steer_gain := 2.0
 ## Largest nose-up input the pilot will use (it avoids stalling on purpose).
 var max_climb := 0.3
+## How firmly it pitches toward the height of its aim point (per unit of height).
+var pitch_gain := 0.3
 var rng := RandomNumberGenerator.new()
 
-var _segment := 0
+var _segment := -1  ## Where on the line the pilot is; -1 until it has looked.
 var _last_heading := NAN
 var _delayed: Array[Vector2] = []
 var _shake := Vector2.ZERO
@@ -32,17 +34,46 @@ func _init(p_line: PackedVector3Array, p_seed := 1) -> void:
 	rng.seed = p_seed
 
 
-## A good line from the throw in the bedroom onward (it grows as the course is built).
+## A good line from the throw in the bedroom to the hills: the course's own optimal paths
+## through the opening, joined by the gallery, then the downstairs line.
 static func course_line() -> PackedVector3Array:
-	return PackedVector3Array([
-		Course.START, Vector3(100.0, 19.6, 51.0), Vector3(100.0, 19.3, 47.0),  # down the bedroom
-		Vector3(98.4, 19.1, 43.1), Vector3(94.5, 19.0, 41.5), Vector3(90.0, 20.0, 41.5),  # the door turn
-		Vector3(87.0, 22.0, 41.5), Vector3(83.0, 23.2, 41.5), Vector3(79.0, 23.8, 41.5),  # up the sunbeam
-		Vector3(60.0, 23.0, 41.0), Vector3(45.0, 22.5, 40.0), Vector3(30.0, 21.5, 41.0),  # down the gallery
-		Vector3(17.0, 20.5, 41.5), Vector3(13.0, 18.0, 41.5), Vector3(10.0, 15.8, 41.5),  # dive down flight 1
-		Vector3(7.0, 13.6, 41.5), Vector3(3.5, 12.2, 40.6), Vector3(0.0, 11.4, 38.6),  # bank around the landing
-		Vector3(-2.5, 9.8, 34.5), Vector3(-3.0, 7.5, 26.0), Vector3(-2.0, 8.5, 16.5),  # down flight 2 and level out
-	]) + downstairs_line()
+	var paths := _style_paths()
+	var gallery := PackedVector3Array([Vector3(60.0, 23.0, 41.0), Vector3(45.0, 22.5, 40.0), Vector3(30.0, 21.5, 41.0)])  # through the skylight
+	var line := PackedVector3Array([Course.START])
+	for part in [paths["bedroom_turn"], paths["sunbeam"], gallery, paths["stair_downdraft"], paths["landing_turn"], downstairs_line()]:
+		line = _join(line, part)
+	return line
+
+
+## The downstairs part along the course's own optimal paths, the lamp included, from
+## Course.LIVING_ROOM_ENTRY. Threading the lamp needs a firm hand on the pitch (`pitch_gain`).
+static func downstairs_style_line() -> PackedVector3Array:
+	var paths := _style_paths()
+	var out_of_window := PackedVector3Array([Vector3(0.0, 6.0, -100.0), Vector3(0.0, 2.0, -180.0)])
+	var line := PackedVector3Array([Course.LIVING_ROOM_ENTRY])
+	for part in [paths["radiator"], paths["lamp"], paths["kettle"], paths["window"], out_of_window]:
+		line = _join(line, part)
+	return line
+
+
+static func _style_paths() -> Dictionary:
+	var paths := {}
+	for def in Course.style_moment_defs():
+		paths[String(def["id"])] = def["path"]
+	return paths
+
+
+## Appends `part` to `line`, skipping points that lie behind the line's current end (where
+## one moment's path overlaps the next), so the line never doubles back.
+static func _join(line: PackedVector3Array, part: PackedVector3Array) -> PackedVector3Array:
+	var out := line.duplicate()
+	for p in part:
+		if out.size() >= 2:
+			var last := out[out.size() - 1]
+			if (p - last).dot(last - out[out.size() - 2]) <= 0.5:
+				continue
+		out.append(p)
+	return out
 
 
 ## A good line through the downstairs part, from Course.LIVING_ROOM_ENTRY.
@@ -92,7 +123,8 @@ func point_at(s: float) -> Vector3:
 
 func fly(plane: PaperPlane) -> Vector2:
 	var p := plane.global_position
-	var hit := Scoring.project(line, lengths, p, maxi(_segment - 1, 0), mini(_segment + 2, line.size() - 2))
+	# The first time, search the whole line (the pilot may start anywhere); then only nearby.
+	var hit := Scoring.project(line, lengths, p) if _segment < 0 else Scoring.project(line, lengths, p, maxi(_segment - 1, 0), mini(_segment + 2, line.size() - 2))
 	_segment = int(hit.z)
 	var speed := plane.model.velocity.length()
 	var aim := point_at(hit.x + lookahead + speed * lookahead_time)
@@ -105,7 +137,7 @@ func fly(plane: PaperPlane) -> Vector2:
 	var turn_rate := wrapf(plane.model.heading - _last_heading, -PI, PI) * 60.0
 	_last_heading = plane.model.heading
 	var roll := -error * steer_gain + turn_rate * 0.6
-	var pitch := (aim.y - p.y) * 0.3 - plane.model.velocity.y * 0.15
+	var pitch := (aim.y - p.y) * pitch_gain - plane.model.velocity.y * 0.15
 	var command := Vector2(clampf(pitch, -1.0, max_climb), clampf(roll, -1.0, 1.0))
 
 	if wobble > 0.0:
