@@ -67,6 +67,10 @@ const FLIGHT1_BOTTOM_X := 1.5
 const FLIGHT2_BOTTOM_Z := 22.0
 const STAIR_STEPS := 12
 const RAIL_HEIGHT := 3.6  ## Banister height above the stairs.
+## Cool air sinking down over flight 1 from the high north window: it helps the dive.
+const DOWNDRAFT_ORIGIN := Vector3(10.0, 13.0, 41.75)
+const DOWNDRAFT_SIZE := Vector3(12.0, 13.5, 8.5)
+const DOWNDRAFT_STRENGTH := 0.6
 ## The wide arch in the living-room back wall where the stairs come down (x from, x to).
 const ARCH_X := Vector2(-7.0, 6.0)
 const ARCH_TOP := 11.5
@@ -162,6 +166,7 @@ func _build() -> void:
 
 	_add_box_zone("Sunbeam", SUNBEAM_ORIGIN, SUNBEAM_SIZE, Thermal.Look.SUNBEAM, SUNBEAM_STRENGTH, 1.12, SUNBEAM_SUN)
 	_add_box_zone("Skylight", SKYLIGHT_ORIGIN, SKYLIGHT_SIZE, Thermal.Look.SUNBEAM, SKYLIGHT_STRENGTH, 1.19, Vector3.DOWN, UP_CEILING - SKYLIGHT_ORIGIN.y)
+	_add_box_zone("StairDowndraft", DOWNDRAFT_ORIGIN, DOWNDRAFT_SIZE, Thermal.Look.DOWNDRAFT, DOWNDRAFT_STRENGTH, 1.0)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
 	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, 7.0, Thermal.Look.STEAM, 1.26, Vector3(2.55, 0.45, 0.0))
 

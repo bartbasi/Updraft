@@ -605,3 +605,36 @@ func test_over_turning_in_the_well_never_clips_into_the_stairs() -> void:
 			var r := await _fly_stairs(steer, false)  # keep circling until the run ends
 			check(r["clipped"] == "", "dive %.1f, full right bank from x %.0f: %s" % [dive, turn_from, r["clipped"]])
 			await cleanup()
+
+
+func test_stairwell_downdraft_pushes_the_plane_down() -> void:
+	var heights := []
+	var speeds := []
+	for with_downdraft in [true, false]:
+		var game := _game()
+		var plane := game.get_node("Plane") as PaperPlane
+		if not with_downdraft:
+			var zone := game.get_node("Course/StairDowndraft") as Thermal
+			zone.remove_from_group("thermals")
+		plane.launch(Vector3(19.0, 21.0, 41.5), PI / 2.0)
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2(-0.3, 0.0)
+		var sinks := [0]
+		var heard := []
+		plane.entered_thermal.connect(func(z: Thermal) -> void:
+			if z.sinks:
+				sinks[0] += 1
+				heard.append([game._downdraft.playing, game._chime.playing]))
+		await _until_released(plane)
+		while plane.global_position.x > 8.0 and not plane.is_ended():
+			await tree.physics_frame
+		var label := "with the downdraft" if with_downdraft else "without it"
+		check(not plane.is_ended(), "%s, the plane is still flying at the bottom of flight 1 (%s)" % [label, plane.global_position])
+		heights.append(plane.global_position.y)
+		speeds.append(plane.model.velocity.length())
+		if with_downdraft:
+			check(sinks[0] == 1, "the downdraft is announced once (%d)" % sinks[0])
+			check(heard.size() == 1 and heard[0][0] and not heard[0][1], "with its own sound, not the thermal chime (downdraft, chime playing: %s)" % [heard])
+		await cleanup()
+	print("        bottom of flight 1: y %.1f at %.1f u/s with the downdraft, y %.1f at %.1f u/s without" % [heights[0], speeds[0], heights[1], speeds[1]])
+	check(heights[0] < heights[1] - 1.5, "the downdraft pulls the plane down the stairs (y %.1f vs %.1f without)" % [heights[0], heights[1]])
+	check(speeds[0] > speeds[1] + 0.2, "and adds speed to the dive (%.1f vs %.1f u/s without)" % [speeds[0], speeds[1]])

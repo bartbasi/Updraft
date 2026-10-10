@@ -17,6 +17,7 @@ var _wind: AudioStreamPlayer
 var _chime: AudioStreamPlayer
 var _tap: AudioStreamPlayer
 var _crumple: AudioStreamPlayer
+var _downdraft: AudioStreamPlayer
 var _ui: Control
 var _card: Control
 var _card_title: Label
@@ -83,9 +84,10 @@ func _on_bumped(strength: float) -> void:
 	camera.shake(0.04)
 
 
-func _on_entered_thermal(thermal: Thermal) -> void:
-	_chime.pitch_scale = thermal.chime_pitch
-	_chime.play()
+func _on_entered_thermal(zone: Thermal) -> void:
+	var player := _downdraft if zone.sinks else _chime
+	player.pitch_scale = zone.chime_pitch
+	player.play()
 
 
 func _on_crashed() -> void:
@@ -172,6 +174,7 @@ func _setup_audio() -> void:
 	_chime = _player("res://audio/chime.wav", -5.0)
 	_tap = _player("res://audio/tap.wav", -3.0)
 	_crumple = _player("res://audio/crumple.wav", -1.0)
+	_downdraft = _player("res://audio/downdraft.wav", -4.0)
 	var wind_stream := _wind.stream as AudioStreamWAV
 	if wind_stream and wind_stream.loop_mode == AudioStreamWAV.LOOP_DISABLED:
 		wind_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD

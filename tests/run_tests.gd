@@ -85,4 +85,7 @@ func _run() -> void:
 				for f in suite.failures:
 					print("        ", f)
 	print("\n%d passed, %d failed" % [passed, failed])
+	for _i in 10:
+		OS.delay_msec(20)
+		await process_frame
 	quit(1 if failed > 0 else 0)

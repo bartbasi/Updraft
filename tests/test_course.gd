@@ -180,3 +180,38 @@ func test_arch_and_header_collide_as_drawn() -> void:
 func test_arch_header_is_gentle_enough_to_glance_off() -> void:
 	var slope := rad_to_deg(atan2(Course.ARCH_HEADER_RISE, Course.ARCH_HEADER_DEPTH))
 	check(slope <= 36.0, "the header slopes at most about 35 degrees (%.1f), well under the 50-degree crash angle" % slope)
+
+
+## Designer's Phase A must-fix #1, end to end: pilots who never push the nose down come down
+## the stairs (with the downdraft's help) and must reach the living room.
+func test_floaters_who_never_dive_get_through_the_arch() -> void:
+	var stuck := []
+	var runs := 0
+	for climb in [0.0, 0.15, 0.3]:
+		for turn_x in [11.0, 7.0, 3.0]:
+			for bank in [1.0, 0.5]:
+				var turned := [false]
+				var steer := func(plane: PaperPlane) -> Vector2:
+					var p := plane.global_position
+					if not turned[0]:
+						turned[0] = p.x < float(turn_x) and plane.model.heading <= 0.05
+						return Vector2(climb, bank if p.x < float(turn_x) else 0.0)
+					# After the turn: aim for the middle of the bright arch, still never diving.
+					var to := Vector3(-0.5, 0.0, Course.BACK_Z) - p
+					var error := wrapf(atan2(-to.x, -to.z) - plane.model.heading, -PI, PI)
+					return Vector2(climb, clampf(-error * 2.0, -1.0, 1.0))
+				var game := _start(steer)
+				var plane := game.get_node("Plane") as PaperPlane
+				plane.launch(Vector3(24.0, 20.5, 41.5), PI / 2.0)
+				var frames := 0
+				while frames < 60 * 20 and not plane.is_ended() and plane.global_position.z > Course.BACK_Z - 2.0:
+					await tree.physics_frame
+					frames += 1
+				runs += 1
+				var p := plane.global_position
+				if plane.is_ended() or p.z > Course.BACK_Z - 2.0:
+					var how := "crashed" if plane.model.crashed else ("came to rest" if plane.is_ended() else "ran out of time")
+					stuck.append("climb %.2f, turn at x %.0f, bank %.1f: %s at %s" % [climb, turn_x, bank, how, p])
+				await cleanup()
+	print("        floaters: %d/%d reached the living room" % [runs - stuck.size(), runs])
+	check(stuck.is_empty(), "every floater reaches the living room: %s" % [stuck])

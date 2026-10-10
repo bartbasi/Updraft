@@ -47,3 +47,7 @@ decision from the designer or the owner, is written down here rather than settle
 - Camera and sound feel values move into `scripts/tuning.gd` (the brief's "one place" rule).
 - Crash-to-flying time and frame rate need checking on a real phone ("Fly again" rebuilds the
   house in code).
+- Frame rate in the stair dive on the phone: the downdraft's see-through column (the camera flies
+  through it), two light shafts and three sets of motes and wisps can all be in view on top of the
+  watercolour pass; the designer measured 40-51 fps on PC in this stretch. Fallbacks if it drops:
+  narrow the column to the window's width (x 5-13), or drop the column and keep the falling wisps.
