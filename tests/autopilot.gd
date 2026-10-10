@@ -32,10 +32,15 @@ func _init(p_line: PackedVector3Array, p_seed := 1) -> void:
 	rng.seed = p_seed
 
 
-## A good line through the whole course.
+## A good line from the throw in the bedroom onward (it grows as the course is built).
 static func course_line() -> PackedVector3Array:
+	return PackedVector3Array([Course.START, Vector3(100.0, 19.6, 51.0), Vector3(100.0, 19.3, 47.0)])
+
+
+## A good line through the downstairs part, from Course.LIVING_ROOM_ENTRY.
+static func downstairs_line() -> PackedVector3Array:
 	return PackedVector3Array([
-		Course.LAUNCH,
+		Course.LIVING_ROOM_ENTRY,
 		Vector3(-4.5, 9.0, -18.0), Vector3(-5.0, 10.0, -25.0),  # through the radiator heat
 		Vector3(-3.2, 6.2, -40.0), Vector3(-2.9, 6.0, -45.0),  # past the lamp on its left
 		Vector3(-1.0, 5.6, -52.0),  # under the door frame

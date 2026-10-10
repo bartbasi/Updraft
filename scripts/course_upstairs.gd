@@ -1,0 +1,160 @@
+class_name CourseUpstairs
+extends RefCounted
+## Builds the upstairs part of the course into a Course: the kids' bedroom where the run
+## starts, the upper landing and long gallery, and the two-storey stair hall down to the
+## living room. All positions come from the layout constants at the top of course.gd.
+
+const BEDROOM_WALL := Color("dde8f4")
+const BEDROOM_BAND := Color("f2d9e4")
+const GALLERY_WALL := Color("f4e6cf")
+const CARPET := Color("eadbd0")
+const DOOR := Color("f7f1e8")
+
+
+static func build_bedroom(c: Course) -> void:
+	var f := Course.UP_FLOOR
+	var top := Course.UP_CEILING
+	var lo := Course.BEDROOM_MIN
+	var hi := Course.BEDROOM_MAX
+	var t := Course.IN_WALL
+	# Floor, ceiling and walls.
+	c.span(Vector3(lo.x - t, f - 0.5, lo.y - t), Vector3(hi.x + t, f, hi.y + t), CARPET)
+	c.span(Vector3(lo.x - t, top, lo.y - t), Vector3(hi.x + t, top + 0.5, hi.y + t), Course.CEILING_COLOR)
+	c.span(Vector3(lo.x - t, f, lo.y), Vector3(lo.x, top, hi.y + t), BEDROOM_WALL)
+	c.span(Vector3(hi.x, f, lo.y), Vector3(hi.x + t, top, hi.y + t), BEDROOM_WALL)
+	c.span(Vector3(lo.x, f, hi.y), Vector3(hi.x, top, hi.y + t), BEDROOM_WALL)
+	# Wallpaper band and skirting.
+	for wall in [[Vector3(lo.x, 18.8, lo.y), Vector3(lo.x + 0.04, 19.4, hi.y)], [Vector3(hi.x - 0.04, 18.8, lo.y), Vector3(hi.x, 19.4, hi.y)], [Vector3(lo.x, 18.8, hi.y - 0.04), Vector3(hi.x, 19.4, hi.y)]]:
+		c.span(wall[0], wall[1], BEDROOM_BAND, false)
+	# South wall with the wide double door: bedroom colour inside, gallery colour outside.
+	var door := Course.BEDROOM_DOOR_X
+	var dtop := Course.BEDROOM_DOOR_TOP
+	var jamb := Course.JAMB_RADIUS
+	for layer in [[lo.y - t * 0.5, lo.y, BEDROOM_WALL], [lo.y - t, lo.y - t * 0.5, GALLERY_WALL]]:
+		var za: float = layer[0]
+		var zb: float = layer[1]
+		var color: Color = layer[2]
+		c.span(Vector3(lo.x - t, f, za), Vector3(door.x - jamb, top, zb), color, false)
+		c.span(Vector3(door.y + jamb, f, za), Vector3(hi.x + t, top, zb), color, false)
+		c.span(Vector3(door.x - jamb, dtop, za), Vector3(door.y + jamb, top, zb), color, false)
+	c.solid_span(Vector3(lo.x - t, f, lo.y - t), Vector3(door.x - jamb, top, lo.y))
+	c.solid_span(Vector3(door.y + jamb, f, lo.y - t), Vector3(hi.x + t, top, lo.y))
+	c.solid_span(Vector3(door.x - jamb, dtop, lo.y - t), Vector3(door.y + jamb, top, lo.y))
+	# Rounded door posts: a plane that clips the edge of the doorway is turned aside instead
+	# of meeting the wall face square on. What you see is exactly what you hit.
+	c.doorway_posts(door.x, door.y, lo.y - t * 0.5, f, dtop)
+	var leaf := (door.y - door.x) * 0.5
+	for side in [[door.x - leaf, door.x - 0.4], [door.y + 0.4, door.y + leaf]]:
+		var xa: float = side[0]
+		var xb: float = side[1]
+		c.span(Vector3(xa, f + 0.1, lo.y + 0.12), Vector3(xb, dtop - 0.2, lo.y + 0.3), DOOR, false)
+		for panel_y in [[f + 1.2, f + 4.2], [f + 5.2, dtop - 1.4]]:
+			c.span(Vector3(xa + 0.6, panel_y[0], lo.y + 0.3), Vector3(xb - 0.6, panel_y[1], lo.y + 0.34), Color("ede4d8"), false)
+	# A paper-plane drawing pinned to the left leaf.
+	_drawing(c, Vector3((door.x - leaf + door.x - 0.4) * 0.5, 18.2, lo.y + 0.36))
+
+	_build_loft_bed(c)
+	_build_furniture(c)
+
+
+static func _build_loft_bed(c: Course) -> void:
+	var f := Course.UP_FLOOR
+	var x0 := 96.0
+	var x1 := 104.0
+	var z0 := 75.9
+	var z1 := Course.BEDROOM_MAX.y
+	var wood := Color("e4c9a8")
+	for corner in [Vector2(x0, z0), Vector2(x1 - 0.4, z0), Vector2(x0, z1 - 0.4), Vector2(x1 - 0.4, z1 - 0.4)]:
+		c.span(Vector3(corner.x, f, corner.y), Vector3(corner.x + 0.4, 20.6, corner.y + 0.4), wood)
+	c.span(Vector3(x0, 17.4, z0), Vector3(x1, 18.2, z1), wood, false)
+	c.span(Vector3(x0 + 0.2, 18.2, z0 + 0.2), Vector3(x1 - 0.2, 18.9, z1), Color("bcd3ec"), false)
+	c.span(Vector3(x0 + 0.3, 18.9, z0 + 0.5), Vector3(x1 - 2.4, 19.15, z1 - 0.3), Color("f6dfa0"), false)
+	c.span(Vector3(x1 - 2.2, 18.9, z0 + 0.8), Vector3(x1 - 0.5, 19.5, z1 - 0.6), Color("fbf3ea"), false)
+	c.solid_span(Vector3(x0, 17.4, z0), Vector3(x1, 19.9, z1))
+	# Guard rail on the open side, where the kid kneels.
+	c.span(Vector3(x0, 19.5, z0), Vector3(x1, 19.9, z0 + 0.25), wood)
+	for rx in [x0 + 2.0, x0 + 4.0, x0 + 6.0]:
+		c.span(Vector3(rx, 18.9, z0), Vector3(rx + 0.2, 19.5, z0 + 0.2), wood, false)
+	# Ladder up the east end.
+	for ry in [13.6, 14.9, 16.2, 17.5]:
+		c.span(Vector3(x1, ry, z0 + 0.4), Vector3(x1 + 0.25, ry + 0.2, z0 + 2.4), wood, false)
+	c.span(Vector3(x1, f, z0 + 0.2), Vector3(x1 + 0.25, 19.9, z0 + 0.45), wood, false)
+	c.span(Vector3(x1, f, z0 + 2.4), Vector3(x1 + 0.25, 19.9, z0 + 2.65), wood, false)
+	# A cosy den under the loft: beanbag and a string of paper stars.
+	c.sphere(Vector3(99.0, f + 1.0, 77.8), 1.4, Color("f2b8a2"), false, Vector3(1.2, 0.7, 1.0))
+	for i in 7:
+		c.sphere(Vector3(x0 + 0.8 + i * 1.05, 16.9 - absf(i - 3) * 0.15, z0 + 0.3), 0.18, Color("f4dc9b"), false)
+
+
+static func _build_furniture(c: Course) -> void:
+	var f := Course.UP_FLOOR
+	var lo := Course.BEDROOM_MIN
+	var hi := Course.BEDROOM_MAX
+	# Rug in the middle of the room.
+	c.span(Vector3(93.0, f, 55.0), Vector3(105.0, f + 0.05, 71.0), Color("f3c9d0"), false)
+	c.span(Vector3(94.0, f, 56.0), Vector3(104.0, f + 0.08, 70.0), Color("f8e1c9"), false)
+	c.span(Vector3(96.5, f, 58.5), Vector3(101.5, f + 0.1, 67.5), Color("cfe0d8"), false)
+	# Second bed along the east wall.
+	c.span(Vector3(102.6, f, 52.0), Vector3(hi.x, f + 1.7, 61.0), Color("e4c9a8"))
+	c.span(Vector3(102.8, f + 1.7, 52.2), Vector3(hi.x, f + 2.4, 61.0), Color("cfe0d8"), false)
+	c.span(Vector3(102.7, f + 2.4, 54.5), Vector3(hi.x, f + 2.6, 61.0), Color("e3b3cf"), false)
+	for stripe in [56.0, 58.0, 60.0]:
+		c.span(Vector3(102.65, f + 2.45, stripe), Vector3(hi.x, f + 2.65, stripe + 0.6), Color("f4dc9b"), false)
+	c.span(Vector3(104.2, f + 2.4, 52.4), Vector3(107.6, f + 3.0, 54.2), Color("fbf3ea"), false)
+	c.span(Vector3(102.6, f, 51.6), Vector3(hi.x, f + 4.0, 52.0), Color("e4c9a8"))
+	# Window, curtains and desk on the west wall.
+	_wall_window_west(c, lo.x, 16.5, 23.5, 60.0, 68.0)
+	c.span(Vector3(lo.x, 15.8, 58.4), Vector3(lo.x + 0.4, 24.4, 59.8), Color("f4c7c3"), false)
+	c.span(Vector3(lo.x, 15.8, 68.2), Vector3(lo.x + 0.4, 24.4, 69.6), Color("f4c7c3"), false)
+	c.span(Vector3(lo.x, f + 3.3, 60.5), Vector3(lo.x + 3.2, f + 3.6, 67.5), Color("f6efe6"))
+	for leg in [Vector2(lo.x + 2.8, 60.7), Vector2(lo.x + 2.8, 67.1)]:
+		c.span(Vector3(leg.x, f, leg.y), Vector3(leg.x + 0.2, f + 3.3, leg.y + 0.2), Color("e4c9a8"), false)
+	c.cylinder(Vector3(lo.x + 1.0, f + 3.6, 62.0), 0.35, 0.3, 0.8, Color("a9c8e8"), false)
+	c.span(Vector3(lo.x + 0.8, f + 3.6, 64.0), Vector3(lo.x + 2.4, f + 3.75, 66.2), Color("fbf8f1"), false)
+	c.span(Vector3(lo.x + 3.6, f, 62.6), Vector3(lo.x + 5.2, f + 2.2, 64.4), Color("f2d79b"))
+	c.span(Vector3(lo.x + 4.95, f + 2.2, 62.6), Vector3(lo.x + 5.2, f + 4.6, 64.4), Color("f2d79b"))
+	# Toy shelf near the loft, with blocks and a ball.
+	c.span(Vector3(lo.x, f, 70.0), Vector3(lo.x + 1.8, f + 4.4, 75.0), Color("c9b2d6"))
+	for i in 5:
+		c.box(Vector3(lo.x + 1.0, f + 4.75, 70.6 + i * 0.95), Vector3(0.7, 0.7, 0.7), Color(Course.BOOK_COLORS[i]))
+	c.sphere(Vector3(lo.x + 2.6, f + 0.7, 73.0), 0.7, Color("f19e8f"), false)
+	# Play tent in the corner by the second bed.
+	c.cylinder(Vector3(105.6, f, 68.5), 2.2, 0.05, 5.2, Color("f6cfa8"), true, 6)
+	c.span(Vector3(104.0, f, 66.6), Vector3(105.0, f + 2.4, 66.7), Color("e9b892"), false)
+	# Posters, and a mobile of paper birds hanging high in the middle of the room. The birds
+	# are soft paper on strings, so the plane brushes through them (no collision).
+	_poster(c, Vector3(hi.x - 0.05, 20.5, 56.5), -1.0, Color("a9c8e8"), Color("f4dc9b"))
+	_poster(c, Vector3(lo.x + 0.05, 20.0, 72.5), 1.0, Color("e3b3cf"), Color("b7d8b0"))
+	var mobile := Vector3(99.0, Course.UP_CEILING, 63.0)
+	c.cylinder(mobile + Vector3(0, -1.6, 0), 0.03, 0.03, 1.6, Color("9b8fa6"), false, 4)
+	c.box(mobile + Vector3(0, -1.65, 0), Vector3(3.0, 0.06, 0.06), Color("b9a28f"), false)
+	for bird in [Vector3(-1.4, -2.4, 0.0), Vector3(1.4, -2.2, 0.0), Vector3(0.0, -2.5, 0.0)]:
+		c.box(mobile + bird, Vector3(0.6, 0.05, 0.35), Color("fbf8f1"), false, Basis(Vector3.UP, 0.4))
+
+
+## A bright window painted on a west wall (facing +X), with frame and cross bars.
+static func _wall_window_west(c: Course, x: float, y0: float, y1: float, z0: float, z1: float) -> void:
+	c.span(Vector3(x, y0, z0), Vector3(x + 0.08, y1, z1), Course.TRIM, false)
+	c.span(Vector3(x + 0.08, y0 + 0.3, z0 + 0.3), Vector3(x + 0.1, y1 - 0.3, z1 - 0.3), Course.SKY_PANE, false)
+	var mz := (z0 + z1) * 0.5
+	var my := (y0 + y1) * 0.5
+	c.span(Vector3(x + 0.1, y0 + 0.3, mz - 0.1), Vector3(x + 0.14, y1 - 0.3, mz + 0.1), Course.TRIM, false)
+	c.span(Vector3(x + 0.1, my - 0.1, z0 + 0.3), Vector3(x + 0.14, my + 0.1, z1 - 0.3), Course.TRIM, false)
+
+
+## A simple poster: a sky, a hill and a sun. `facing` is +1 on a west wall, -1 on an east wall.
+static func _poster(c: Course, wall_point: Vector3, facing: float, sky: Color, sun: Color) -> void:
+	var at := wall_point + Vector3(facing * 0.05, 0, 0)
+	c.box(at, Vector3(0.05, 3.2, 2.6), Course.TRIM, false)
+	c.box(at + Vector3(facing * 0.04, 0.3, 0), Vector3(0.03, 2.4, 2.2), sky, false)
+	c.box(at + Vector3(facing * 0.06, -0.9, 0), Vector3(0.03, 0.8, 2.2), Color("b7d8b0"), false)
+	c.box(at + Vector3(facing * 0.07, 0.8, 0.6), Vector3(0.03, 0.6, 0.6), sun, false)
+
+
+## A child's drawing of a paper plane, pinned up (facing +Z).
+static func _drawing(c: Course, at: Vector3) -> void:
+	c.box(at, Vector3(2.4, 1.8, 0.04), Color("fbf8f1"), false)
+	c.box(at + Vector3(-0.3, 0.1, 0.03), Vector3(1.2, 0.12, 0.02), Color("a9c8e8"), false, Basis(Vector3.BACK, 0.35))
+	c.box(at + Vector3(0.1, -0.05, 0.03), Vector3(0.9, 0.12, 0.02), Color("a9c8e8"), false, Basis(Vector3.BACK, -0.25))
+	c.box(at + Vector3(0.7, 0.55, 0.03), Vector3(0.35, 0.35, 0.02), Color("f4dc9b"), false)
+	c.box(at + Vector3(0.0, 0.92, 0.03), Vector3(0.12, 0.25, 0.02), Color("f19e8f"), false)

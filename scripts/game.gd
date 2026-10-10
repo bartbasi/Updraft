@@ -1,6 +1,6 @@
 extends Node3D
-## Runs one flight of the demo: sets up the look and sound, launches the plane from the
-## shelf, and shows the end card with the distance flown and "Fly again".
+## Runs one flight: sets up the look and sound, starts the plane in the air in the bedroom
+## (seen from the kid who threw it), and shows the end card with "Fly again".
 
 const POST_SHADER := preload("res://shaders/watercolor.gdshader")
 const INK := Color("5d5468")
@@ -36,23 +36,22 @@ func _ready() -> void:
 	plane.crashed.connect(_on_crashed)
 	plane.stopped.connect(_on_stopped)
 	plane.entered_thermal.connect(_on_entered_thermal)
-	plane.launch(Course.LAUNCH, 0.0)
+	plane.launch(Course.START, Course.START_HEADING)
 	plane.held = true
 	camera.target = plane
-	camera.snap()
+	camera.start_intro(Course.KID_EYE)
 	_throw_when_ready()
 
 
-## The first frames can stall while shaders compile, so the plane waits on the shelf
-## until the game is drawing smoothly, then launches.
+## The first frames can stall while shaders compile, so the plane hangs in the air until
+## the game is drawing smoothly, then flies. The phone's angle then becomes "level".
 func _throw_when_ready() -> void:
 	var smooth_frames := 0
 	var waited := 0.0
-	while smooth_frames < 10 and waited < 4.0:
+	while smooth_frames < 6 and waited < 2.0:
 		await get_tree().process_frame
 		waited += get_process_delta_time()
-		smooth_frames = smooth_frames + 1 if get_process_delta_time() < 0.05 else 0
-	await get_tree().create_timer(0.6).timeout
+		smooth_frames = smooth_frames + 1 if get_process_delta_time() < 0.1 else 0
 	plane.release()
 
 

@@ -11,7 +11,7 @@ extends Camera3D
 ## Fraction of the plane's bank the camera leans with.
 @export var lean := 0.25
 ## Opening shot: seconds to ease from the thrower's eye into the chase position.
-@export var intro_duration := 0.9
+@export var intro_duration := 0.65
 
 var target: PaperPlane
 var _follow := Vector3.ZERO  ## Where the chase camera would be, smoothed.

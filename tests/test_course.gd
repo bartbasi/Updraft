@@ -11,6 +11,15 @@ func _start(pilot: Callable) -> Node:
 	return game
 
 
+## Starts a flight of the downstairs part on its own, entering the living room.
+func _start_downstairs(pilot: Callable) -> Node:
+	var game := _start(pilot)
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.launch(Course.LIVING_ROOM_ENTRY, 0.0)
+	(game.get_node("Camera") as FollowCamera).snap()
+	return game
+
+
 func _fly_until_end(plane: PaperPlane, max_seconds: float) -> void:
 	var frames := 0
 	while not plane.is_ended() and frames < int(max_seconds * 60.0):
@@ -18,24 +27,21 @@ func _fly_until_end(plane: PaperPlane, max_seconds: float) -> void:
 		frames += 1
 
 
-func test_first_thermal_sits_beside_path_within_six_seconds() -> void:
-	var gap := absf(Course.RADIATOR_THERMAL.x) - 3.6
-	check_between(gap, 0.0, 3.0, "gap between the straight flight path and the first thermal")
-	var seconds := (Course.LAUNCH.z - Course.RADIATOR_THERMAL.z) / Tuning.new().launch_speed
-	check_between(seconds, 4.0, 6.0, "seconds of straight flight to reach the first thermal")
+func test_radiator_thermal_is_within_reach_of_the_living_room_line() -> void:
+	var gap := absf(Course.RADIATOR_THERMAL.x - Course.LIVING_ROOM_ENTRY.x) - 3.6
+	check_between(gap, -1.0, 3.0, "the entry line passes at or just inside the radiator thermal's edge")
 
 
-func test_scene_has_two_thermals() -> void:
-	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+func test_scene_has_the_downstairs_thermals() -> void:
+	_start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
 	await physics_frames(2)
-	var thermals := tree.get_nodes_in_group("thermals")
-	check(thermals.size() == 2, "expected the radiator and kettle thermals, found %d" % thermals.size())
-	check(game.get_node("Plane").global_position.distance_to(Course.LAUNCH) < 1.0, "plane starts on the shelf")
+	var names := tree.get_nodes_in_group("thermals").map(func(n: Node) -> String: return n.name)
+	check(names.has("RadiatorHeat") and names.has("KettleSteam"), "radiator and kettle thermals exist: %s" % [names])
 
 
-func test_autopilot_flies_the_whole_course() -> void:
-	var pilot := Autopilot.new(Autopilot.course_line())
-	var game := _start(pilot.fly)
+func test_autopilot_flies_the_downstairs_course() -> void:
+	var pilot := Autopilot.new(Autopilot.downstairs_line())
+	var game := _start_downstairs(pilot.fly)
 	var plane := game.get_node("Plane") as PaperPlane
 	var thermals := [0]
 	plane.entered_thermal.connect(func(_t: Thermal) -> void: thermals[0] += 1)
@@ -51,7 +57,7 @@ func test_autopilot_flies_the_whole_course() -> void:
 
 
 func test_hands_off_flight_ends_without_getting_stuck() -> void:
-	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	var game := _start_downstairs(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
 	var plane := game.get_node("Plane") as PaperPlane
 	await _fly_until_end(plane, 60.0)
 	print("        hands-off: ended at %.1f s, %s, crashed=%s" % [plane.flight_time, plane.global_position, plane.model.crashed])
@@ -59,7 +65,7 @@ func test_hands_off_flight_ends_without_getting_stuck() -> void:
 
 
 func test_diving_flight_ends() -> void:
-	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2(-1.0, 0.0))
+	var game := _start_downstairs(func(_p: PaperPlane) -> Vector2: return Vector2(-1.0, 0.0))
 	var plane := game.get_node("Plane") as PaperPlane
 	await _fly_until_end(plane, 30.0)
 	check(plane.is_ended(), "a nose-dive must end the run")

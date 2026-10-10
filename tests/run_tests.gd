@@ -9,11 +9,18 @@ const SUITES := [
 	"res://tests/test_controls.gd",
 	"res://tests/test_plane_physics.gd",
 	"res://tests/test_scoring.gd",
+	"res://tests/test_opening.gd",
 	"res://tests/test_course.gd",
 ]
 
 
+const TIME_LIMIT := 1200.0  ## Seconds before a stuck run gives up and fails.
+
+
 func _initialize() -> void:
+	create_timer(TIME_LIMIT, true, false, true).timeout.connect(func() -> void:
+		print("\nTIMED OUT after %d s" % TIME_LIMIT)
+		quit(1))
 	_run.call_deferred()
 
 
@@ -25,7 +32,12 @@ func _run() -> void:
 		if not ResourceLoader.exists(path):
 			continue
 		print(path.get_file())
-		var suite: TestCase = load(path).new()
+		var script := load(path) as GDScript
+		if script == null or not script.can_instantiate():
+			failed += 1
+			print("  FAIL  could not load %s (script error)" % path.get_file())
+			continue
+		var suite: TestCase = script.new()
 		suite.tree = self
 		for method in suite.get_method_list():
 			var test_name: String = method["name"]

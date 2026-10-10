@@ -1,8 +1,9 @@
 # Paper Plane
 
 A short playable demo: fly a folded paper plane through a pastel house by tilting your phone.
-Ride warm air from a radiator and steam from a kettle, dive under the dining-room lamp, and
-glide out of the kitchen window over the hills. About 30 seconds from shelf to grass.
+A kid throws it across a bedroom; bank out of the door, ride a sunbeam down a long gallery,
+dive the stairwell, then ride warm air from a radiator and steam from a kettle, dive under the
+dining-room lamp, and glide out of the kitchen window over the hills.
 
 Built with Godot 4.7.2 (GDScript, Mobile renderer), Android first. Every model, texture,
 shader and sound is made in code in this repo; there are no third-party assets.

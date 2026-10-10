@@ -101,8 +101,8 @@ extends Resource
 @export var key_response := 4.0
 
 @export_group("Launch and scoring")
-## Speed the plane is launched at (units/s).
-@export var launch_speed := 6.0
+## Speed of the throw (units/s).
+@export var launch_speed := 6.5
 ## World scale used when showing distance: 4 units = 1 metre.
 @export var units_per_meter := 4.0
 

@@ -36,10 +36,10 @@ static func save_best(score: int, path := PATH) -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify({"best": clampi(score, 0, MAX_SCORE)}))
-	var written := file.get_error() == OK
+	var text := JSON.stringify({"best": clampi(score, 0, MAX_SCORE)})
+	file.store_string(text)
 	file.close()
-	if not written:
+	if FileAccess.get_file_as_string(temp) != text:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temp))
 		return false
 	return DirAccess.rename_absolute(ProjectSettings.globalize_path(temp), ProjectSettings.globalize_path(path)) == OK
