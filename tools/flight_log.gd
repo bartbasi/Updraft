@@ -6,8 +6,9 @@ extends SceneTree
 ##   --runs=N                          number of flights (default 1; novices vary by seed)
 ##   --seed=S                          first random seed (default 1)
 ##   --quiet                           only the summary, no per-flight timeline
-## Each flight logs section changes, thermals and downdrafts, bumps, style points, the
-## crash or landing, and any stretch of more than 5 s with nothing happening ("dead air").
+## Each flight logs section changes, thermals and downdrafts, bumps, style points, landmarks
+## passed outdoors, the crash or landing, and any stretch of more than 5 s with nothing
+## happening ("dead air").
 
 const MAX_SECONDS := 150.0
 const DEAD_AIR := 5.0
@@ -84,6 +85,10 @@ func _fly(run_seed: int) -> Dictionary:
 			state["section"] = section
 			(state["sections"] as Dictionary)[section] = plane.flight_time
 			note.call("enter %s  (y %.1f, %.1f u/s)" % [section, plane.global_position.y, plane.model.velocity.length()])
+		var p := plane.global_position
+		if not state.has("stream") and p.z < Course.STREAM_Z:
+			state["stream"] = true
+			note.call("passes over the stream  (%.1f above the grass)" % [p.y - Course.ground_height(p.x, p.z)])
 	var end_gap := plane.flight_time - float(state["last_event"])
 	state["dead_air"] = maxf(float(state["dead_air"]), end_gap)
 	var result := {

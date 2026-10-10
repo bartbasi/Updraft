@@ -27,6 +27,23 @@ const RADIATOR_THERMAL := Vector3(-5.0, 3.6, -22.0)
 const LAMP := Vector3(0.0, 5.0, -45.0)  ## Bottom centre of the hanging lamp shade.
 const KETTLE := Vector3(7.0, 3.7, -69.0)
 const KETTLE_THERMAL := Vector3(3.0, 4.2, -69.0)  ## Steam drifts toward the room.
+## Outdoors: a sun-warmed hay field past the garden fence, left of the line out of the window,
+## with warm air rising over it (x, z; it stands on the ground). Seen through the kitchen window.
+const MEADOW_THERMAL := Vector2(-6.0, -118.0)
+const MEADOW_THERMAL_RADIUS := 6.0
+const MEADOW_THERMAL_HEIGHT := 12.0
+## No trees within this distance of the centre line closer than TREE_FREE_TO_Z, so a pilot can
+## circle in the meadow thermal and glide on.
+const TREE_FREE_HALF_WIDTH := 16.0
+const TREE_FREE_TO_Z := -240.0
+## A small stream across the valley, a beat to fly over after the thermal.
+const STREAM_Z := -150.0
+## The hills are drawn, and collide, as a grid of triangles this size, starting here (x, z).
+const TERRAIN_STEP := 6.0
+const TERRAIN_ORIGIN := Vector2(-126.0, -30.0)
+## Things painted on the hills (hay field, stream) sit this far above the grass. The plane's
+## shadow sits higher than every painted floor layer (PaperPlane.SHADOW_LIFT).
+const PAINT_LIFT := 0.05
 
 # Upstairs: the opening (see docs/opening-plan.md).
 const UP_FLOOR := 12.5  ## Upstairs floor top.
@@ -117,7 +134,7 @@ static func spine() -> PackedVector3Array:
 		Vector3(-3.0, 8.5, 31.0), Vector3(-3.0, 7.5, 22.0), Vector3(-2.0, 8.5, 15.0),
 		Vector3(-4.5, 8.0, -22.0), Vector3(0.0, 5.0, -45.0), Vector3(0.0, 5.5, -52.0),
 		Vector3(2.5, 7.0, -69.0), Vector3(0.0, 7.5, -88.5), Vector3(0.0, 4.0, -130.0),
-		Vector3(0.0, 6.0, -220.0),
+		Vector3(0.0, 6.0, -280.0),
 	])
 
 
@@ -173,6 +190,25 @@ static func ground_height(x: float, z: float) -> float:
 	return -1.2 + rise + rolls
 
 
+## The height of the grass as drawn and as it collides: the triangle grid through
+## ground_height(), which can sit a little above or below the smooth curve between grid points.
+static func terrain_height(x: float, z: float) -> float:
+	var u := (x - TERRAIN_ORIGIN.x) / TERRAIN_STEP
+	var v := (TERRAIN_ORIGIN.y - z) / TERRAIN_STEP
+	var xa := TERRAIN_ORIGIN.x + floorf(u) * TERRAIN_STEP
+	var za := TERRAIN_ORIGIN.y - floorf(v) * TERRAIN_STEP
+	u -= floorf(u)
+	v -= floorf(v)
+	var h00 := ground_height(xa, za)
+	var h10 := ground_height(xa + TERRAIN_STEP, za)
+	var h01 := ground_height(xa, za - TERRAIN_STEP)
+	var h11 := ground_height(xa + TERRAIN_STEP, za - TERRAIN_STEP)
+	# Each grid square is split along the diagonal from (xa, zb) to (xb, za).
+	if u + v <= 1.0:
+		return h00 + u * (h10 - h00) + v * (h01 - h00)
+	return h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11)
+
+
 func _build() -> void:
 	for child in get_children():
 		child.free()
@@ -204,6 +240,8 @@ func _build() -> void:
 	_add_box_zone("StairDowndraft", DOWNDRAFT_ORIGIN, DOWNDRAFT_SIZE, Thermal.Look.DOWNDRAFT, DOWNDRAFT_STRENGTH, 1.0)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
 	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, 7.0, Thermal.Look.STEAM, 1.26, Vector3(2.55, 0.45, 0.0))
+	var meadow := Vector3(MEADOW_THERMAL.x, ground_height(MEADOW_THERMAL.x, MEADOW_THERMAL.y), MEADOW_THERMAL.y)
+	_add_thermal("MeadowHeat", meadow, MEADOW_THERMAL_RADIUS, MEADOW_THERMAL_HEIGHT, Thermal.Look.WARM_AIR, 0.9, Vector3.ZERO)
 
 
 func _add_mesh(mesh_name: String) -> void:
@@ -553,9 +591,9 @@ func _picture(wall_point: Vector3, facing: float, sky: Color, land: Color) -> vo
 
 func _build_outside() -> void:
 	# Terrain: a gently rising valley of pastel grass.
-	var step := 6.0
-	var x0 := -126.0
-	var z0 := -30.0
+	var step := TERRAIN_STEP
+	var x0 := TERRAIN_ORIGIN.x
+	var z0 := TERRAIN_ORIGIN.y
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	for ix in 42:
@@ -583,14 +621,32 @@ func _build_outside() -> void:
 				builder.box(Vector3(x + 1.25, mid_y + rail, fence_z), Vector3(2.5, 0.2, 0.15), Color("f3ece2"))
 		x += 2.5
 
-	# Trees on the slopes, kept clear of the flight path near the window.
+	# The hay field under the meadow thermal: golden rows, so the rising heat has a visible cause.
+	var hay := MEADOW_THERMAL
+	_ground_patch(hay.x - 6.0, hay.x + 6.0, hay.y + 6.0, hay.y - 6.0, 1.0, [Color("f4dc9b"), Color("e9c98a")])
+
+	# A stream across the valley with a few flat stepping stones.
+	var bank := 1.3
+	var sx := -60.0
+	while sx < 60.0:
+		var za := STREAM_Z + 2.0 * sin(sx * 0.12)
+		var zb := STREAM_Z + 2.0 * sin((sx + 1.0) * 0.12)
+		var water := Color("a9cfe0") if int(sx / 2.0) % 2 == 0 else Color("b8d8e6")
+		for half in [1.0, 0.0]:  # in two strips across, so the water follows the grass closely
+			_ground_quad(Vector3(sx, 0.0, za + bank * half), Vector3(sx + 1.0, 0.0, zb + bank * half), Vector3(sx, 0.0, za + bank * (half - 1.0)), Vector3(sx + 1.0, 0.0, zb + bank * (half - 1.0)), water)
+		sx += 1.0
+	for stone_x in [-3.4, -1.2, 1.1, 3.3]:
+		var sz := STREAM_Z + 2.0 * sin(stone_x * 0.12)
+		builder.sphere(Vector3(stone_x, terrain_height(stone_x, sz) + 0.2, sz + 0.3 * sin(stone_x * 2.0)), 0.55, Color("c9c2ba"), Vector3(1.0, 0.25, 0.8), 8, 3)
+
+	# Trees on the slopes, kept clear of the flight path from the window out past the meadow.
 	var trng := RandomNumberGenerator.new()
 	trng.seed = 21
 	var placed := 0
 	while placed < 26:
 		var tx := trng.randf_range(-90.0, 90.0)
 		var tz := trng.randf_range(-105.0, -300.0)
-		if absf(tx) < 16.0 and tz > -170.0:
+		if absf(tx) < TREE_FREE_HALF_WIDTH and tz > TREE_FREE_TO_Z:
 			continue
 		_tree(Vector3(tx, ground_height(tx, tz), tz), trng)
 		placed += 1
@@ -603,6 +659,36 @@ func _build_outside() -> void:
 	for c in [Vector3(-80, 70, -320), Vector3(40, 85, -420), Vector3(170, 65, -300), Vector3(-200, 90, -450)]:
 		for i in 3:
 			builder.sphere(c + Vector3(i * 14.0 - 14.0, (i % 2) * 4.0, 0.0), 13.0 - (i % 2) * 3.0, Color("fdfbf8"), Vector3(1.4, 0.55, 1.0), 10, 5)
+
+
+## Paints a patch on the hills between x0..x1 and z0..z1 (either order), in stripes of the given
+## colours along x. Use a step that divides TERRAIN_STEP so it follows the grass exactly.
+func _ground_patch(x0: float, x1: float, z0: float, z1: float, step: float, colors: Array) -> void:
+	var xs := [minf(x0, x1), maxf(x0, x1)]
+	var zs := [maxf(z0, z1), minf(z0, z1)]  # nearer the house first, so the faces point up
+	x0 = xs[0]
+	x1 = xs[1]
+	z0 = zs[0]
+	z1 = zs[1]
+	var nx := maxi(1, ceili((x1 - x0) / step))
+	var nz := maxi(1, ceili((z0 - z1) / step))
+	for ix in nx:
+		for iz in nz:
+			var xa := lerpf(x0, x1, float(ix) / nx)
+			var xb := lerpf(x0, x1, float(ix + 1) / nx)
+			var za := lerpf(z0, z1, float(iz) / nz)
+			var zb := lerpf(z0, z1, float(iz + 1) / nz)
+			_ground_quad(Vector3(xa, 0.0, za), Vector3(xb, 0.0, za), Vector3(xa, 0.0, zb), Vector3(xb, 0.0, zb), colors[ix % colors.size()])
+
+
+## One painted quad on the hills, PAINT_LIFT above the grass: corners given by x and z, a and b
+## nearer the house than c and d, heights from the grass as drawn. Drawn only: the grass collides.
+func _ground_quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, color: Color) -> void:
+	var corners: Array[Vector3] = []
+	for p: Vector3 in [a, b, c, d]:
+		corners.append(Vector3(p.x, terrain_height(p.x, p.z) + PAINT_LIFT, p.z))
+	builder.triangle(corners[0], corners[2], corners[1], color)
+	builder.triangle(corners[1], corners[2], corners[3], color)
 
 
 func _grass(rng: RandomNumberGenerator) -> Color:

@@ -15,6 +15,7 @@ decision from the designer or the owner, is written down here rather than settle
 | Hall table props | Props below y 16 | Plant reaches y 18.5 and a photo frame 17.4, both solid | A plant on a hall table; solid so what you see is what you hit. Sticks out 1.9 from the north wall at x 26.5–33.5; the flying corridor stays clear. | Designer FYI |
 | Arch header | Rise 4 over 5.7 (35°) | Rise 6 over 8.6 (still 35°), top drawn as a visible ledge, darker underside band | Catches floaters arriving up to y 17.5 as well as those the downdraft brings lower; the floater sweep (18 never-diving pilots) has 0 arch crashes with it and 17 without. | Designer sign-off (Phase B) |
 | Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
+| Meadow landmark (fun review 1, item 2) | Optional stream with a low footbridge near z -150 | Stream with flat stepping stones, no footbridge | Anything standing up where planes come down to land could turn a good run into a crash at the very end; a flat stream gives the beat without the risk. | Designer FYI |
 | Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
 
 ## What lives in `scripts/tuning.gd`
@@ -39,11 +40,21 @@ hold (the throw waits for a few smooth frames, at most 2 s).
 | 6 | Light shafts drawn 0.2 inside walls (no flicker) | Section 3 (sunbeam) |
 | 7 | End card: "79 m = 791" and "N of 8 moments" | Section 8 (scoring) |
 
+## Decisions for the owner
+
+- **Phase B changes parts of the original demo.** The brief says the old sequence "continues
+  unchanged" after the new opening, and also asks Phase B to make the whole flight fun through
+  layout, tuning and feel. The lead read "unchanged" as describing how the opening joins the old
+  demo (Phase A), and Phase B as allowing layout changes anywhere; the designer flagged the
+  tension. Changes to the old demo so far: a meadow thermal, hay field, stream and a wider
+  tree-free valley outdoors (fun review 1, item 2). To undo: revert the commit "Phase B fix 2:
+  a meadow thermal past the window" (it also carries the tests and the test pilot's new line).
+
 ## Open items for Phase B
 
-- A skilled run is about 52 s; the brief's goal is at least 60 s for a well-flown run. The
-  designer's measured levers: gravity 8 → 7 (about +3 s), and a 15-unit longer gallery (about
-  +3 s). See `docs/opening-plan.md` section 8.
+- A skilled run now lasts 60.4 s (novices 60.2-61.9 s) with the meadow thermal. The longest
+  stretch with nothing new is now the final glide from the stream to the grass, about 8 s
+  (flight log); designer to judge in review 2.
 - The lamp style moment (under the lamp) can be flown: a test pilot with a firm hand on the
   pitch follows the course's own paths and earns it (83-101 points, quality 0.55-0.67), then the
   kettle and window (`test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp`). But
@@ -65,6 +76,12 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   from behind, sits over the white coffee-table top and pink rug and is hard to pick out
   (screenshots at 24-25 s). Designer to judge: plane colour or outline, camera distance, or
   the furniture.
+- Frame rate while circling in the meadow thermal on the phone: its see-through column is the
+  largest in the game (radius about 4.5, 12 high, 110 motes) and the camera flies inside it for
+  a second or two. No cost on PC. Fallbacks: fewer motes, or draw only the column's front faces.
+- A run can now go on and on: a steady circle in the meadow thermal holds the plane at about
+  y 12.5 with no end (no distance or style is earned meanwhile). Designer to judge in review 2
+  whether the thermal should top out lower or fade, or whether that is a fine reward.
 - Frame rate in the stair dive on the phone: the downdraft's see-through column (the camera flies
   through it), two light shafts and three sets of motes and wisps can all be in view on top of the
   watercolour pass; the designer measured 40-51 fps on PC in this stretch. Fallbacks if it drops:

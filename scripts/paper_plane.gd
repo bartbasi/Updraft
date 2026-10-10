@@ -14,6 +14,9 @@ const WORLD_LAYER := 1
 const FELT_PEN := Color("e88b7d")
 ## How far the felt-pen marks sit above the paper (enough to never flicker, too little to see).
 const MARK_LIFT := 0.004
+## The shadow sits this far above whatever it falls on: above every layer painted on a floor
+## (rugs 0.08, the sunbeam's floor glow 0.12, Course.PAINT_LIFT outdoors), so none hides it.
+const SHADOW_LIFT := 0.15
 
 @export var tuning: Tuning
 
@@ -191,7 +194,7 @@ func _update_shadow() -> void:
 	var normal: Vector3 = hit["normal"]
 	var height := from.y - (hit["position"] as Vector3).y
 	_shadow.visible = true
-	_shadow.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, normal)).scaled(Vector3.ONE * (1.0 + height * 0.06)), (hit["position"] as Vector3) + normal * 0.03)
+	_shadow.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, normal)).scaled(Vector3.ONE * (1.0 + height * 0.06)), (hit["position"] as Vector3) + normal * SHADOW_LIFT)
 	_shadow_mat.albedo_color.a = clampf(0.45 - height * 0.03, 0.08, 0.45)
 
 

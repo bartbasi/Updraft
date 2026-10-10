@@ -80,12 +80,14 @@ static func _join(line: PackedVector3Array, part: PackedVector3Array) -> PackedV
 static func downstairs_line() -> PackedVector3Array:
 	return PackedVector3Array([
 		Course.LIVING_ROOM_ENTRY,
-		Vector3(-4.5, 9.0, -18.0), Vector3(-5.0, 10.0, -25.0),  # through the radiator heat
+		Vector3(-4.5, 6.8, -18.0), Vector3(-5.0, 10.0, -25.0),  # through the radiator heat
 		Vector3(-3.2, 6.2, -40.0), Vector3(-2.9, 6.0, -45.0),  # past the lamp on its left
 		Vector3(-1.0, 5.6, -52.0),  # under the door frame
 		Vector3(1.5, 6.5, -62.0), Vector3(2.6, 9.0, -69.0),  # up the kettle steam
 		Vector3(1.0, 8.0, -80.0), Vector3(0.0, 7.5, -88.0),  # out of the window
-		Vector3(0.0, 6.0, -100.0), Vector3(0.0, 2.0, -180.0),
+		Vector3(-2.0, 6.5, -100.0), Vector3(-5.5, 6.5, -112.0),  # over the fence toward the hay field
+		Vector3(-6.0, 11.0, -123.0), Vector3(-5.5, 11.0, -133.0),  # up the meadow thermal
+		Vector3(-5.0, 6.0, -200.0),  # and a long glide down the valley
 	])
 
 
