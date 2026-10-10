@@ -291,3 +291,62 @@ func test_late_first_time_pilots_mostly_make_the_turn() -> void:
 	print("        late first-timers through the turn: %d/%d (%d scraped a wall)" % [made_it, runs, scraped])
 	check(made_it >= int(runs * 0.6), "late first-time players still get through most of the time (%d/%d)" % [made_it, runs])
 	check(scraped >= 2, "and some of them really are late (%d scraped a wall)" % scraped)
+
+
+func test_sunbeam_is_the_first_lift_within_six_seconds_and_lifts_the_plane() -> void:
+	var pilot := Autopilot.new(Autopilot.course_line())
+	var game := _game(pilot.fly)
+	var plane := game.get_node("Plane") as PaperPlane
+	var entered := [-1.0, 0.0]
+	plane.entered_thermal.connect(func(z: Thermal) -> void:
+		if entered[0] < 0.0:
+			entered[0] = plane.flight_time
+			entered[1] = plane.global_position.y
+			check(z.name == "Sunbeam", "the first lift is the sunbeam, not %s" % z.name))
+	await _until_released(plane)
+	var top := 0.0
+	var climb := 0.0
+	while plane.flight_time < 12.0 and not plane.is_ended() and plane.global_position.x > 76.0:
+		await tree.physics_frame
+		top = maxf(top, plane.global_position.y)
+		if entered[0] > 0.0:
+			climb = maxf(climb, plane.model.velocity.y)
+	print("        sunbeam at %.1f s, y %.1f -> %.1f, climbing at up to %.1f u/s" % [entered[0], entered[1], top, climb])
+	check(entered[0] > 0.0 and entered[0] <= 6.5, "the sunbeam is reached within about 6 s (%.1f)" % entered[0])
+	check(top >= entered[1] + 4.0, "the sunbeam lifts the plane well (+%.1f)" % (top - entered[1]))
+	check(climb >= 3.0, "with a real lift, not a drift (peak climb %.1f u/s)" % climb)
+	check(not plane.is_ended(), "and the plane carries on")
+
+
+func test_sunbeam_light_and_motes_lean_with_the_sun() -> void:
+	var game := _game()
+	var beam := game.get_node("Course/Sunbeam") as Thermal
+	var sun := Course.SUNBEAM_SUN.normalized()
+	check(beam.sun_direction.is_equal_approx(Course.SUNBEAM_SUN), "the sunbeam has the course's sun direction")
+	var lean := -sun * (beam.size.y / -sun.y)
+	var shaft: MeshInstance3D = null
+	var motes: CPUParticles3D = null
+	for child in beam.get_children():
+		if child is MeshInstance3D:
+			shaft = child
+		elif child is CPUParticles3D:
+			motes = child
+	check(shaft != null and motes != null, "the sunbeam has a light shaft and motes")
+	if shaft == null or motes == null:
+		return
+	var arrays := shaft.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var floor_corners := []
+	for i in verts.size():
+		if uvs[i].y < 0.5 and not floor_corners.any(func(c: Vector3) -> bool: return c.is_equal_approx(verts[i])):
+			floor_corners.append(verts[i])
+	var tops := 0
+	for i in verts.size():
+		if uvs[i].y > 0.5:
+			tops += 1
+			var below := verts[i] - lean
+			var matches := floor_corners.any(func(c: Vector3) -> bool: return c.distance_to(below) < 0.01)
+			check(matches, "each top corner of the shaft is a floor corner moved up the light (%s)" % [verts[i]])
+	check(floor_corners.size() == 4 and tops > 0, "the shaft rises from a four-cornered floor patch")
+	check(motes.direction.is_equal_approx(-sun), "the motes rise along the light (%s)" % [motes.direction])

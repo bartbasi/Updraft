@@ -47,6 +47,15 @@ const START_HEADING := 0.0
 const LANDING_EAST_X := 108.5
 const LANDING_SOUTH_Z := 33.0
 const GALLERY_Z := Vector2(37.0, 46.0)  ## South and north walls (inner faces).
+## Sunlight from a tall window in the angled wall warms a patch of floor just past the turn.
+const SUNBEAM_ORIGIN := Vector3(89.0, 12.5, 40.5)  ## Centre of the sunny patch on the floor.
+const SUNBEAM_SIZE := Vector3(16.0, 12.0, 11.0)
+const SUNBEAM_STRENGTH := 0.9
+## The light falls steeply from the window (toward +Z and a little +X).
+const SUNBEAM_SUN := Vector3(0.08, -0.95, 0.317)
+## The tall window in the angled wall that the sunbeam comes through (x from/to, y from/to).
+const SUNBEAM_WINDOW_X := Vector2(83.0, 93.5)
+const SUNBEAM_WINDOW_Y := Vector2(14.7, 24.9)
 ## The landing's south wall angles back to the gallery's south wall along this line (x, z).
 const TAPER_FROM := Vector2(94.0, LANDING_SOUTH_Z)
 const TAPER_TO := Vector2(79.0, GALLERY_Z.x)
@@ -125,6 +134,7 @@ func _build() -> void:
 	_build_outside()
 	_add_mesh("Outside")
 
+	_add_box_zone("Sunbeam", SUNBEAM_ORIGIN, SUNBEAM_SIZE, Thermal.Look.SUNBEAM, SUNBEAM_STRENGTH, 1.12, SUNBEAM_SUN)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
 	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, 7.0, Thermal.Look.STEAM, 1.26, Vector3(2.55, 0.45, 0.0))
 
@@ -154,6 +164,21 @@ func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: floa
 	t.source_offset = source
 	t.position = at
 	add_child(t)
+
+
+## Everything is set before add_child, because the zone builds its visuals in _ready.
+func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN) -> Thermal:
+	var zone := Thermal.new()
+	zone.sun_direction = sun
+	zone.name = zone_name
+	zone.shape = Thermal.Shape.BOX
+	zone.size = box
+	zone.look = look
+	zone.strength_scale = strength
+	zone.chime_pitch = pitch
+	zone.position = at
+	add_child(zone)
+	return zone
 
 
 # --- Shape helpers: draw into the current mesh, optionally with collision ---------

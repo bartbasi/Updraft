@@ -194,6 +194,19 @@ static func build_landing(c: Course) -> void:
 	mid -= dir * t * 0.25
 	c.box(mid, Vector3(length + t * 0.5, top - f, t), GALLERY_WALL, true, basis)
 	c.box(mid + inward * 0.27 + Vector3(0, f + 0.3 - (f + top) * 0.5, 0), Vector3(length, 0.6, 0.04), Color("e8d6bc"), false, basis)
+	# The tall window the sunbeam comes through, set into the angled wall.
+	# Painted flush on the wall with no collision, so a late turner still scrapes a flat wall.
+	var wx := Course.SUNBEAM_WINDOW_X
+	var wy := Course.SUNBEAM_WINDOW_Y
+	var along_t := ((wx.x + wx.y) * 0.5 - taper_from.x) / (taper_to.x - taper_from.x)
+	var window_mid := Vector3(lerpf(taper_from.x, taper_to.x, along_t), (wy.x + wy.y) * 0.5, lerpf(taper_from.y, taper_to.y, along_t)) + inward * 0.03
+	var width := (wx.y - wx.x) / absf(dir.x)
+	var tall := wy.y - wy.x
+	c.box(window_mid, Vector3(width, tall, 0.06), Course.TRIM, false, basis)
+	c.box(window_mid + inward * 0.04, Vector3(width - 0.6, tall - 0.6, 0.04), Color("fff4d6"), false, basis)
+	for bar in [-0.25, 0.0, 0.25]:
+		c.box(window_mid + inward * 0.07 + dir * width * bar, Vector3(0.18, tall - 0.6, 0.04), Course.TRIM, false, basis)
+	c.box(window_mid + inward * 0.07 + Vector3(0, tall * 0.15, 0), Vector3(width - 0.6, 0.18, 0.04), Course.TRIM, false, basis)
 	# Skirting along the landing.
 	c.span(Vector3(taper_from.x, f, south), Vector3(east, f + 0.6, south + 0.12), Color("e8d6bc"), false)
 	c.span(Vector3(east - 0.12, f, south), Vector3(east, f + 0.6, north), Color("e8d6bc"), false)

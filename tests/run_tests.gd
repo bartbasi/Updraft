@@ -16,8 +16,35 @@ const SUITES := [
 
 const TIME_LIMIT := 1200.0  ## Seconds before a stuck run gives up and fails.
 
+var _errors := ErrorCatcher.new()
+
+
+## Collects engine and script errors as they happen, so a test that hits one fails instead
+## of quietly passing. (A GDScript runtime error just stops the test function.)
+class ErrorCatcher extends Logger:
+	var _mutex := Mutex.new()
+	var _found := PackedStringArray()
+
+	func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		if error_type == ERROR_TYPE_WARNING:
+			return
+		_mutex.lock()
+		_found.append("%s (%s:%d %s)" % [rationale if rationale != "" else code, file.get_file(), line, function])
+		_mutex.unlock()
+
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
+
+	func take() -> PackedStringArray:
+		_mutex.lock()
+		var found := _found.duplicate()
+		_found.clear()
+		_mutex.unlock()
+		return found
+
 
 func _initialize() -> void:
+	OS.add_logger(_errors)
 	create_timer(TIME_LIMIT, true, false, true).timeout.connect(func() -> void:
 		print("\nTIMED OUT after %d s" % TIME_LIMIT)
 		quit(1))
@@ -44,8 +71,11 @@ func _run() -> void:
 			if not test_name.begins_with("test_") or (only != "" and not test_name.contains(only)):
 				continue
 			suite.failures.clear()
+			_errors.take()
 			await suite.call(test_name)
 			await suite.cleanup()
+			for error in _errors.take():
+				suite.failures.append("error during the test: " + error)
 			if suite.failures.is_empty():
 				passed += 1
 				print("  ok    ", test_name)

@@ -159,8 +159,9 @@ static func _open_box(box: Vector3) -> ArrayMesh:
 ## A warm patch of sunlight on the floor and a soft shaft of light rising from it back
 ## toward the sun, leaning the same way as the lift.
 func _build_sunbeam() -> void:
-	var hx := size.x * 0.5
-	var hz := size.z * 0.5
+	# Drawn 0.2 inside the zone so the light never lies exactly on a wall face.
+	var hx := size.x * 0.5 - 0.2
+	var hz := size.z * 0.5 - 0.2
 	var lean := -sun_direction.normalized() * (size.y / maxf(-sun_direction.normalized().y, 0.05))
 	var floor_corners := [Vector3(-hx, 0.03, -hz), Vector3(hx, 0.03, -hz), Vector3(hx, 0.03, hz), Vector3(-hx, 0.03, hz)]
 	var st := SurfaceTool.new()

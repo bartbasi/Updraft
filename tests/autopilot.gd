@@ -37,7 +37,7 @@ static func course_line() -> PackedVector3Array:
 	return PackedVector3Array([
 		Course.START, Vector3(100.0, 19.6, 51.0), Vector3(100.0, 19.3, 47.0),  # down the bedroom
 		Vector3(98.4, 19.1, 43.1), Vector3(94.5, 19.0, 41.5), Vector3(90.0, 20.0, 41.5),  # the door turn
-		Vector3(80.0, 20.5, 41.5),
+		Vector3(87.0, 22.0, 41.5), Vector3(83.0, 23.2, 41.5), Vector3(79.0, 23.8, 41.5),  # up the sunbeam
 	])
 
 

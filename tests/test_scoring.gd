@@ -209,8 +209,9 @@ func test_downdraft_pushes_down_and_thermal_pushes_up() -> void:
 	check(sinking.airspeed() > free.airspeed(), "sinking air adds speed for a dive")
 
 
-func _box_zone(at: Vector3, box: Vector3, look: Thermal.Look) -> Thermal:
+func _box_zone(at: Vector3, box: Vector3, look: Thermal.Look, sun := Vector3.DOWN) -> Thermal:
 	var zone := Thermal.new()
+	zone.sun_direction = sun  # set before the zone enters the tree and builds its visuals
 	zone.shape = Thermal.Shape.BOX
 	zone.size = box
 	zone.look = look
@@ -251,8 +252,7 @@ func test_rising_and_sinking_air_add_up() -> void:
 
 func test_sunbeam_lift_follows_the_slanted_light() -> void:
 	var t := Tuning.new()
-	var beam := _box_zone(Vector3.ZERO, Vector3(10, 12, 6), Thermal.Look.SUNBEAM)
-	beam.sun_direction = Vector3(0.0, -1.0, 0.5)  # light travels +Z as it falls
+	var beam := _box_zone(Vector3.ZERO, Vector3(10, 12, 6), Thermal.Look.SUNBEAM, Vector3(0.0, -1.0, 0.5))  # light travels +Z as it falls
 	# Halfway up, the light (and the lift) has moved 3 units back toward the sun (-Z).
 	check(beam.vertical_air_speed(Vector3(0, 6, -3), t) > t.thermal_strength * 0.99, "full lift in the middle of the slanted beam")
 	check(beam.vertical_air_speed(Vector3(0, 6, 3), t) == 0.0, "no lift where the light isn't")
