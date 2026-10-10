@@ -69,7 +69,8 @@ owner"):
 
 ## Numbers
 
-- 21 commits since the Phase 1 demo.
+- 19 reviewed changes since the Phase 1 demo: the groundwork, 9 build sections and 9 Phase B
+  fixes (5 from fun review 1, 4 from fun review 2), each its own commit.
 - 101 automated tests (flight, controls, collisions, the course section by section, scoring, the
   best-score file, sounds and camera), all passing.
 - The code-reviewer blocked 6 times; each block was fixed and reviewed again:
