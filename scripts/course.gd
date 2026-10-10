@@ -24,7 +24,9 @@ const WINDOW_TOP := 10.5
 ## Where the scripted tests start a flight of the downstairs part on its own.
 const LIVING_ROOM_ENTRY := Vector3(-2.0, 8.5, 12.0)
 const RADIATOR_THERMAL := Vector3(-5.0, 3.6, -22.0)
-const LAMP := Vector3(0.0, 5.0, -45.0)  ## Bottom centre of the hanging lamp shade.
+const LAMP := Vector3(0.0, 5.5, -45.0)  ## Bottom centre of the hanging lamp shade.
+const LAMP_SHADE_RADIUS := 1.7  ## At its bottom rim.
+const DINING_TABLE_TOP := 2.8  ## The gap between table and shade is the lamp moment's dive.
 const KETTLE := Vector3(7.0, 3.7, -69.0)
 const KETTLE_THERMAL := Vector3(3.0, 4.2, -69.0)  ## Steam drifts toward the room.
 ## Outdoors: a sun-warmed hay field past the garden fence, left of the line out of the window,
@@ -481,9 +483,9 @@ func _build_living_room() -> void:
 ## Dining table and chairs under a low hanging lamp, just before the doorway: the dive.
 func _build_dining_corner() -> void:
 	var w := HALF_WIDTH
-	span(Vector3(-3.0, 2.8, -42.0), Vector3(3.0, 3.1, -48.0), Color("c8a283"))
+	span(Vector3(-3.0, DINING_TABLE_TOP - 0.3, -42.0), Vector3(3.0, DINING_TABLE_TOP, -48.0), Color("c8a283"))
 	for leg in [Vector3(-2.7, 0, -42.3), Vector3(2.45, 0, -42.3), Vector3(-2.7, 0, -47.45), Vector3(2.45, 0, -47.45)]:
-		span(leg, leg + Vector3(0.25, 2.8, -0.25), Color("b8916f"))
+		span(leg, leg + Vector3(0.25, DINING_TABLE_TOP - 0.3, -0.25), Color("b8916f"))
 	for side in [-1.0, 1.0]:
 		for cz in [-43.5, -46.5]:
 			var seat := Vector3(4.4 * side, 1.8, cz)
@@ -492,7 +494,7 @@ func _build_dining_corner() -> void:
 			for lx in [-0.6, 0.6]:
 				for lz in [-0.6, 0.6]:
 					box(Vector3(seat.x + lx, 0.9, cz + lz), Vector3(0.15, 1.8, 0.15), Color("d9b48f"), false)
-	cylinder(LAMP, 2.0, 0.7, 1.6, Color("f6c9b8"), true, 14)
+	cylinder(LAMP, LAMP_SHADE_RADIUS, 0.7, 1.6, Color("f6c9b8"), true, 14)
 	cylinder(LAMP + Vector3(0, 1.6, 0), 0.7, 0.3, 0.4, Color("f6c9b8"), false, 14)
 	cylinder(LAMP + Vector3(0, 2.0, 0), 0.05, 0.05, CEILING - LAMP.y - 2.0, Color("9b8fa6"), false, 6)
 	sphere(LAMP + Vector3(0, 0.3, 0), 0.45, Color("fff4d6"), false)

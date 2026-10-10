@@ -15,7 +15,9 @@ const SUITES := [
 ]
 
 
-const TIME_LIMIT := 1200.0  ## Seconds before a stuck run gives up and fails.
+## Game-time seconds before a stuck run gives up and fails (under --fixed-fps every frame is
+## 1/60 s, so this is the total flight time of the whole suite plus room to grow).
+const TIME_LIMIT := 3600.0
 
 var _errors := ErrorCatcher.new()
 

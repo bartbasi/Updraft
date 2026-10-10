@@ -16,6 +16,7 @@ decision from the designer or the owner, is written down here rather than settle
 | Arch header | Rise 4 over 5.7 (35°) | Rise 6 over 8.6 (still 35°), top drawn as a visible ledge, darker underside band | Catches floaters arriving up to y 17.5 as well as those the downdraft brings lower; the floater sweep (18 never-diving pilots) has 0 arch crashes with it and 17 without. | Designer sign-off (Phase B) |
 | Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
 | Meadow landmark (fun review 1, item 2) | Optional stream with a low footbridge near z -150 | Stream with flat stepping stones, no footbridge | Anything standing up where planes come down to land could turn a good run into a crash at the very end; a flat stream gives the beat without the risk. | Designer FYI |
+| Lamp moment (fun review 1, item 3) | Plan section 4: a 1.9-unit gap, shade bottom y 5.0, table top 3.1 | A 2.7-unit gap: shade bottom 5.5 (rim radius 1.7, was 2.0), table top 2.8 | The designer's fix for the cliff; path, corridor and points unchanged. `docs/opening-plan.md` still shows the old numbers. | None (designer's own fix) |
 | Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
 
 ## What lives in `scripts/tuning.gd`
@@ -49,13 +50,17 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   tension. Changes to the old demo so far: a meadow thermal, hay field, stream and a wider
   tree-free valley outdoors (fun review 1, item 2). To undo: revert the commit "Phase B fix 2:
   a meadow thermal past the window" (it also carries the tests and the test pilot's new line).
+  Also more room under the dining lamp (fun review 1, item 3): the lamp hangs 0.5 higher, its
+  shade is a little narrower and the table 0.3 lower. To undo: revert the commit "Phase B fix 3:
+  more room under the dining lamp" (it also carries the test that needs the room).
 
 ## Open items for Phase B
 
 - A skilled run now lasts 60.4 s (novices 60.2-61.9 s) with the meadow thermal. The longest
   stretch with nothing new is now the final glide from the stream to the grass, about 8 s
   (flight log); designer to judge in review 2.
-- The lamp style moment (under the lamp) can be flown: a test pilot with a firm hand on the
+- (Fixed by fun review 1, item 3: more room under the lamp; moderate divers now get through.)
+  Before: the lamp style moment (under the lamp) could be flown: a test pilot with a firm hand on the
   pitch follows the course's own paths and earns it (83-101 points, quality 0.55-0.67), then the
   kettle and window (`test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp`). But
   the standard test pilot, which pitches gently, crashes into the lamp shade at about
@@ -76,6 +81,11 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   from behind, sits over the white coffee-table top and pink rug and is hard to pick out
   (screenshots at 24-25 s). Designer to judge: plane colour or outline, camera distance, or
   the furniture.
+- For review 2 (from code review of fix 3, all fair as they stand): on the line under the lamp
+  the camera passes just under the shade's rim, so for about 0.3 s the shade's underside fills
+  the top of the view; the shade's top is now y 7.1, so a plane skimming just over the lamp at
+  y 7.2-7.4 can catch it (it visibly overlaps); and some gentle divers who now get under the
+  lamp come in too low for the kettle steam and hit the counter under the window.
 - Frame rate while circling in the meadow thermal on the phone: its see-through column is the
   largest in the game (radius about 4.5, 12 high, 110 motes) and the camera flies inside it for
   a second or two. No cost on PC. Fallbacks: fewer motes, or draw only the column's front faces.

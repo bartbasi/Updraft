@@ -138,6 +138,42 @@ func test_wind_survives_its_quietest_settings() -> void:
 	await cleanup()
 
 
+## The lamp is a slope, not a cliff: first-timers who commit to the dive only moderately
+## (pitch gain 0.45, between the gentle 0.3 and the firm pilot) all get past it and most earn
+## it; gentler ones (0.38) still get past and at least half earn it.
+func test_moderate_divers_thread_the_lamp() -> void:
+	for setup in [[0.45, 8], [0.38, 5]]:
+		await _lamp_divers(float(setup[0]), int(setup[1]))
+
+
+func _lamp_divers(gain: float, must_earn: int) -> void:
+	var earned := 0
+	var stuck := []
+	var runs := 10
+	for run_seed in range(1, runs + 1):
+		var pilot := Autopilot.novice(Autopilot.downstairs_style_line(), run_seed)
+		pilot.pitch_gain = gain
+		var game := MAIN.instantiate()
+		add_node(game)
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.autopilot = pilot.fly
+		plane.launch(Course.LIVING_ROOM_ENTRY, 0.0)
+		(game.get_node("Camera") as FollowCamera).snap()
+		var frames := 0
+		while not plane.is_ended() and plane.global_position.z > Course.LAMP.z - 8.0 and frames < 60 * 30:
+			await tree.physics_frame
+			frames += 1
+		var lamp: Scoring.Moment = game.scoring.moments.filter(func(m: Scoring.Moment) -> bool: return m.id == &"lamp")[0]
+		earned += 1 if lamp.award > 0 else 0
+		var p := plane.global_position
+		if plane.is_ended() or p.z > Course.LAMP.z - 8.0:
+			stuck.append("seed %d %s at %s" % [run_seed, "crashed" if plane.model.crashed else "stopped short", p])
+		await cleanup()
+	print("        divers at pitch gain %.2f: %d/%d earn the lamp, %d don't get past it" % [gain, earned, runs, stuck.size()])
+	check(stuck.is_empty(), "gain %.2f: everyone gets past the lamp: %s" % [gain, stuck])
+	check(earned >= must_earn, "gain %.2f: at least %d of %d earn the lamp (%d)" % [gain, must_earn, runs, earned])
+
+
 ## Every moment's pop-up, plain and perfect, sits in the middle of the screen and grows from its
 ## middle, whatever the length of its title.
 func test_style_popups_are_centred() -> void:
