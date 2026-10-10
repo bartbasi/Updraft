@@ -10,6 +10,10 @@ signal entered_thermal(thermal: Thermal)
 
 const RADIUS := 0.3
 const WORLD_LAYER := 1
+## The kid coloured the wing tips with a felt pen, so the plane stands out on pale walls.
+const FELT_PEN := Color("e88b7d")
+## How far the felt-pen marks sit above the paper (enough to never flicker, too little to see).
+const MARK_LIFT := 0.004
 
 @export var tuning: Tuning
 
@@ -212,7 +216,8 @@ static func build_paper_mesh() -> ArrayMesh:
 	var b := Art.Builder.new()
 	var white := Color("fbf8f1")
 	var crease := Color("eee8dd")
-	var keel := Color("e0d9cd")
+	var keel := Color("b8acc9")  # lilac grey
+	var lift := Vector3(0.0, MARK_LIFT, 0.0)
 	var nose := Vector3(0.0, 0.02, -0.62)
 	var tail := Vector3(0.0, 0.0, 0.4)
 	var keel_low := Vector3(0.0, -0.13, 0.34)
@@ -221,6 +226,7 @@ static func build_paper_mesh() -> ArrayMesh:
 		var fold := Vector3(0.2 * s, 0.025, 0.42)
 		b.triangle(nose, fold, tail, crease)
 		b.triangle(nose, tip, fold, white)
+		b.triangle(tip + lift, fold + lift, tip.lerp(nose, 0.3) + lift, FELT_PEN)
 		b.triangle(nose, tail, keel_low, keel)
 	return b.commit()
 
