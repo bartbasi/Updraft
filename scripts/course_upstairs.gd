@@ -360,6 +360,8 @@ static func build_stair_hall(c: Course) -> void:
 	c.builder.cylinder(Vector3(lo.x, 16.0, (gz.x + gz.y) * 0.5), 2.8, 2.8, 0.08, Course.TRIM, 12, face_east)
 	c.builder.cylinder(Vector3(lo.x + 0.08, 16.0, (gz.x + gz.y) * 0.5), 2.5, 2.5, 0.04, Color("d7e8f8"), 12, face_east)
 
+	_arch_header(c)
+
 	# Ground floor, kept low and against the walls: a rug, a shoe bench and a coat stand.
 	c.span(Vector3(3.0, 0.0, 17.0), Vector3(14.0, 0.05, 33.0), Color("cfe0d8"), false)
 	c.span(Vector3(3.5, 0.0, 17.5), Vector3(13.5, 0.08, 32.5), Color("e1e8ef"), false)
@@ -417,3 +419,41 @@ static func _banister(c: Course, upper: Vector3, lower: Vector3, side: Vector3) 
 static func _newel(c: Course, base: Vector3, height: float) -> void:
 	c.cylinder(base, 0.3, 0.3, height, Color("d3b898"), true, 8)
 	c.sphere(base + Vector3.UP * (height + 0.25), 0.35, Color("e3c8a5"))
+
+
+## The sloped header above the arch, on the stair-hall side: a solid wedge whose underside
+## rises at 35 degrees from the arch top back toward the stairs.
+static func _arch_header(c: Course) -> void:
+	var x0 := Course.ARCH_X.x - Course.JAMB_RADIUS
+	var x1 := Course.ARCH_X.y + Course.JAMB_RADIUS
+	var wall := Course.STAIR_HALL_MIN.y
+	var low := Vector3(0.0, Course.ARCH_TOP, wall)
+	var high := Vector3(0.0, Course.ARCH_TOP + Course.ARCH_HEADER_RISE, wall + Course.ARCH_HEADER_DEPTH)
+	var back := Vector3(0.0, high.y, wall)
+	# The sloped underside, drawn as a thin board.
+	var dir := (high - low).normalized()
+	var up := Vector3(0.0, dir.z, -dir.y)  # perpendicular to the slope, into the wedge
+	var basis := Basis(Vector3.RIGHT, up, Vector3.RIGHT.cross(up))
+	c.box(Vector3((x0 + x1) * 0.5, 0.0, 0.0) + (low + high) * 0.5 + up * 0.1, Vector3(x1 - x0, 0.2, (high - low).length()), Course.TRIM, false, basis)
+	c.box(Vector3((x0 + x1) * 0.5, 0.0, 0.0) + (low + high) * 0.5 - up * 0.02, Vector3(x1 - x0 - 0.6, 0.04, (high - low).length() - 0.6), Color("ece3d6"), false, basis)
+	# Its flat top, a visible ledge (a plane that lands up there rests on something you can see).
+	c.box(Vector3((x0 + x1) * 0.5, high.y - 0.1, wall + Course.ARCH_HEADER_DEPTH * 0.5), Vector3(x1 - x0, 0.2, Course.ARCH_HEADER_DEPTH), Course.TRIM, false)
+	# The two triangular ends, visible from either side.
+	for x in [x0, x1]:
+		var a := low + Vector3(x, 0, 0)
+		var b := high + Vector3(x, 0, 0)
+		var d := back + Vector3(x, 0, 0)
+		c.builder.triangle(a, b, d, Course.TRIM)
+		c.builder.triangle(a, d, b, Course.TRIM)
+	# A threshold across the arch, where the living-room planks meet the hall's tiles.
+	c.span(Vector3(Course.ARCH_X.x, -0.5, Course.BACK_Z), Vector3(Course.ARCH_X.y, 0.0, wall), Color("d3b898"), false)
+	# The living-room wall beside the arch, seen from the stair hall, painted in the hall's colour.
+	c.span(Vector3(x1, 0.0, wall), Vector3(Course.HALF_WIDTH + Course.WALL, Course.CEILING + 0.5, wall + 0.04), HALL_WALL, false)
+	# Solid wedge, sunk a little into the wall so there is no gap.
+	var points := PackedVector3Array()
+	for x in [x0, x1]:
+		for p in [low, high, back, low - Vector3(0, 0, 0.2), back - Vector3(0, 0, 0.2)]:
+			points.append(p + Vector3(x, 0, 0))
+	var hull := ConvexPolygonShape3D.new()
+	hull.points = points
+	c.solid_shape(hull, Transform3D.IDENTITY)

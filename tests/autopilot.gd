@@ -42,7 +42,7 @@ static func course_line() -> PackedVector3Array:
 		Vector3(17.0, 20.5, 41.5), Vector3(13.0, 18.0, 41.5), Vector3(10.0, 15.8, 41.5),  # dive down flight 1
 		Vector3(7.0, 13.6, 41.5), Vector3(3.5, 12.2, 40.6), Vector3(0.0, 11.4, 38.6),  # bank around the landing
 		Vector3(-2.5, 9.8, 34.5), Vector3(-3.0, 7.5, 26.0), Vector3(-2.0, 8.5, 16.5),  # down flight 2 and level out
-	])
+	]) + downstairs_line()
 
 
 ## A good line through the downstairs part, from Course.LIVING_ROOM_ENTRY.

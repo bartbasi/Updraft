@@ -13,6 +13,7 @@ decision from the designer or the owner, is written down here rather than settle
 | Cones and lamp shades | (not in plan) | Collide exactly as drawn (convex hull) | They used to collide as full cylinders, an invisible wall (code-review blocker). This also changes the existing living-room lamp shade and the outdoor trees slightly. | None |
 | Mobile in the bedroom | (dressing) | No collision | Soft paper birds on strings; the plane brushes through. | None |
 | Hall table props | Props below y 16 | Plant reaches y 18.5 and a photo frame 17.4, both solid | A plant on a hall table; solid so what you see is what you hit. Sticks out 1.9 from the north wall at x 26.5–33.5; the flying corridor stays clear. | Designer FYI |
+| Arch header | Rise 4 over 5.7 (35°) | Rise 6 over 8.6 (still 35°), top drawn as a visible ledge, darker underside band | Catches floaters arriving up to y 17.5 as well as those the downdraft brings lower; the floater sweep (18 never-diving pilots) has 0 arch crashes with it and 17 without. | Designer sign-off (Phase B) |
 | Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
 | Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
 
@@ -20,7 +21,7 @@ decision from the designer or the owner, is written down here rather than settle
 
 | # | Item | Done in |
 |---|---|---|
-| 1 | Sloped header on the stair side of the arch, so non-divers glance through | Section 6 (arch) |
+| 1 | Sloped header on the stair side of the arch, so non-divers glance through | Section 6 (arch): 35° slope as asked, but rising 6 over 8.6 (plan: 4 over 5.7) so it also catches floaters arriving up to y 17.5; its top is drawn as a visible ledge; underside band slightly darker. Fully effective together with the stairwell downdraft (Section 7), which brings floaters down to the header's range; Section 7 adds the designer's floater sweep (from the gallery, never diving) as an end-to-end test. |
 | 2 | `landing_turn` radius 2.0 → 3.0 | Section 8 (scoring) |
 | 3 | `stair_downdraft` radius 2.0 → 1.5 | Section 8 (scoring) |
 | 4 | Stronger wind swell in the dive | Phase B |

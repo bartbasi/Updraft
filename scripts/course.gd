@@ -67,6 +67,14 @@ const FLIGHT1_BOTTOM_X := 1.5
 const FLIGHT2_BOTTOM_Z := 22.0
 const STAIR_STEPS := 12
 const RAIL_HEIGHT := 3.6  ## Banister height above the stairs.
+## The wide arch in the living-room back wall where the stairs come down (x from, x to).
+const ARCH_X := Vector2(-7.0, 6.0)
+const ARCH_TOP := 11.5
+## A sloped header on the stair side of the arch: it rises from the arch top at 35 degrees,
+## so a plane coming down the stairs too high glances down through the arch (a crash needs
+## a hit steeper than 50 degrees).
+const ARCH_HEADER_RISE := 6.0
+const ARCH_HEADER_DEPTH := 8.6
 ## The tall window in the angled wall that the sunbeam comes through (x from/to, y from/to).
 const SUNBEAM_WINDOW_X := Vector2(83.0, 93.5)
 const SUNBEAM_WINDOW_Y := Vector2(14.7, 24.9)
@@ -301,7 +309,13 @@ func _build_shell() -> void:
 	span(Vector3(w, 0, BACK_Z), Vector3(w + WALL, CEILING, DIVIDER_Z), LIVING_WALL)
 	span(Vector3(-w - WALL, 0, DIVIDER_Z), Vector3(-w, CEILING, FAR_Z), KITCHEN_WALL)
 	span(Vector3(w, 0, DIVIDER_Z), Vector3(w + WALL, CEILING, FAR_Z), KITCHEN_WALL)
-	span(Vector3(-w - WALL, 0, BACK_Z), Vector3(w + WALL, CEILING, BACK_Z + WALL), LIVING_WALL)
+	# Back wall, with the arch the stairs come down through.
+	var arch_left := ARCH_X.x - JAMB_RADIUS
+	var arch_right := ARCH_X.y + JAMB_RADIUS
+	span(Vector3(-w - WALL, 0, BACK_Z), Vector3(arch_left, CEILING, BACK_Z + WALL), LIVING_WALL)
+	span(Vector3(arch_right, 0, BACK_Z), Vector3(w + WALL, CEILING, BACK_Z + WALL), LIVING_WALL)
+	span(Vector3(arch_left, ARCH_TOP, BACK_Z), Vector3(arch_right, CEILING, BACK_Z + WALL), LIVING_WALL)
+	doorway_posts(ARCH_X.x, ARCH_X.y, BACK_Z + WALL * 0.5, 0.0, ARCH_TOP)
 
 	# Divider wall with a wide doorway, painted to match each room.
 	var dw := DOOR_HALF_WIDTH
