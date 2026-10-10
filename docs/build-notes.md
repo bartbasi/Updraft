@@ -7,13 +7,13 @@ decision from the designer or the owner, is written down here rather than settle
 
 | Where | Plan | Built | Why | Needs |
 |---|---|---|---|---|
-| Sunbeam angle | Sun about 40° from vertical; window x 85–93, y 15–24.5 | Sun about 18° from vertical (`SUNBEAM_SUN`); window x 83–93.5, y 14.7–24.9 | The lift follows the visible light exactly (code-review fix). At 40° the lift would hug the south wall, away from the centre line the player flies after the turn. The steeper light keeps lift and light on the line. Trade-off: the shaft reads as a high window/clerestory more than a low window. | Designer sign-off (Phase B) |
+| Sunbeam angle | Sun about 40° from vertical; window x 85–93, y 15–24.5 | Sun about 18° from vertical (`SUNBEAM_SUN`); window x 83–93.5, y 14.7–24.9 | The lift follows the visible light exactly (code-review fix). At 40° the lift would hug the south wall, away from the centre line the player flies after the turn. The steeper light keeps lift and light on the line. Trade-off: the shaft reads as a high window/clerestory more than a low window. | Signed off (fun review 1) |
 | Opening shot length | 0.9 s ease | 0.65 s ease (`camera_intro_duration`) | The brief asks for the follow camera "within the first second" counted from the first frame; the plane also waits a few frames for smooth drawing. The designer's Phase A review approved it. | None |
 | Door posts | Square jambs | Rounded posts, radius 0.6, drawn as they collide | A sharp corner turns a light clip into a head-on crash; rounded posts turn it into a bump. | None |
 | Cones and lamp shades | (not in plan) | Collide exactly as drawn (convex hull) | They used to collide as full cylinders, an invisible wall (code-review blocker). This also changes the existing living-room lamp shade and the outdoor trees slightly. | None |
 | Mobile in the bedroom | (dressing) | No collision | Soft paper birds on strings; the plane brushes through. | None |
 | Hall table props | Props below y 16 | Plant reaches y 18.5 and a photo frame 17.4, both solid | A plant on a hall table; solid so what you see is what you hit. Sticks out 1.9 from the north wall at x 26.5–33.5; the flying corridor stays clear. | Designer FYI |
-| Arch header | Rise 4 over 5.7 (35°) | Rise 6 over 8.6 (still 35°), top drawn as a visible ledge, darker underside band | Catches floaters arriving up to y 17.5 as well as those the downdraft brings lower; the floater sweep (18 never-diving pilots) has 0 arch crashes with it and 17 without. | Designer sign-off (Phase B) |
+| Arch header | Rise 4 over 5.7 (35°) | Rise 6 over 8.6 (still 35°), top drawn as a visible ledge, darker underside band | Catches floaters arriving up to y 17.5 as well as those the downdraft brings lower; the floater sweep (18 never-diving pilots) has 0 arch crashes with it and 17 without. | Signed off (fun review 1) |
 | Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
 | Meadow landmark (fun review 1, item 2) | Optional stream with a low footbridge near z -150 | Stream with flat stepping stones, no footbridge | Anything standing up where planes come down to land could turn a good run into a crash at the very end; a flat stream gives the beat without the risk. | Designer FYI |
 | Lamp moment (fun review 1, item 3) | Plan section 4: a 1.9-unit gap, shade bottom y 5.0, table top 3.1 | A 2.7-unit gap: shade bottom 5.5 (rim radius 1.7, was 2.0), table top 2.8 | The designer's fix for the cliff; path, corridor and points unchanged. `docs/opening-plan.md` still shows the old numbers. | None (designer's own fix) |
@@ -55,6 +55,10 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   shade is a little narrower and the table 0.3 lower. To undo: revert the commit "Phase B fix 3:
   more room under the dining lamp" (it also carries the test that needs the room), but keep its
   longer test watchdog (`TIME_LIMIT` in `tests/run_tests.gd`).
+- A lavender field is painted on the valley floor where a good glide comes down (fun review 2,
+  item 4): a last thing to aim for, paint only. To undo: remove the `_ground_patch` call for
+  `LAVENDER_X` in `scripts/course.gd` and the lavender checks in `tests/test_course.gd` and
+  `tools/flight_log.gd`.
 - The kettle steam now reaches down to y 3.0 (it started at 4.2) and is taller, so its top
   stays at 11.2 (fun review 2, item 1): planes coming into the kitchen low catch it instead of
   hitting the counter under the window. To undo: revert the commit "Phase B round 2, fix 1:
@@ -69,53 +73,40 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   (70 to 76 degrees) outdoors (fun review 1, item 4). To undo: set `window_gust_db` to 0,
   `whoosh_volume_db` to -80 and `camera_fov_outside` to 70 in `scripts/tuning.gd`.
 
-## Open items for Phase B
+## Open items: settled in the fun reviews
 
-- A skilled run now lasts 60.4 s (novices 60.2-61.9 s) with the meadow thermal. The longest
-  stretch with nothing new is now the final glide from the stream to the grass, about 8 s
-  (flight log); designer to judge in review 2.
-- (Fixed by fun review 1, item 3: more room under the lamp; moderate divers now get through.)
-  Before: the lamp style moment (under the lamp) could be flown: a test pilot with a firm hand on the
-  pitch follows the course's own paths and earns it (83-101 points, quality 0.55-0.67), then the
-  kettle and window (`test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp`). But
-  the standard test pilot, which pitches gently, crashes into the lamp shade at about
-  (0.2, 5.5, -43) on that path, and no novice run earns it (0/10). Designer to judge whether
-  real players will thread it, or whether the dip under the shade wants more room.
-- Late first-timers (test pilot with 0.3–0.9 s reaction lag, seeds 300–319): 15–16/20 get
-  through the door turn, but the lag makes them weave afterwards; measured to the gallery mouth
-  (x 79) only 11/20 survive: four hit the angled wall up in the sunbeam (x 80–83, y about 24),
-  and through the whole gallery 10/20. Normal first-timers: 20/20 through the whole gallery.
-  Designer to judge in Phase B whether real players would weave like this (pilot-induced
-  oscillation) and whether the angled wall or the sunbeam's height needs softening.
-- The banister boards now reach the top of the drawn handrail (what you see is what you hit), so a
-  full-strength dive (-1.0) that turns early (x 12) crashes on flight 1's handrail instead of
-  glancing off its top. The handrail is visible there; designer to judge whether that is fair.
-- Crash-to-flying time and frame rate need checking on a real phone ("Fly again" rebuilds the
-  house in code).
-- Through the arch at speed the camera trails about 6 units behind, and the white plane, seen
-  from behind, sits over the white coffee-table top and pink rug and is hard to pick out
-  (screenshots at 24-25 s). Designer to judge: plane colour or outline, camera distance, or
-  the furniture.
-- For review 2: the window whoosh is the lead's addition to fun review 1, item 4 (the designer
-  asked for the gust and the wider view; the brief names "a soft whoosh" for bursting out of
-  the window, and `audio/whoosh.wav` was made for it). It plays with the gust; the window's
-  style pop-up follows about 0.7 s later. Designer to judge.
-- For review 2 (from code review of fix 3, all fair as they stand): on the line under the lamp
-  the camera passes just under the shade's rim, so for about 0.3 s the shade's underside fills
-  the top of the view; the shade's top is now y 7.1, so a plane skimming just over the lamp at
-  y 7.2-7.4 can catch it (it visibly overlaps); and some gentle divers who now get under the
-  lamp come in too low for the kettle steam and hit the counter under the window.
-- Frame rate in the kitchen on the phone: the steam's see-through column is now taller and
-  reaches below the counter top.
-- Frame rate while circling in the meadow thermal on the phone: its see-through column is the
-  largest in the game (radius about 4.5, 12 high, 110 motes) and the camera flies inside it for
-  a second or two. No cost on PC. Fallbacks: fewer motes, or draw only the column's front faces.
-- A run can now go on and on: a steady circle in the meadow thermal holds the plane at about
-  y 12.5 with no end (no distance or style is earned meanwhile). Designer to judge in review 2
-  whether the thermal should top out lower or fade, or whether that is a fine reward.
-- Listen on the phone to a fast close call in the stair dive (wind at its +2 dB ceiling plus
-  the whoosh) for any crackle; if it clips, lower `wind_max_db`.
-- Frame rate in the stair dive on the phone: the downdraft's see-through column (the camera flies
-  through it), two light shafts and three sets of motes and wisps can all be in view on top of the
-  watercolour pass; the designer measured 40-51 fps on PC in this stretch. Fallbacks if it drops:
-  narrow the column to the window's width (x 5-13), or drop the column and keep the falling wisps.
+- **60 s target:** met. A skilled test-pilot run lasts 60.4 s and novices 60.2-61.9 s (fun review 1,
+  item 2). The longest stretch without a new event is 6.3 s, from entering the meadow thermal
+  (46.0 s, climbing for the first 2 s) to the stream (52.4 s); the lavender field (fun review 2,
+  item 4) splits the final glide into 3.7 s and 4.3 s.
+- **Lamp moment:** fixed, more room under the lamp (fun review 1, item 3).
+- **Late first-timers weaving after the door turn:** no layout change; check on the phone
+  (fun review 1; fallback `full_tilt_deg` 25 -> 30).
+- **Banister handrail crash on a full-strength early-turning dive:** fair, no action (fun review 1).
+- **Plane hard to see through the arch:** fixed by the felt-pen wing tips (fun review 1, item 1).
+- **Window whoosh** (the lead's addition): signed off (fun review 2).
+- **Camera under the lamp shade's rim, the shade's top at y 7.1, gentle divers low into the
+  kitchen:** keep as they are (fun review 2; the kitchen also got lower steam, item 1).
+- **A steady circle in the meadow thermal never ends:** keep; it earns nothing and the player
+  leaves when they like (fun review 2).
+
+## Still open: the owner's phone test
+
+The designer's list, with pass marks and fallback numbers, is in `docs/fun-review-2.md` ("Wait
+for the phone test"). From the build:
+
+- Tilt directions match the README's controls table (if not: `invert_tilt_pitch` /
+  `invert_tilt_roll` in `scripts/tuning.gd`).
+- Crash to flying again in about 2 s ("Fly again" rebuilds the house in code, about 60 ms on PC;
+  fallback `card_delay_crash` 0.45 -> 0.30).
+- Frame rate (PC captures dip to about 40-50 fps in these stretches):
+  - **Stair dive:** the downdraft column (which the camera flies through), two light shafts and
+    three sets of motes and wisps can all be in view on top of the watercolour pass. Fallbacks:
+    narrow the column to the window's width (x 5-13), or drop the column and keep the falling
+    wisps.
+  - **Kitchen:** the steam's column is now taller and reaches below the counter top.
+  - **Meadow thermal:** the largest column (radius about 4.5, 12 high, 110 motes), and the camera
+    flies inside it. Fallbacks: fewer motes, or draw only the column's front faces.
+  - **The sunbeam and the arch.**
+- Listen to a fast close call in the stair dive (wind at its +2 dB ceiling plus the whoosh) for
+  any crackle; if it clips, lower `wind_max_db`.

@@ -44,10 +44,14 @@ const TREE_FREE_HALF_WIDTH := 16.0
 const TREE_FREE_TO_Z := -240.0
 ## A small stream across the valley, a beat to fly over after the thermal.
 const STREAM_Z := -150.0
+## A lavender field where a good glide comes down: something to aim for at the very end
+## (painted only). x left to right; z near edge (house side) to far edge.
+const LAVENDER_X := Vector2(-12.0, 2.0)
+const LAVENDER_Z := Vector2(-170.0, -194.0)
 ## The hills are drawn, and collide, as a grid of triangles this size, starting here (x, z).
 const TERRAIN_STEP := 6.0
 const TERRAIN_ORIGIN := Vector2(-126.0, -30.0)
-## Things painted on the hills (hay field, stream) sit this far above the grass. The plane's
+## Things painted on the hills (hay field, stream, lavender) sit this far above the grass. The plane's
 ## shadow sits higher than every painted floor layer (PaperPlane.SHADOW_LIFT).
 const PAINT_LIFT := 0.05
 
@@ -165,6 +169,11 @@ static func style_moment_defs() -> Array:
 		{"id": &"window", "title": "Out the window", "path": PackedVector3Array([
 			Vector3(1, 9.0, -79), Vector3(0.3, 8.0, -84), Vector3(0, 7.5, -88.5), Vector3(0, 7.2, -93)])},
 	]
+
+
+## Over the lavender field (seen from above).
+static func in_lavender(pos: Vector3) -> bool:
+	return pos.x >= minf(LAVENDER_X.x, LAVENDER_X.y) and pos.x <= maxf(LAVENDER_X.x, LAVENDER_X.y) 		and pos.z <= maxf(LAVENDER_Z.x, LAVENDER_Z.y) and pos.z >= minf(LAVENDER_Z.x, LAVENDER_Z.y)
 
 
 ## Outdoors starts just beyond the window wall.
@@ -644,6 +653,9 @@ func _build_outside() -> void:
 	for stone_x in [-3.4, -1.2, 1.1, 3.3]:
 		var sz := STREAM_Z + 2.0 * sin(stone_x * 0.12)
 		builder.sphere(Vector3(stone_x, terrain_height(stone_x, sz) + 0.2, sz + 0.3 * sin(stone_x * 2.0)), 0.55, Color("c9c2ba"), Vector3(1.0, 0.25, 0.8), 8, 3)
+
+	# The lavender field, in rows with grass between.
+	_ground_patch(LAVENDER_X.x, LAVENDER_X.y, LAVENDER_Z.x, LAVENDER_Z.y, 1.0, [Color("b9a6dc"), Color("d3c6ea"), Color("aed092")])
 
 	# Trees on the slopes, kept clear of the flight path from the window out past the meadow.
 	var trng := RandomNumberGenerator.new()

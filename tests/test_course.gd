@@ -80,6 +80,7 @@ func test_autopilot_flies_from_the_bedroom_to_the_hills() -> void:
 		check(zones.has(zone), "flies through %s" % zone)
 	check(sections.has("stair hall") and sections.has("living room"), "down the stairs into the living room: %s" % [sections])
 	check(plane.flight_time >= 60.0, "a well-flown run lasts at least a minute (%.1f s)" % plane.flight_time)
+	check(Course.in_lavender(plane.global_position), "and comes down in the lavender field (at %s)" % plane.global_position)
 
 
 func test_hands_off_flight_ends_without_getting_stuck() -> void:

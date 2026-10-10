@@ -89,9 +89,12 @@ func _fly(run_seed: int) -> Dictionary:
 		if game.close_calls > int(state.get("close_calls", 0)):
 			state["close_calls"] = game.close_calls
 			note.call("close call at %s  (%.1f u/s)" % [_v(p), plane.model.velocity.length()])
+		if not state.has("lavender") and Course.in_lavender(p):
+			state["lavender"] = true
+			note.call("over the lavender field  (%.1f above the grass)" % [p.y - Course.terrain_height(p.x, p.z)])
 		if not state.has("stream") and p.z < Course.STREAM_Z:
 			state["stream"] = true
-			note.call("passes over the stream  (%.1f above the grass)" % [p.y - Course.ground_height(p.x, p.z)])
+			note.call("passes over the stream  (%.1f above the grass)" % [p.y - Course.terrain_height(p.x, p.z)])
 	var end_gap := plane.flight_time - float(state["last_event"])
 	state["dead_air"] = maxf(float(state["dead_air"]), end_gap)
 	var result := {
