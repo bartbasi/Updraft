@@ -220,8 +220,9 @@ extends Resource
 ## ...then the award falls smoothly to zero at the corridor edge. Above 1 the fall is
 ## steeper near the path (harder); below 1 it is gentler.
 @export_range(0.25, 4.0) var style_curve_power := 1.0
-## A pass at or above this quality (0..1) gets the "perfect" pop-up and sound.
-@export_range(0.0, 1.0) var style_perfect_quality := 0.85
+## A pass at or above this quality (0..1) gets the "perfect" pop-up and sound. At 0.95, with the
+## curve above, that means averaging within about 35% of the corridor's radius of the path.
+@export_range(0.0, 1.0) var style_perfect_quality := 0.95
 ## A moment starts counting once the plane comes within this many corridor radii of its
 ## path; skipped stretches count as this far off.
 @export_range(1.0, 4.0) var style_capture_factor := 2.0

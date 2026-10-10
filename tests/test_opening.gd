@@ -665,12 +665,15 @@ func test_camera_looks_down_on_the_plane_in_rising_air() -> void:
 	check(lowest >= 5.0, "and the camera keeps looking down on it, never edge-on (at least %.1f degrees)" % lowest)
 	var zones := _nodes_in_group_under(game, "thermals")
 	check(zones.size() >= 6, "every air zone is checked (%d)" % zones.size())
+	var motes := 0
 	for zone in zones:
 		for child in zone.get_children():
 			if child is CPUParticles3D:
+				motes += 1
 				var mat := ((child as CPUParticles3D).mesh as QuadMesh).material as StandardMaterial3D
 				check(mat.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA and mat.distance_fade_min_distance < mat.distance_fade_max_distance,
 					"%s: its motes fade out as they come close to the camera" % zone.name)
+	check(motes >= zones.size(), "every air zone has motes to check (%d for %d zones)" % [motes, zones.size()])
 	await cleanup()
 
 

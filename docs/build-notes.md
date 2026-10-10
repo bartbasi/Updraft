@@ -17,6 +17,7 @@ decision from the designer or the owner, is written down here rather than settle
 | Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
 | Meadow landmark (fun review 1, item 2) | Optional stream with a low footbridge near z -150 | Stream with flat stepping stones, no footbridge | Anything standing up where planes come down to land could turn a good run into a crash at the very end; a flat stream gives the beat without the risk. | Designer FYI |
 | Lamp moment (fun review 1, item 3) | Plan section 4: a 1.9-unit gap, shade bottom y 5.0, table top 3.1 | A 2.7-unit gap: shade bottom 5.5 (rim radius 1.7, was 2.0), table top 2.8 | The designer's fix for the cliff; path, corridor and points unchanged. `docs/opening-plan.md` still shows the old numbers. | None (designer's own fix) |
+| Gold "Perfect!" (fun review 2, item 3) | Plan section 4: quality 0.85 (about 43% of the radius) | Quality 0.95 (about 35%) | The designer's fix: gold had become the normal result. Points unchanged. `docs/opening-plan.md` still shows 0.85. | None (designer's own fix) |
 | Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
 
 ## What lives in `scripts/tuning.gd`

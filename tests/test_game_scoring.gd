@@ -50,6 +50,24 @@ func test_every_course_moment_pays_full_on_its_path_less_halfway_and_nothing_out
 		check(on.style_points == full, "%s: pays only once per run" % id)
 
 
+## "Perfect!" is earned, not routine: a pass that averages a fifth of the corridor's radius off
+## the path is perfect; one that averages two fifths off still pays most of the points, but is
+## not (fun review 2, item 3).
+func test_perfect_means_really_close() -> void:
+	var t := Tuning.new()
+	for def in Course.style_moment_defs():
+		var id := String(def["id"])
+		var radius: float = t.style_moments[id]["radius"]
+		var close := _only(def)
+		_fly_path(close, def["path"], radius * 0.2)
+		var near := _only(def)
+		_fly_path(near, def["path"], radius * 0.4)
+		var close_q: float = close.moments[0].quality
+		var near_q: float = near.moments[0].quality
+		check(close_q >= t.style_perfect_quality, "%s: a fifth of the radius off is perfect (quality %.2f)" % [id, close_q])
+		check(near_q < t.style_perfect_quality and near_q > 0.8, "%s: two fifths off pays well but is not perfect (quality %.2f)" % [id, near_q])
+
+
 func test_every_moment_is_tuned() -> void:
 	var t := Tuning.new()
 	for def in Course.style_moment_defs():
