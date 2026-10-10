@@ -174,6 +174,78 @@ func _lamp_divers(gain: float, must_earn: int) -> void:
 	check(earned >= must_earn, "gain %.2f: at least %d of %d earn the lamp (%d)" % [gain, must_earn, runs, earned])
 
 
+## The stair dive's wind is much louder and higher than cruising down the gallery, as the
+## designer asked (at least 6 dB louder, and clearly higher pitched).
+func test_wind_swells_in_the_stair_dive() -> void:
+	var pilot := Autopilot.new(Autopilot.course_line())
+	var game := MAIN.instantiate()
+	add_node(game)
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.autopilot = pilot.fly
+	var wind: AudioStreamPlayer = game._wind
+	var gallery := []
+	var gallery_pitch := []
+	var dive_db := -INF
+	var dive_pitch := 0.0
+	var frames := 0
+	while not plane.is_ended() and Course.section_at(plane.global_position) != "living room" and frames < 60 * 40:
+		await tree.process_frame
+		frames += 1
+		var p := plane.global_position
+		if p.x > 30.0 and p.x < 70.0 and p.y > 19.0:  # gliding down the gallery, between the lights
+			gallery.append(wind.volume_db)
+			gallery_pitch.append(wind.pitch_scale)
+		if Course.section_at(p) == "stair hall":
+			dive_db = maxf(dive_db, wind.volume_db)
+			dive_pitch = maxf(dive_pitch, wind.pitch_scale)
+	gallery.sort()
+	gallery_pitch.sort()
+	var cruise: float = gallery[gallery.size() / 2]
+	var cruise_pitch: float = gallery_pitch[gallery_pitch.size() / 2]
+	print("        wind: gallery %.1f dB (pitch %.2f), stair dive peak %.1f dB (pitch %.2f)" % [cruise, cruise_pitch, dive_db, dive_pitch])
+	check(dive_db - cruise >= 6.0, "the stair dive is much louder than cruising (%.1f dB more)" % (dive_db - cruise))
+	check(dive_pitch - cruise_pitch >= 0.3, "and clearly higher pitched (%.2f vs %.2f)" % [dive_pitch, cruise_pitch])
+	await cleanup()
+
+
+## Bursting out of the window: a gust of wind, and the view widens and stays wide outdoors.
+func test_window_burst_gusts_and_widens_the_view() -> void:
+	var game := MAIN.instantiate()
+	add_node(game)
+	var plane := game.get_node("Plane") as PaperPlane
+	var camera := game.get_node("Camera") as FollowCamera
+	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.launch(Vector3(0.0, 7.5, Course.FAR_Z + 6.0), 0.0)
+	camera.snap()
+	var wind: AudioStreamPlayer = game._wind
+	var tune := plane.tuning
+	var before := 0.0
+	var frames := 0
+	while frames < 600:
+		await tree.process_frame
+		frames += 1
+		if game.reached_outside:
+			break  # the game has just seen the plane outside: measure the gust now
+		before = wind.volume_db
+		check(is_equal_approx(camera.fov, tune.camera_fov), "indoors the view stays at %.0f (%.1f)" % [tune.camera_fov, camera.fov])
+	check(game.reached_outside, "the plane flies out of the window")
+	var gust: float = wind.volume_db - before
+	check(gust > tune.window_gust_db * 0.8, "a gust of wind on the way out (+%.1f dB)" % gust)
+	check((game._whoosh as AudioStreamPlayer).playing, "and a whoosh")
+	var waited := 0.0
+	while waited < tune.camera_fov_ease + 0.3 and not plane.is_ended():
+		await tree.process_frame
+		waited += game.get_process_delta_time()
+	check(is_equal_approx(camera.fov, tune.camera_fov_outside), "the view has widened to %.0f outdoors (%.1f)" % [tune.camera_fov_outside, camera.fov])
+	for i in 30:
+		await tree.process_frame
+		if not is_equal_approx(camera.fov, tune.camera_fov_outside):
+			check(false, "and stays wide outdoors (%.1f, %d frames later)" % [camera.fov, i + 1])
+			break
+	check(game._swell_db == 0.0, "and the gust has faded (%.1f dB left)" % game._swell_db)
+	await cleanup()
+
+
 ## Every moment's pop-up, plain and perfect, sits in the middle of the screen and grows from its
 ## middle, whatever the length of its title.
 func test_style_popups_are_centred() -> void:

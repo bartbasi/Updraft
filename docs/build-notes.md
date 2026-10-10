@@ -36,7 +36,7 @@ hold (the throw waits for a few smooth frames, at most 2 s).
 | 1 | Sloped header on the stair side of the arch, so non-divers glance through | Section 6 (arch): 35° slope as asked, but rising 6 over 8.6 (plan: 4 over 5.7) so it also catches floaters arriving up to y 17.5; its top is drawn as a visible ledge; underside band slightly darker. Fully effective together with the stairwell downdraft (Section 7), which brings floaters down to the header's range; Section 7 adds the designer's floater sweep (from the gallery, never diving) as an end-to-end test. |
 | 2 | `landing_turn` radius 2.0 → 3.0 | Section 8 (scoring) |
 | 3 | `stair_downdraft` radius 2.0 → 1.5 | Section 8 (scoring) |
-| 4 | Stronger wind swell in the dive | Phase B |
+| 4 | Stronger wind swell in the dive | Phase B fix 4 (fun review 1, item 4): the stair dive is about 10 dB louder than gallery cruising |
 | 5 | Sunbeam path heights to match the real lift; test pilot uses the course's own paths | Section 8 (scoring) |
 | 6 | Light shafts drawn 0.2 inside walls (no flicker) | Section 3 (sunbeam) |
 | 7 | End card: "79 m = 791" and "N of 8 moments" | Section 8 (scoring) |
@@ -52,7 +52,11 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   a meadow thermal past the window" (it also carries the tests and the test pilot's new line).
   Also more room under the dining lamp (fun review 1, item 3): the lamp hangs 0.5 higher, its
   shade is a little narrower and the table 0.3 lower. To undo: revert the commit "Phase B fix 3:
-  more room under the dining lamp" (it also carries the test that needs the room).
+  more room under the dining lamp" (it also carries the test that needs the room), but keep its
+  longer test watchdog (`TIME_LIMIT` in `tests/run_tests.gd`).
+- Bursting out of the window now also gets a gust of wind, a soft whoosh and a view that widens
+  (70 to 76 degrees) outdoors (fun review 1, item 4). To undo: set `window_gust_db` to 0,
+  `whoosh_volume_db` to -80 and `camera_fov_outside` to 70 in `scripts/tuning.gd`.
 
 ## Open items for Phase B
 
@@ -81,6 +85,10 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   from behind, sits over the white coffee-table top and pink rug and is hard to pick out
   (screenshots at 24-25 s). Designer to judge: plane colour or outline, camera distance, or
   the furniture.
+- For review 2: the window whoosh is the lead's addition to fun review 1, item 4 (the designer
+  asked for the gust and the wider view; the brief names "a soft whoosh" for bursting out of
+  the window, and `audio/whoosh.wav` was made for it). It plays with the gust; the window's
+  style pop-up follows about 0.7 s later. Designer to judge.
 - For review 2 (from code review of fix 3, all fair as they stand): on the line under the lamp
   the camera passes just under the shade's rim, so for about 0.3 s the shade's underside fills
   the top of the view; the shade's top is now y 7.1, so a plane skimming just over the lamp at

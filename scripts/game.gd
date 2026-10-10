@@ -18,12 +18,16 @@ var scoring: Scoring
 var best_score := 0
 var _ended := false
 var _wind: AudioStreamPlayer
+var _wind_db := -40.0  ## The wind's loudness from airspeed, before any swell on top.
+var _swell_db := 0.0  ## A short swell of wind on top (bursting out of the window).
+var _swell_fade := 1.0  ## Decibels per second the swell dies away.
 var _chime: AudioStreamPlayer
 var _tap: AudioStreamPlayer
 var _crumple: AudioStreamPlayer
 var _downdraft: AudioStreamPlayer
 var _style_good: AudioStreamPlayer
 var _style_perfect: AudioStreamPlayer
+var _whoosh: AudioStreamPlayer
 var _ui: Control
 var _card: Control
 var _card_title: Label
@@ -88,15 +92,19 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if plane.held:
 		_throw_when_ready(delta)
+	var tune := plane.tuning
 	if not reached_outside and Course.is_outside(plane.global_position):
 		reached_outside = true
-	# Wind rises and falls with airspeed.
-	var tune := plane.tuning
+		swell(tune.window_gust_db, tune.window_gust_fade)
+		_whoosh.play()
+	# Wind rises and falls with airspeed, plus any swell on top.
 	var span := maxf(tune.wind_loud_speed - tune.wind_quiet_speed, 0.01)
 	var t := 0.0 if plane.is_ended() else clampf((plane.model.velocity.length() - tune.wind_quiet_speed) / span, 0.0, 1.0)
 	# Never quite silent: -inf decibels would turn the smoothing below into NaN.
 	var volume := linear_to_db(maxf(lerpf(tune.wind_quiet, tune.wind_loud, t), 0.001)) if not plane.is_ended() else -50.0
-	_wind.volume_db = lerpf(_wind.volume_db, volume, 1.0 - exp(-tune.wind_swell_rate * delta))
+	_wind_db = lerpf(_wind_db, volume, 1.0 - exp(-tune.wind_swell_rate * delta))
+	_swell_db = maxf(_swell_db - _swell_fade * delta, 0.0) if not plane.is_ended() else 0.0
+	_wind.volume_db = _wind_db + _swell_db
 	_wind.pitch_scale = lerpf(_wind.pitch_scale, lerpf(tune.wind_pitch_low, tune.wind_pitch_high, t), 1.0 - exp(-tune.wind_pitch_rate * delta))
 	_hud.text = "%.0f m" % scoring.distance_meters()  # rounded the same way as on the end card
 	if _fps:
@@ -104,6 +112,13 @@ func _process(delta: float) -> void:
 		if _fps_timer <= 0.0:
 			_fps_timer = 0.5
 			_fps.text = "%d fps" % Engine.get_frames_per_second()
+
+
+## A swell of wind `db` louder, dying away over `seconds` (a bigger swell wins over a smaller one).
+func swell(db: float, seconds: float) -> void:
+	if db > _swell_db:
+		_swell_db = db
+		_swell_fade = db / maxf(seconds, 0.01)
 
 
 func distance_meters() -> float:
@@ -244,6 +259,7 @@ func _setup_audio() -> void:
 	_downdraft = _player("res://audio/downdraft.wav", tune.downdraft_volume_db)
 	_style_good = _player("res://audio/style_good.wav", tune.style_good_volume_db)
 	_style_perfect = _player("res://audio/style_perfect.wav", tune.style_perfect_volume_db)
+	_whoosh = _player("res://audio/whoosh.wav", tune.whoosh_volume_db)
 	var wind_stream := _wind.stream as AudioStreamWAV
 	if wind_stream and wind_stream.loop_mode == AudioStreamWAV.LOOP_DISABLED:
 		wind_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD

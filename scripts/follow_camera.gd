@@ -28,7 +28,7 @@ func shake(amount: float) -> void:
 
 ## Jumps straight to the resting spot behind the plane.
 func snap() -> void:
-	fov = _t().camera_fov
+	fov = _wanted_fov()
 	var p := target.global_position
 	_follow = _unblocked(p, _resting_spot(p))
 	global_position = _follow
@@ -55,7 +55,9 @@ func in_intro() -> bool:
 func _process(delta: float) -> void:
 	if target == null:
 		return
-	fov = _t().camera_fov
+	# Outdoors the view widens, easing over camera_fov_ease seconds.
+	var fov_span := absf(_t().camera_fov_outside - _t().camera_fov)
+	fov = move_toward(fov, _wanted_fov(), fov_span / maxf(_t().camera_fov_ease, 0.01) * delta) if fov_span > 0.0 else _wanted_fov()
 	var p := target.get_global_transform_interpolated().origin
 	var want := _unblocked(p, _resting_spot(p))
 	_follow = _unblocked(p, _follow.lerp(want, 1.0 - exp(-_t().camera_follow_speed * delta)))
@@ -86,6 +88,10 @@ func _aim(lean_amount := 0.0) -> void:
 	if global_position.distance_squared_to(_look) > 0.0001:
 		look_at(_look, Vector3.UP)
 		rotate_object_local(Vector3.BACK, -target.model.bank * lean_amount)
+
+
+func _wanted_fov() -> float:
+	return _t().camera_fov_outside if Course.is_outside(target.global_position) else _t().camera_fov
 
 
 func _resting_spot(p: Vector3) -> Vector3:

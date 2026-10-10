@@ -117,6 +117,10 @@ extends Resource
 @export_range(0.0, 1.0) var camera_lean := 0.25
 ## Field of view (degrees). Wider feels faster; narrower feels calmer.
 @export_range(40.0, 110.0) var camera_fov := 70.0
+## Outdoors the view widens to this field of view (degrees), easing over `camera_fov_ease`
+## seconds: the world opens up after the window.
+@export_range(40.0, 110.0) var camera_fov_outside := 76.0
+@export var camera_fov_ease := 1.5
 ## The camera aims this far above the plane's path ahead (units).
 @export var camera_look_above := 0.3
 ## Opening shot: seconds to ease from the kid's eye into the chase position.
@@ -135,6 +139,7 @@ extends Resource
 @export var crumple_volume_db := -1.0
 @export var style_good_volume_db := -6.0
 @export var style_perfect_volume_db := -4.0
+@export var whoosh_volume_db := -6.0
 ## A bump's tap: full loudness at this impact speed (units/s) and above, never quieter than
 ## `tap_min_loudness` (0..1); its pitch varies at random between these two.
 @export var tap_full_strength := 4.0
@@ -143,17 +148,21 @@ extends Resource
 @export_range(0.1, 4.0) var tap_pitch_max := 1.15
 ## Wind loudness (0..1) at or below `wind_quiet_speed`, rising to `wind_loud` at
 ## `wind_loud_speed` (airspeed, units/s).
-@export_range(0.001, 1.0) var wind_quiet := 0.12
-@export_range(0.001, 1.0) var wind_loud := 0.7
-@export var wind_quiet_speed := 2.0
-@export var wind_loud_speed := 12.0
+@export_range(0.001, 1.0) var wind_quiet := 0.14
+@export_range(0.001, 1.0) var wind_loud := 0.8
+@export var wind_quiet_speed := 5.0
+@export var wind_loud_speed := 11.0
 ## Wind pitch at those two speeds.
-@export_range(0.1, 4.0) var wind_pitch_low := 0.8
-@export_range(0.1, 4.0) var wind_pitch_high := 1.35
+@export_range(0.1, 4.0) var wind_pitch_low := 0.85
+@export_range(0.1, 4.0) var wind_pitch_high := 1.45
 ## How quickly the wind's loudness and pitch follow a change of airspeed (per second).
 ## Higher = the wind swells sooner in a dive.
-@export var wind_swell_rate := 4.0
+@export var wind_swell_rate := 6.0
 @export var wind_pitch_rate := 3.0
+## Bursting out of the window: a gust of wind this much louder (decibels), fading away over
+## `window_gust_fade` seconds.
+@export var window_gust_db := 6.0
+@export var window_gust_fade := 1.5
 
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass
