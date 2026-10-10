@@ -427,3 +427,181 @@ func test_skylight_tops_up_a_level_glide() -> void:
 	print("        skylight: %+.1f with it, %+.1f without" % [heights[0], heights[1]])
 	check(heights[0] >= 1.0, "a level glide gains height under the skylight (%+.1f)" % heights[0])
 	check(heights[0] > heights[1] + 1.5, "much more than without it (%+.1f vs %+.1f)" % [heights[0], heights[1]])
+
+
+## Height of the stairs' collision ramps under a point, or -INF if not over a flight.
+func _stair_surface(p: Vector3) -> float:
+	var lo := Course.STAIR_HALL_MIN
+	var hi := Course.STAIR_HALL_MAX
+	var gz := Course.GALLERY_Z
+	if p.z > gz.x and p.z < gz.y and p.x > Course.FLIGHT1_BOTTOM_X and p.x < hi.x:
+		return Course.STAIR_LANDING_Y + (Course.UP_FLOOR - Course.STAIR_LANDING_Y) * (p.x - Course.FLIGHT1_BOTTOM_X) / (hi.x - Course.FLIGHT1_BOTTOM_X)
+	if p.x > lo.x and p.x < Course.FLIGHT1_BOTTOM_X and p.z > gz.x:
+		return Course.STAIR_LANDING_Y
+	if p.x > lo.x and p.x < Course.FLIGHT1_BOTTOM_X and p.z > Course.FLIGHT2_BOTTOM_Z and p.z < gz.x:
+		return Course.STAIR_LANDING_Y * (p.z - Course.FLIGHT2_BOTTOM_Z) / (gz.x - Course.FLIGHT2_BOTTOM_Z)
+	return -INF
+
+
+## Flies the stairs with `pilot` and checks every tick that the plane never sinks into the
+## steps, slips through a banister or leaves the stair hall through a wall.
+func _fly_stairs(pilot: Callable, stop_at_bottom := true) -> Dictionary:
+	var game := _game()
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.launch(Vector3(24.0, 20.5, 41.5), PI / 2.0)  # in the gallery, heading -X
+	plane.autopilot = pilot
+	var out := {"clipped": "", "bumps": 0, "crashed": false, "max_speed": 0.0, "reached_bottom": false}
+	plane.bumped.connect(func(_s: float) -> void: out["bumps"] += 1)
+	await _until_released(plane)
+	var lo := Course.STAIR_HALL_MIN
+	var hi := Course.STAIR_HALL_MAX
+	var rail_z := Course.GALLERY_Z.x
+	var last := plane.global_position
+	while plane.flight_time < 12.0 and not plane.is_ended():
+		await tree.physics_frame
+		var p := plane.global_position
+		out["max_speed"] = maxf(out["max_speed"], plane.model.velocity.length())
+		if p.y < _stair_surface(p) + PaperPlane.RADIUS - 0.05 and out["clipped"] == "":
+			out["clipped"] = "into the stairs at %s" % p
+		# Crossing the flight 1 banister's line below its handrail means passing through it.
+		var rail_top := _stair_surface(Vector3(p.x, 0.0, rail_z + 0.1)) + Course.RAIL_HEIGHT
+		if last.z > rail_z and p.z <= rail_z and p.x > Course.FLIGHT1_BOTTOM_X and p.y < rail_top and out["clipped"] == "":
+			out["clipped"] = "through the flight 1 banister at %s" % p
+		last = p
+		var past_east := p.x > hi.x - PaperPlane.RADIUS + 0.05 and p.z < Course.GALLERY_Z.x
+		if (p.x < lo.x + PaperPlane.RADIUS - 0.05 or p.z > hi.y - PaperPlane.RADIUS + 0.05 or past_east) and out["clipped"] == "":
+			out["clipped"] = "through a wall at %s" % p
+		if p.z < Course.FLIGHT2_BOTTOM_Z:
+			out["reached_bottom"] = true
+			if stop_at_bottom:
+				break
+	out["crashed"] = plane.model.crashed
+	return out
+
+
+func test_stair_dive_and_landing_turn_on_the_good_line() -> void:
+	var pilot := Autopilot.new(Autopilot.course_line())
+	var r := await _fly_stairs(pilot.fly)
+	print("        good line: top speed %.1f, %d bumps" % [r["max_speed"], r["bumps"]])
+	check(r["reached_bottom"] and not r["crashed"], "the good line makes it down both flights")
+	check(r["clipped"] == "", "never inside the stairs, banisters or walls: %s" % r["clipped"])
+	check(r["max_speed"] > 8.5, "the stair dive builds real speed (%.1f)" % r["max_speed"])
+
+
+func test_hard_dives_down_the_stairs_never_clip_through() -> void:
+	for dive in [-0.6, -0.8, -1.0]:
+		for turn_at in [12.0, 6.0, 2.0]:
+			var steer := func(plane: PaperPlane) -> Vector2:
+				var p := plane.global_position
+				var roll := 1.0 if p.x < turn_at and plane.model.heading > 0.05 else 0.0
+				return Vector2(dive if p.x < 18.0 else 0.0, roll)
+			var r := await _fly_stairs(steer)
+			check(r["clipped"] == "", "dive %.1f, turn at x %.0f: %s" % [dive, turn_at, r["clipped"]])
+			await cleanup()
+
+
+func test_full_speed_hits_never_tunnel_through_thin_parts() -> void:
+	var t := Tuning.new()
+	# Shots at top speed into the thinnest solid parts: [start, direction].
+	var shots := [
+		[Vector3(9.0, 11.5, 30.0), Vector3(0, 0, 1)],  # into the flight 1 banister board (z 37)
+		[Vector3(9.0, 5.5, 30.0), Vector3(-1, 0, 0)],  # from the well into the flight 2 banister board (x 1.5)
+		[Vector3(9.0, 13.0, 41.5), Vector3(-0.5, -1.0, 0.0)],  # diving steeply into flight 1's steps
+		[Vector3(-3.0, 4.5, 30.0), Vector3(0.0, -1.0, 0.3)],  # diving into flight 2's steps
+		[Vector3(9.0, 5.5, 30.0), Vector3(0, 0, 1)],  # from the well into the side of flight 1
+	]
+	for shot in shots:
+		var game := _game()
+		var plane := game.get_node("Plane") as PaperPlane
+		var dir: Vector3 = (shot[1] as Vector3).normalized()
+		plane.launch(shot[0], atan2(-dir.x, -dir.z))
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var touched := [false]
+		plane.bumped.connect(func(_s: float) -> void: touched[0] = true)
+		plane.crashed.connect(func() -> void: touched[0] = true)
+		await _until_released(plane)
+		# No lift or drag: the plane flies like a thrown stone, straight at the part.
+		plane.tuning.lift = 0.0
+		plane.tuning.drag = 0.0
+		plane.global_position = shot[0]
+		plane.model.velocity = dir * t.max_speed
+		var start := plane.global_position
+		var lowest_gap := INF
+		for i in 40:
+			await tree.physics_frame
+			var p := plane.global_position
+			lowest_gap = minf(lowest_gap, p.y - _stair_surface(p))
+		var end := plane.global_position
+		check(touched[0], "a full-speed shot from %s should hit something" % [start])
+		check(lowest_gap > PaperPlane.RADIUS - 0.05, "never sinks into the stairs (gap %.2f)" % lowest_gap)
+		var dir_v: Vector3 = shot[1]
+		if dir_v.z > 0.9:
+			check(end.z < Course.GALLERY_Z.x, "no tunnelling into flight 1 from the well (z %.2f)" % end.z)
+		if dir_v.x < -0.9:
+			check(end.x > Course.FLIGHT1_BOTTOM_X, "no tunnelling through the flight 2 banister (x %.2f)" % end.x)
+		await cleanup()
+
+
+func test_the_stairs_are_solid_underneath_and_banisters_have_upright_ends() -> void:
+	var game := _game()
+	await physics_frames(2)
+	var gz := Course.GALLERY_Z
+	var r := PaperPlane.RADIUS
+	# Just inside each face of the stairs that faces the well: solid all the way down.
+	var x := Course.FLIGHT1_BOTTOM_X + 0.6
+	while x < Course.STAIR_HALL_MAX.x - 0.4:
+		var surface := _stair_surface(Vector3(x, 0.0, gz.x + 0.5))
+		var y := 0.5
+		while y < surface - 0.5:
+			check(_probe(game, Vector3(x, y, gz.x + r - 0.1)), "flight 1 is solid underneath at x %.1f, y %.1f" % [x, y])
+			y += 1.0
+		x += 1.5
+	var z := Course.FLIGHT2_BOTTOM_Z + 0.6
+	while z < gz.x - 0.4:
+		var surface := _stair_surface(Vector3(0.0, 0.0, z))
+		var y := 0.5
+		while y < surface - 0.5:
+			check(_probe(game, Vector3(Course.FLIGHT1_BOTTOM_X - r + 0.1, y, z)), "flight 2 is solid underneath at z %.1f, y %.1f" % [z, y])
+			y += 1.0
+		z += 1.5
+	# The banister boards are upright at their ends: no notch by the top newels, and no
+	# invisible wedge beyond the landing newel.
+	check(_probe(game, Vector3(15.8, 15.3, gz.x)), "the top of flight 1's banister is solid up to the rail")
+	check(_probe(game, Vector3(Course.FLIGHT1_BOTTOM_X, 9.2, gz.x - 0.7)), "the top of flight 2's banister is solid up to the rail")
+	check(not _probe(game, Vector3(0.5, 9.25, gz.x)), "nothing invisible beyond the landing newel")
+	check(not _probe(game, Vector3(Course.FLIGHT1_BOTTOM_X, 2.5, Course.FLIGHT2_BOTTOM_Z - 1.1)), "nothing invisible beyond the bottom newel")
+
+
+func test_newel_balls_are_solid() -> void:
+	var t := Tuning.new()
+	var game := _game()
+	var plane := game.get_node("Plane") as PaperPlane
+	# Just above the banister's top, so only the landing newel's ball can be hit.
+	var newel := Vector3(Course.FLIGHT1_BOTTOM_X, 0.0, Course.GALLERY_Z.x)
+	plane.launch(Vector3(newel.x, 11.2, newel.z + 3.0), 0.0)
+	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	var hit_at := [Vector3.INF]
+	plane.bumped.connect(func(_s: float) -> void: hit_at[0] = plane.global_position)
+	plane.crashed.connect(func() -> void: hit_at[0] = plane.global_position)
+	await _until_released(plane)
+	plane.tuning.lift = 0.0
+	plane.global_position = Vector3(newel.x, 11.2, newel.z + 3.0)
+	plane.model.velocity = Vector3(0.0, 0.0, -t.max_speed)
+	await physics_frames(20)
+	var p: Vector3 = hit_at[0]
+	check(p != Vector3.INF, "the shot hits the newel's ball")
+	if p != Vector3.INF:
+		check(Vector2(p.x - newel.x, p.z - newel.z).length() < 0.75, "right at the newel (%s)" % [p])
+
+
+func test_over_turning_in_the_well_never_clips_into_the_stairs() -> void:
+	# A novice who keeps the bank on after the landing circles round in the stair hall.
+	for dive in [-0.3, -0.6]:
+		for turn_from in [10.0, 6.0]:
+			var banking := [false]  # once the bank goes on, it stays on
+			var steer := func(plane: PaperPlane) -> Vector2:
+				banking[0] = banking[0] or plane.global_position.x < turn_from
+				return Vector2(dive if plane.global_position.x < 18.0 else 0.0, 1.0 if banking[0] else 0.0)
+			var r := await _fly_stairs(steer, false)  # keep circling until the run ends
+			check(r["clipped"] == "", "dive %.1f, full right bank from x %.0f: %s" % [dive, turn_from, r["clipped"]])
+			await cleanup()

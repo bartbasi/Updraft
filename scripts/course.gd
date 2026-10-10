@@ -60,6 +60,13 @@ const SKYLIGHT_STRENGTH := 0.7
 ## The two-storey stair hall at the gallery's west end (x, z inner corners).
 const STAIR_HALL_MIN := Vector2(-7.5, 15.0)
 const STAIR_HALL_MAX := Vector2(16.5, 46.0)
+## Flight 1 runs from the gallery floor (x = STAIR_HALL_MAX.x) down to the landing at
+## FLIGHT1_BOTTOM_X; the stairs turn right and flight 2 runs down to FLIGHT2_BOTTOM_Z.
+const STAIR_LANDING_Y := 6.25
+const FLIGHT1_BOTTOM_X := 1.5
+const FLIGHT2_BOTTOM_Z := 22.0
+const STAIR_STEPS := 12
+const RAIL_HEIGHT := 3.6  ## Banister height above the stairs.
 ## The tall window in the angled wall that the sunbeam comes through (x from/to, y from/to).
 const SUNBEAM_WINDOW_X := Vector2(83.0, 93.5)
 const SUNBEAM_WINDOW_Y := Vector2(14.7, 24.9)
@@ -105,6 +112,8 @@ static func section_at(pos: Vector3) -> String:
 		return "kitchen"
 	if pos.z < BACK_Z + WALL:
 		return "living room"
+	if pos.x < STAIR_HALL_MAX.x:
+		return "stair hall"
 	return "upstairs"
 
 
@@ -128,6 +137,7 @@ func _build() -> void:
 	CourseUpstairs.build_bedroom(self)
 	CourseUpstairs.build_landing(self)
 	CourseUpstairs.build_gallery(self)
+	CourseUpstairs.build_stair_hall(self)
 	_add_mesh("Upstairs")
 
 	builder = Art.Builder.new()
@@ -253,6 +263,11 @@ func doorway_posts(x_left: float, x_right: float, z: float, bottom: float, top: 
 	for x in [x_left - JAMB_RADIUS, x_right + JAMB_RADIUS]:
 		cylinder(Vector3(x, bottom, z), JAMB_RADIUS, JAMB_RADIUS, top - bottom, TRIM, true, 12)
 	box(Vector3((x_left + x_right) * 0.5, top + 0.18, z), Vector3(x_right - x_left + JAMB_RADIUS * 4.0, 0.4, JAMB_RADIUS * 2.0), TRIM, false)
+
+
+## An invisible solid shape (for shapes drawn some other way).
+func solid_shape(shape: Shape3D, xform: Transform3D) -> void:
+	_collider(shape, xform)
 
 
 func _collider(shape: Shape3D, xform: Transform3D) -> void:

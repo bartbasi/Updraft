@@ -9,6 +9,7 @@ const BEDROOM_BAND := Color("f2d9e4")
 const GALLERY_WALL := Color("f4e6cf")
 const CARPET := Color("eadbd0")
 const DOOR := Color("f7f1e8")
+const HALL_WALL := Color("e1e8ef")
 
 
 static func build_bedroom(c: Course) -> void:
@@ -284,3 +285,135 @@ static func _picture_south(c: Course, wall_point: Vector3, width: float, height:
 	c.box(at, Vector3(width, height, 0.12), Color("b9a28f"), false)
 	c.box(at + Vector3(0, height * 0.12, 0.07), Vector3(width - 0.5, height * 0.55, 0.02), sky, false)
 	c.box(at + Vector3(0, -height * 0.29, 0.07), Vector3(width - 0.5, height * 0.24, 0.02), land, false)
+
+
+## The two-storey stair hall. Flight 1 drops from the gallery floor (heading -X) to a
+## landing, the stairs turn right, and flight 2 runs down (heading -Z) toward the arch into
+## the living room. Each flight collides as one smooth ramp touching the step nosings, so a
+## plane that skims the stairs glances off instead of catching a step edge.
+static func build_stair_hall(c: Course) -> void:
+	var lo := Course.STAIR_HALL_MIN
+	var hi := Course.STAIR_HALL_MAX
+	var top := Course.UP_CEILING
+	var f := Course.UP_FLOOR
+	var t := Course.IN_WALL
+	var gz := Course.GALLERY_Z
+	var land_y := Course.STAIR_LANDING_Y
+	var turn_x := Course.FLIGHT1_BOTTOM_X
+	var bottom_z := Course.FLIGHT2_BOTTOM_Z
+	var wall := HALL_WALL
+	# Ground floor (tiles), ceiling and walls, two storeys tall.
+	for ix in 8:
+		for iz in 11:
+			var x0 := lo.x + ix * 3.0
+			var z0 := lo.y + iz * 3.0
+			c.span(Vector3(x0, -0.5, z0), Vector3(minf(x0 + 3.0, hi.x), 0.0, minf(z0 + 3.0, hi.y)), Color("efe7dc") if (ix + iz) % 2 == 0 else Color("dde6e8"), false)
+	c.solid_span(Vector3(lo.x - t, -3.0, lo.y), Vector3(hi.x + t, 0.0, hi.y + t))
+	c.span(Vector3(lo.x - t, top, lo.y - t), Vector3(hi.x + t, top + 0.5, hi.y + t), Course.CEILING_COLOR)
+	c.span(Vector3(lo.x - t, 0.0, lo.y - t), Vector3(lo.x, top, hi.y + t), wall)
+	c.span(Vector3(lo.x, 0.0, hi.y), Vector3(hi.x, top, hi.y + t), wall)
+	c.span(Vector3(hi.x, 0.0, lo.y - t), Vector3(hi.x + t, top, gz.x - t), wall)
+	c.span(Vector3(hi.x, 0.0, gz.x - t), Vector3(hi.x + t, f - 0.5, hi.y), wall)
+	c.span(Vector3(lo.x - t, Course.CEILING + 0.5, lo.y - t), Vector3(hi.x + t, top, lo.y), wall)
+	c.span(Vector3(Course.HALF_WIDTH + Course.WALL, 0.0, lo.y - t), Vector3(hi.x + t, Course.CEILING + 0.5, lo.y), wall)
+
+	# Flight 1: from the gallery floor down to the landing, heading -X.
+	var steps := Course.STAIR_STEPS
+	var run1 := (hi.x - turn_x) / steps
+	var rise := (f - land_y) / steps
+	for k in range(1, steps + 1):  # the last tread is level with the landing
+		var xa := hi.x - run1 * k
+		var y := f - rise * k
+		c.span(Vector3(xa, 0.0, gz.x), Vector3(xa + run1, y, gz.y), Color("e3c8a5"), false)
+		c.span(Vector3(xa - 0.04, y - rise, gz.x), Vector3(xa, y, gz.y), Course.TRIM, false)
+	_stair_block(c, [Vector2(hi.x, f), Vector2(turn_x, land_y), Vector2(turn_x, 0.0), Vector2(hi.x, 0.0)], Vector3.BACK, gz.x, gz.y)
+	# The landing, with a rug.
+	c.span(Vector3(lo.x, 0.0, gz.x), Vector3(turn_x, land_y, gz.y), Color("e3c8a5"))
+	c.span(Vector3(lo.x + 1.0, land_y, gz.x + 1.0), Vector3(turn_x - 1.0, land_y + 0.05, gz.y - 1.0), Color("a9c8e8"), false)
+	# Flight 2: from the landing down to the ground, heading -Z.
+	var run2 := (gz.x - bottom_z) / steps
+	var width2 := Vector2(lo.x, turn_x)
+	for k in range(1, steps):
+		var za := gz.x - run2 * k
+		var y := land_y - rise * k
+		c.span(Vector3(width2.x, 0.0, za), Vector3(width2.y, y, za + run2), Color("e3c8a5"), false)
+		c.span(Vector3(width2.x, y - rise, za - 0.04), Vector3(width2.y, y, za), Course.TRIM, false)
+	_stair_block(c, [Vector2(gz.x, land_y), Vector2(bottom_z, 0.0), Vector2(gz.x, 0.0)], Vector3.RIGHT, width2.x, width2.y)
+
+	# Banisters on the well side of each flight (the inside of the turn), and newel posts.
+	_banister(c, Vector3(hi.x, f, gz.x), Vector3(turn_x, land_y, gz.x), Vector3.BACK)
+	_banister(c, Vector3(turn_x, land_y, gz.x), Vector3(turn_x, 0.0, bottom_z), Vector3.RIGHT)
+	_newel(c, Vector3(turn_x, land_y, gz.x), Course.RAIL_HEIGHT + 0.6)
+	_newel(c, Vector3(hi.x, f, gz.x), Course.RAIL_HEIGHT + 0.6)
+	_newel(c, Vector3(turn_x, 0.0, bottom_z), Course.RAIL_HEIGHT + 0.6)
+	# Wall handrails (no collision) on the north and west walls.
+	c.box((Vector3(hi.x, f + 3.4, gz.y - 0.2) + Vector3(turn_x, land_y + 3.4, gz.y - 0.2)) * 0.5, Vector3(hi.x - turn_x + 0.6, 0.15, 0.15), Color("d3b898"), false, Basis(Vector3.BACK, atan2(f - land_y, hi.x - turn_x)))
+	c.box((Vector3(lo.x + 0.2, land_y + 3.4, gz.x) + Vector3(lo.x + 0.2, 3.4, bottom_z)) * 0.5, Vector3(0.15, 0.15, gz.x - bottom_z + 0.6), Color("d3b898"), false, Basis(Vector3.RIGHT, -atan2(land_y, gz.x - bottom_z)))
+
+	# A tall cool window above flight 1 (the downdraft's source) and a round window that
+	# marks the turn above the landing.
+	var nx := Vector2(5.0, 13.0)
+	c.span(Vector3(nx.x - 0.3, 16.7, hi.y - 0.08), Vector3(nx.y + 0.3, 25.3, hi.y), Course.TRIM, false)
+	c.span(Vector3(nx.x, 17.0, hi.y - 0.1), Vector3(nx.y, 25.0, hi.y - 0.08), Color("d7e8f8"), false)
+	c.span(Vector3((nx.x + nx.y) * 0.5 - 0.1, 17.0, hi.y - 0.14), Vector3((nx.x + nx.y) * 0.5 + 0.1, 25.0, hi.y - 0.1), Course.TRIM, false)
+	var face_east := Basis(Vector3.BACK, -PI / 2.0)
+	c.builder.cylinder(Vector3(lo.x, 16.0, (gz.x + gz.y) * 0.5), 2.8, 2.8, 0.08, Course.TRIM, 12, face_east)
+	c.builder.cylinder(Vector3(lo.x + 0.08, 16.0, (gz.x + gz.y) * 0.5), 2.5, 2.5, 0.04, Color("d7e8f8"), 12, face_east)
+
+	# Ground floor, kept low and against the walls: a rug, a shoe bench and a coat stand.
+	c.span(Vector3(3.0, 0.0, 17.0), Vector3(14.0, 0.05, 33.0), Color("cfe0d8"), false)
+	c.span(Vector3(3.5, 0.0, 17.5), Vector3(13.5, 0.08, 32.5), Color("e1e8ef"), false)
+	c.span(Vector3(8.0, 0.0, lo.y), Vector3(14.0, 1.8, lo.y + 1.4), Color("e4c9a8"))
+	for shoe in [Vector3(9.0, 1.8, 15.6), Vector3(10.2, 1.8, 15.7), Vector3(12.4, 0.0, 17.0)]:
+		c.span(shoe, shoe + Vector3(0.7, 0.45, 1.0), Color("f19e8f"), false)
+	c.cylinder(Vector3(15.6, 0.0, 18.0), 0.6, 0.6, 0.2, Color("b9a28f"), false)
+	c.cylinder(Vector3(15.6, 0.2, 18.0), 0.1, 0.1, 7.0, Color("b9a28f"))
+	c.sphere(Vector3(15.6, 6.0, 17.6), 0.7, Color("f6cfa8"), true, Vector3(1.0, 1.4, 0.8))
+
+
+## Invisible solid block for a flight of stairs: the side profile `outline` (points along
+## the flight and up) swept across the stairs' width from `from` to `to` along `across`.
+## Its sloped top touches every step nosing, so skimming the stairs is a glancing slide, and
+## it is solid all the way down, like the closet under the stairs it is drawn as.
+static func _stair_block(c: Course, outline: Array, across: Vector3, from: float, to: float) -> void:
+	var points := PackedVector3Array()
+	for p in outline:
+		for w in [from, to]:
+			points.append(Vector3(w, p.y, p.x) if across == Vector3.RIGHT else Vector3(p.x, p.y, w))
+	var hull := ConvexPolygonShape3D.new()
+	hull.points = points
+	c.solid_shape(hull, Transform3D.IDENTITY)
+
+
+## A banister along a flight, on the line from `upper` to `lower` (stair surface points):
+## a handrail, balusters and a bottom rail to look at, and one solid board to hit.
+static func _banister(c: Course, upper: Vector3, lower: Vector3, side: Vector3) -> void:
+	var along := upper - lower
+	var dir := along.normalized()
+	var normal := side.cross(dir)
+	if normal.y < 0.0:
+		normal = -normal
+	var basis := Basis(dir, normal, dir.cross(normal))
+	var height := Course.RAIL_HEIGHT
+	var wood := Color("d3b898")
+	# One solid board from the stairs up to the top of the handrail, with upright ends.
+	var board := PackedVector3Array()
+	for end in [upper, lower]:
+		for rise in [0.0, height + 0.125]:
+			for offset in [-0.125, 0.125]:
+				board.append(end + Vector3.UP * rise + side * offset)
+	var hull := ConvexPolygonShape3D.new()
+	hull.points = board
+	c.solid_shape(hull, Transform3D.IDENTITY)
+	c.box((upper + lower) * 0.5 + Vector3.UP * height, Vector3(along.length() + 0.3, 0.25, 0.35), wood, false, basis)
+	c.box((upper + lower) * 0.5 + Vector3.UP * 0.3, Vector3(along.length(), 0.2, 0.2), wood, false, basis)
+	var count := int(along.length() / 0.9)
+	for i in range(1, count):
+		var p := lower + along * (float(i) / count)
+		c.box(p + Vector3.UP * height * 0.5, Vector3(0.12, height, 0.12), Course.TRIM, false)
+
+
+## A round newel post standing on a stair surface, with a ball on top.
+static func _newel(c: Course, base: Vector3, height: float) -> void:
+	c.cylinder(base, 0.3, 0.3, height, Color("d3b898"), true, 8)
+	c.sphere(base + Vector3.UP * (height + 0.25), 0.35, Color("e3c8a5"))

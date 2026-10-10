@@ -13,6 +13,7 @@ decision from the designer or the owner, is written down here rather than settle
 | Cones and lamp shades | (not in plan) | Collide exactly as drawn (convex hull) | They used to collide as full cylinders, an invisible wall (code-review blocker). This also changes the existing living-room lamp shade and the outdoor trees slightly. | None |
 | Mobile in the bedroom | (dressing) | No collision | Soft paper birds on strings; the plane brushes through. | None |
 | Hall table props | Props below y 16 | Plant reaches y 18.5 and a photo frame 17.4, both solid | A plant on a hall table; solid so what you see is what you hit. Sticks out 1.9 from the north wall at x 26.5–33.5; the flying corridor stays clear. | Designer FYI |
+| Newel posts | 0.5 x 0.5 box posts | Round posts with ball tops, all solid | Round posts make a clipped corner a glancing bump; the ball tops collide as drawn. | None |
 | Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
 
 ## Designer's Phase A review (`docs/review-phase-a.md`): where each item went
@@ -39,6 +40,9 @@ decision from the designer or the owner, is written down here rather than settle
   and through the whole gallery 10/20. Normal first-timers: 20/20 through the whole gallery.
   Designer to judge in Phase B whether real players would weave like this (pilot-induced
   oscillation) and whether the angled wall or the sunbeam's height needs softening.
+- The banister boards now reach the top of the drawn handrail (what you see is what you hit), so a
+  full-strength dive (-1.0) that turns early (x 12) crashes on flight 1's handrail instead of
+  glancing off its top. The handrail is visible there; designer to judge whether that is fair.
 - Camera and sound feel values move into `scripts/tuning.gd` (the brief's "one place" rule).
 - Crash-to-flying time and frame rate need checking on a real phone ("Fly again" rebuilds the
   house in code).
