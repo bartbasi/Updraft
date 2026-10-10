@@ -3,7 +3,16 @@
 A short playable demo: fly a folded paper plane through a pastel house by tilting your phone.
 A kid throws it across a bedroom; bank out of the door, ride a sunbeam down a long gallery,
 dive the stairwell, then ride warm air from a radiator and steam from a kettle, dive under the
-dining-room lamp, and glide out of the kitchen window over the hills.
+dining-room lamp, burst out of the kitchen window, catch the warm air over a hay field and come
+down in the lavender. A well-flown run lasts about a minute.
+
+## Scoring
+
+- **Distance** (top right, in metres): how far along the course you got. 10 points a metre.
+- **Style** at 8 moments (the door turn, the sunbeam, the downdraft dive, the landing turn, the
+  radiator, under the lamp, the kettle steam, out of the window): the closer you stay to the
+  best line through each, the more points; a gold "Perfect!" for a really close pass.
+- **End card:** distance, style, total and your best, which is kept on the phone.
 
 Built with Godot 4.7.2 (GDScript, Mobile renderer), Android first. Every model, texture,
 shader and sound is made in code in this repo; there are no third-party assets.
@@ -43,8 +52,11 @@ C:\Tools\Godot\Godot_v4.7.2-stable_win64.exe --path . --editor
 # Headless tests (flight model, controls, collisions, whole-course autopilot flights)
 C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tests/run_tests.gd
 
-# Screenshots along an autopilot flight
+# Screenshots along an autopilot flight (--times=seconds into the flight)
 C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --path . -s res://tools/capture.gd -- --out=screens
+
+# A readable log of test-pilot flights: thermals, bumps, style points, close calls, dead air
+C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tools/flight_log.gd -- --pilot=novice --runs=10
 
 # Rebuild the sound effects (Python 3, standard library only)
 python tools/gen_sounds.py
@@ -65,6 +77,14 @@ Install on a phone with USB debugging on:
 C:\Android\Sdk\platform-tools\adb.exe install -r build\paper-plane-debug.apk
 ```
 
+Without USB debugging: plug the phone in, copy `build\paper-plane-debug.apk` into its
+`Download` folder from File Explorer, then on the phone open Files > Downloads, tap the APK and
+allow installing from that app when asked. Installing a newer build over the old one keeps the
+best score.
+
+In a debug build, F3 (or a tap on the fps counter) shows the style moments' best lines and
+corridors. Release builds have no debug tools.
+
 The package id is the placeholder `com.example.paperplane`; pick a real one before publishing.
 
 ## Layout
@@ -75,12 +95,18 @@ scripts/tuning.gd         all tuning numbers
 scripts/flight_model.gd   glider physics (pure, testable)
 scripts/controls.gd       tilt calibration + keyboard
 scripts/paper_plane.gd    the plane node: physics, collisions, looks
-scripts/thermal.gd        rising-air zones and their visuals
-scripts/course.gd         builds the house, furniture and hills in code
+scripts/thermal.gd        rising and sinking air zones and their visuals
+scripts/course.gd         builds the house, furniture and hills in code; course layout
+scripts/course_upstairs.gd the bedroom, gallery and stair hall
+scripts/scoring.gd        distance and style points
+scripts/best_score.gd     the saved best score (validated on load)
+scripts/debug_overlay.gd  debug-build view of the style paths
 scripts/follow_camera.gd  smoothed chase camera
 scripts/game.gd           run flow, lighting, sound, end card
 scripts/art.gd            materials and the low-poly mesh builder
 shaders/                  watercolor screen pass, thermal shimmer
 audio/                    synthesized WAVs (from tools/gen_sounds.py)
 tests/                    headless test runner, suites, autopilot
+tools/                    screenshots, flight log, sound generator
+docs/                     the brief, design plans and reviews, build notes
 ```
