@@ -82,6 +82,7 @@ func test_a_whole_run_scores_distance_and_style_and_distance_never_drops() -> vo
 	check(game.scoring.distance_meters() > 60.0, "the whole course is a long way (%.1f m)" % game.scoring.distance_meters())
 	check(awards.size() >= 4, "a good pilot earns style at several moments (%d)" % awards.size())
 	check(game.scoring.total() == game.scoring.distance_points() + game.scoring.style_points, "total = distance + style")
+	check(game.close_calls <= 1, "a clean line has (almost) no close calls: %d" % game.close_calls)
 	check(game.best_score == game.scoring.total(), "the run is the new best")
 	check(BestScore.load_best() == game.scoring.total(), "and it is saved")
 
@@ -193,10 +194,10 @@ func test_wind_swells_in_the_stair_dive() -> void:
 		frames += 1
 		var p := plane.global_position
 		if p.x > 30.0 and p.x < 70.0 and p.y > 19.0:  # gliding down the gallery, between the lights
-			gallery.append(wind.volume_db)
+			gallery.append(game._wind_db)  # from airspeed alone, not counting any swell
 			gallery_pitch.append(wind.pitch_scale)
 		if Course.section_at(p) == "stair hall":
-			dive_db = maxf(dive_db, wind.volume_db)
+			dive_db = maxf(dive_db, game._wind_db)
 			dive_pitch = maxf(dive_pitch, wind.pitch_scale)
 	gallery.sort()
 	gallery_pitch.sort()
@@ -243,6 +244,88 @@ func test_window_burst_gusts_and_widens_the_view() -> void:
 			check(false, "and stays wide outdoors (%.1f, %d frames later)" % [camera.fov, i + 1])
 			break
 	check(game._swell_db == 0.0, "and the gust has faded (%.1f dB left)" % game._swell_db)
+	await cleanup()
+
+
+## Close calls: rushing along a wall close to it, then getting clear without touching it, gives
+## a whoosh and a swell of wind, but only once clear; the same pass slower, or further from the
+## wall, gives nothing; and flying into the wall (head-on, or glancing off it) is never a close
+## call, even though the plane was close and fast on the way in.
+func test_close_calls_whoosh_only_for_near_misses() -> void:
+	var gap := 0.8
+	# [distance from the wall, speed, angle toward the wall (degrees), peel away after, expect]
+	for setup in [[gap, 8.5, 0.0, true, true], [gap, 6.0, 0.0, true, false], [2.0, 8.5, 0.0, true, false],
+			[3.0, 8.5, 90.0, false, false], [1.5, 8.5, 25.0, false, false]]:
+		var game := MAIN.instantiate()
+		add_node(game)
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var north := Course.GALLERY_Z.y  # the gallery's north wall (inner face), at +z
+		var a := deg_to_rad(float(setup[2]))
+		var dir := Vector3(-cos(a), 0.0, sin(a))  # west along the wall, turned toward it by the angle
+		plane.launch(Vector3(55.0, 21.5, north - PaperPlane.RADIUS - float(setup[0])), atan2(-dir.x, -dir.z))
+		var waited := 0
+		while plane.held and waited < 600:
+			await tree.process_frame
+			waited += 1
+		plane.model.velocity = dir * float(setup[1])
+		var label := "%.1f u/s, %.1f from the wall, %.0f deg toward it" % [setup[1], setup[0], setup[2]]
+		await physics_frames(12)
+		if setup[3]:
+			check(game.close_calls == 0, "%s: nothing yet while still close" % label)
+			plane.model.velocity = Vector3(-0.8, 0.0, -0.6) * float(setup[1])  # peel away from the wall
+			await physics_frames(20)
+		else:
+			# Fly on until well clear of the wall (or crashed), so a touched pass has had every
+			# chance to sound wrongly as the plane gets away.
+			var frames := 0
+			while frames < 240 and not plane.is_ended() and (frames < 48 or plane.global_position.z > north - PaperPlane.RADIUS - plane.tuning.close_call_distance - 0.3):
+				await tree.physics_frame
+				frames += 1
+			check(plane.model.crashed or plane.global_position.z <= north - PaperPlane.RADIUS - plane.tuning.close_call_distance, "%s: the plane crashes or gets clear of the wall" % label)
+		var whoosh: AudioStreamPlayer = game._whoosh
+		if setup[4]:
+			check(plane.touches == 0, "%s: the plane never touches the wall" % label)
+			check(game.close_calls == 1, "%s: a close call once clear (%d)" % [label, game.close_calls])
+			check(whoosh.playing and game._swell_db > 0.0, "%s: with a whoosh and a swell of wind" % label)
+			# Even with a big swell on a fast dive, the wind never gets louder than its ceiling.
+			game.swell(30.0, 1.0)
+			await tree.process_frame
+			var wind: AudioStreamPlayer = game._wind
+			check(wind.volume_db <= plane.tuning.wind_max_db + 0.001, "the wind stays under its ceiling (%.1f dB)" % wind.volume_db)
+		else:
+			if float(setup[2]) > 0.0:
+				check(plane.touches > 0, "%s: the plane hits the wall (%s)" % [label, "crashed" if plane.model.crashed else "glanced off"])
+			check(game.close_calls == 0 and not whoosh.playing, "%s: no close call (%d)" % [label, game.close_calls])
+		await cleanup()
+
+
+## Two clean close passes within the cooldown give one close call, not two.
+func test_close_calls_have_a_cooldown() -> void:
+	var game := MAIN.instantiate()
+	add_node(game)
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	var north := Course.GALLERY_Z.y
+	var range_edge := north - PaperPlane.RADIUS - plane.tuning.close_call_distance  # closer than this is "near"
+	plane.launch(Vector3(60.0, 21.5, north - PaperPlane.RADIUS - 0.8), PI / 2.0)
+	var waited := 0
+	while plane.held and waited < 600:
+		await tree.process_frame
+		waited += 1
+	var speed := 8.5
+	var came_back := false
+	# Pass 1: along the wall, then away; pass 2: back in close, along, and away again.
+	for leg in [[Vector3(-1.0, 0.0, 0.0), 10], [Vector3(-0.8, 0.0, -0.6), 12], [Vector3(-0.8, 0.0, 0.6), 12], [Vector3(-1.0, 0.0, 0.0), 6], [Vector3(-0.8, 0.0, -0.6), 14]]:
+		plane.model.velocity = (leg[0] as Vector3) * speed
+		for i in int(leg[1]):
+			await tree.physics_frame
+			if leg[1] == 6 and plane.global_position.z > range_edge:
+				came_back = true
+	check(plane.touches == 0, "neither pass touches the wall")
+	check(came_back, "the second pass comes close to the wall again")
+	check(plane.flight_time < plane.tuning.close_call_cooldown + 3.0, "both passes within a short time")
+	check(game.close_calls == 1, "one close call for the two passes (%d)" % game.close_calls)
 	await cleanup()
 
 

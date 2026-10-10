@@ -6,9 +6,9 @@ extends SceneTree
 ##   --runs=N                          number of flights (default 1; novices vary by seed)
 ##   --seed=S                          first random seed (default 1)
 ##   --quiet                           only the summary, no per-flight timeline
-## Each flight logs section changes, thermals and downdrafts, bumps, style points, landmarks
-## passed outdoors, the crash or landing, and any stretch of more than 5 s with nothing
-## happening ("dead air").
+## Each flight logs section changes, thermals and downdrafts, bumps, style points, close calls,
+## landmarks passed outdoors, the crash or landing, and any stretch of more than 5 s with none of
+## those happening ("dead air").
 
 const MAX_SECONDS := 150.0
 const DEAD_AIR := 5.0
@@ -86,6 +86,9 @@ func _fly(run_seed: int) -> Dictionary:
 			(state["sections"] as Dictionary)[section] = plane.flight_time
 			note.call("enter %s  (y %.1f, %.1f u/s)" % [section, plane.global_position.y, plane.model.velocity.length()])
 		var p := plane.global_position
+		if game.close_calls > int(state.get("close_calls", 0)):
+			state["close_calls"] = game.close_calls
+			note.call("close call at %s  (%.1f u/s)" % [_v(p), plane.model.velocity.length()])
 		if not state.has("stream") and p.z < Course.STREAM_Z:
 			state["stream"] = true
 			note.call("passes over the stream  (%.1f above the grass)" % [p.y - Course.ground_height(p.x, p.z)])
@@ -103,6 +106,7 @@ func _fly(run_seed: int) -> Dictionary:
 		"sections": state["sections"],
 		"dead_air": state["dead_air"],
 		"max_speed": state["max_speed"],
+		"close_calls": game.close_calls,
 	}
 	for m in game.scoring.moments:
 		(result["awards"] as Dictionary)[String(m.id)] = m.award

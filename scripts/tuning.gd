@@ -140,6 +140,15 @@ extends Resource
 @export var style_good_volume_db := -6.0
 @export var style_perfect_volume_db := -4.0
 @export var whoosh_volume_db := -6.0
+## A close call: rushing past a surface at `close_call_speed` (units/s) or faster, within
+## `close_call_distance` units of it, and getting clear again without touching it, gives a
+## soft whoosh and a swell of wind (`close_call_db` louder, fading over `close_call_fade`
+## seconds); at most one every `close_call_cooldown` seconds.
+@export var close_call_distance := 1.0
+@export var close_call_speed := 7.5
+@export var close_call_db := 5.0
+@export var close_call_fade := 0.5
+@export var close_call_cooldown := 1.5
 ## A bump's tap: full loudness at this impact speed (units/s) and above, never quieter than
 ## `tap_min_loudness` (0..1); its pitch varies at random between these two.
 @export var tap_full_strength := 4.0
@@ -163,6 +172,9 @@ extends Resource
 ## `window_gust_fade` seconds.
 @export var window_gust_db := 6.0
 @export var window_gust_fade := 1.5
+## The wind never gets louder than this (decibels), even with a swell on top of a fast dive.
+## (wind.wav peaks at -4.4 dB full scale, so at +2 the loudest wind still peaks below -2.)
+@export var wind_max_db := 2.0
 
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass

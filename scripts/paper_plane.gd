@@ -26,6 +26,7 @@ var controls: Controls
 var autopilot := Callable()
 ## Horizontal distance flown, in world units.
 var distance := 0.0
+var touches := 0  ## Every contact with the house or the hills so far: bounce, slide or crash.
 var flight_time := 0.0
 ## The input used this physics tick: x = pitch, y = roll.
 var input := Vector2.ZERO
@@ -101,6 +102,7 @@ func _physics_process(delta: float) -> void:
 		var hit := move_and_collide(motion)
 		if hit == null:
 			break
+		touches += 1
 		var normal := hit.get_normal()
 		var into := -model.velocity.dot(normal)
 		var contact := model.resolve_contact(normal, delta)

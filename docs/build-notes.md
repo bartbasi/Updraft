@@ -54,6 +54,12 @@ hold (the throw waits for a few smooth frames, at most 2 s).
   shade is a little narrower and the table 0.3 lower. To undo: revert the commit "Phase B fix 3:
   more room under the dining lamp" (it also carries the test that needs the room), but keep its
   longer test watchdog (`TIME_LIMIT` in `tests/run_tests.gd`).
+- Close calls (fun review 1, item 5): rushing past a surface within 1 unit at 7.5 u/s or more,
+  and getting clear again without touching it, gives a soft whoosh and a short swell of wind
+  (once clear, so flying into a wall never sounds like a reward). It needs a small proximity
+  check every tick; the lead counts that as an effect the brief asks for ("close calls ... feel
+  good through ... a soft whoosh"), not a new game system. Clean lines never trigger it;
+  moderate dives that skim the stairs get one or two; a pass that touches anything gets none. To undo: set `close_call_speed` to 1000 in `scripts/tuning.gd`.
 - Bursting out of the window now also gets a gust of wind, a soft whoosh and a view that widens
   (70 to 76 degrees) outdoors (fun review 1, item 4). To undo: set `window_gust_db` to 0,
   `whoosh_volume_db` to -80 and `camera_fov_outside` to 70 in `scripts/tuning.gd`.
@@ -100,6 +106,8 @@ hold (the throw waits for a few smooth frames, at most 2 s).
 - A run can now go on and on: a steady circle in the meadow thermal holds the plane at about
   y 12.5 with no end (no distance or style is earned meanwhile). Designer to judge in review 2
   whether the thermal should top out lower or fade, or whether that is a fine reward.
+- Listen on the phone to a fast close call in the stair dive (wind at its +2 dB ceiling plus
+  the whoosh) for any crackle; if it clips, lower `wind_max_db`.
 - Frame rate in the stair dive on the phone: the downdraft's see-through column (the camera flies
   through it), two light shafts and three sets of motes and wisps can all be in view on top of the
   watercolour pass; the designer measured 40-51 fps on PC in this stretch. Fallbacks if it drops:

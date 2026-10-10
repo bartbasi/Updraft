@@ -28,6 +28,12 @@ var _downdraft: AudioStreamPlayer
 var _style_good: AudioStreamPlayer
 var _style_perfect: AudioStreamPlayer
 var _whoosh: AudioStreamPlayer
+var _near_query := PhysicsShapeQueryParameters3D.new()  ## Reused each tick for close calls.
+var _close_call_wait := 0.0  ## Seconds until the next close call may sound.
+enum Pass { CLEAR, CLOSE, SPOILED }  ## Clear of everything; rushing close past something; touched it.
+var _pass := Pass.CLEAR
+var _pass_touches := 0  ## The plane's touch count when the close pass began.
+var close_calls := 0  ## Close calls this flight.
 var _ui: Control
 var _card: Control
 var _card_title: Label
@@ -77,9 +83,41 @@ func _throw_when_ready(delta: float) -> void:
 		plane.release()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not plane.held and not plane.is_ended():
 		scoring.update(plane.global_position)
+		_check_close_call(delta)
+
+
+## Rushing past something without touching it: a soft whoosh and a swell of wind, once the
+## plane is clear again. A pass begins when the plane comes close to a surface at speed; any
+## touch during it (bump, slide or crash) spoils it, since a touch is not a near miss (it gets
+## the tap); and a spoiled pass ends quietly once the plane is clear.
+func _check_close_call(delta: float) -> void:
+	var tune := plane.tuning
+	_close_call_wait = maxf(_close_call_wait - delta, 0.0)
+	if _pass == Pass.CLEAR and (_close_call_wait > 0.0 or plane.model.velocity.length() < tune.close_call_speed):
+		return  # no pass can begin: skip the query
+	(_near_query.shape as SphereShape3D).radius = PaperPlane.RADIUS + tune.close_call_distance
+	_near_query.transform = Transform3D(Basis.IDENTITY, plane.global_position)
+	var near := not plane.get_world_3d().direct_space_state.intersect_shape(_near_query, 1).is_empty()
+	match _pass:
+		Pass.CLEAR:
+			if near:
+				_pass = Pass.CLOSE
+				_pass_touches = plane.touches
+		Pass.CLOSE:
+			if plane.touches != _pass_touches:
+				_pass = Pass.SPOILED
+			elif not near:
+				_pass = Pass.CLEAR
+				close_calls += 1
+				_close_call_wait = tune.close_call_cooldown
+				swell(tune.close_call_db, tune.close_call_fade)
+				_whoosh.play()
+		Pass.SPOILED:
+			if not near:
+				_pass = Pass.CLEAR
 
 
 ## Debug builds only: F3 shows the style paths.
@@ -104,7 +142,7 @@ func _process(delta: float) -> void:
 	var volume := linear_to_db(maxf(lerpf(tune.wind_quiet, tune.wind_loud, t), 0.001)) if not plane.is_ended() else -50.0
 	_wind_db = lerpf(_wind_db, volume, 1.0 - exp(-tune.wind_swell_rate * delta))
 	_swell_db = maxf(_swell_db - _swell_fade * delta, 0.0) if not plane.is_ended() else 0.0
-	_wind.volume_db = _wind_db + _swell_db
+	_wind.volume_db = minf(_wind_db + _swell_db, tune.wind_max_db)
 	_wind.pitch_scale = lerpf(_wind.pitch_scale, lerpf(tune.wind_pitch_low, tune.wind_pitch_high, t), 1.0 - exp(-tune.wind_pitch_rate * delta))
 	_hud.text = "%.0f m" % scoring.distance_meters()  # rounded the same way as on the end card
 	if _fps:
@@ -260,6 +298,9 @@ func _setup_audio() -> void:
 	_style_good = _player("res://audio/style_good.wav", tune.style_good_volume_db)
 	_style_perfect = _player("res://audio/style_perfect.wav", tune.style_perfect_volume_db)
 	_whoosh = _player("res://audio/whoosh.wav", tune.whoosh_volume_db)
+	_near_query.shape = SphereShape3D.new()
+	_near_query.collision_mask = PaperPlane.WORLD_LAYER
+	_near_query.exclude = [plane.get_rid()]
 	var wind_stream := _wind.stream as AudioStreamWAV
 	if wind_stream and wind_stream.loop_mode == AudioStreamWAV.LOOP_DISABLED:
 		wind_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
