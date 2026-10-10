@@ -53,6 +53,13 @@ const SUNBEAM_SIZE := Vector3(16.0, 12.0, 11.0)
 const SUNBEAM_STRENGTH := 0.9
 ## The light falls steeply from the window (toward +Z and a little +X).
 const SUNBEAM_SUN := Vector3(0.08, -0.95, 0.317)
+## A skylight halfway down the gallery, over its right-hand (south) half: a small top-up.
+const SKYLIGHT_ORIGIN := Vector3(45.0, 12.5, 39.5)
+const SKYLIGHT_SIZE := Vector3(8.0, 12.0, 5.0)
+const SKYLIGHT_STRENGTH := 0.7
+## The two-storey stair hall at the gallery's west end (x, z inner corners).
+const STAIR_HALL_MIN := Vector2(-7.5, 15.0)
+const STAIR_HALL_MAX := Vector2(16.5, 46.0)
 ## The tall window in the angled wall that the sunbeam comes through (x from/to, y from/to).
 const SUNBEAM_WINDOW_X := Vector2(83.0, 93.5)
 const SUNBEAM_WINDOW_Y := Vector2(14.7, 24.9)
@@ -120,6 +127,7 @@ func _build() -> void:
 	builder = Art.Builder.new()
 	CourseUpstairs.build_bedroom(self)
 	CourseUpstairs.build_landing(self)
+	CourseUpstairs.build_gallery(self)
 	_add_mesh("Upstairs")
 
 	builder = Art.Builder.new()
@@ -135,6 +143,7 @@ func _build() -> void:
 	_add_mesh("Outside")
 
 	_add_box_zone("Sunbeam", SUNBEAM_ORIGIN, SUNBEAM_SIZE, Thermal.Look.SUNBEAM, SUNBEAM_STRENGTH, 1.12, SUNBEAM_SUN)
+	_add_box_zone("Skylight", SKYLIGHT_ORIGIN, SKYLIGHT_SIZE, Thermal.Look.SUNBEAM, SKYLIGHT_STRENGTH, 1.19, Vector3.DOWN, UP_CEILING - SKYLIGHT_ORIGIN.y)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
 	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, 7.0, Thermal.Look.STEAM, 1.26, Vector3(2.55, 0.45, 0.0))
 
@@ -167,9 +176,10 @@ func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: floa
 
 
 ## Everything is set before add_child, because the zone builds its visuals in _ready.
-func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN) -> Thermal:
+func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN, light_height := 0.0) -> Thermal:
 	var zone := Thermal.new()
 	zone.sun_direction = sun
+	zone.light_height = light_height
 	zone.name = zone_name
 	zone.shape = Thermal.Shape.BOX
 	zone.size = box

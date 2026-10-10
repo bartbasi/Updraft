@@ -29,6 +29,9 @@ const SHAFT_SHADER := preload("res://shaders/light_shaft.gdshader")
 @export var source_offset := Vector3.ZERO
 ## Sunbeam only: the direction the sunlight travels (down into the room), in local space.
 @export var sun_direction := Vector3.DOWN
+## Sunbeam only: how high the visible light reaches (0 = the zone's height), e.g. up to a
+## skylight above the top of the lift.
+@export var light_height := 0.0
 
 var sinks: bool:
 	get:
@@ -162,8 +165,10 @@ func _build_sunbeam() -> void:
 	# Drawn 0.2 inside the zone so the light never lies exactly on a wall face.
 	var hx := size.x * 0.5 - 0.2
 	var hz := size.z * 0.5 - 0.2
-	var lean := -sun_direction.normalized() * (size.y / maxf(-sun_direction.normalized().y, 0.05))
-	var floor_corners := [Vector3(-hx, 0.03, -hz), Vector3(hx, 0.03, -hz), Vector3(hx, 0.03, hz), Vector3(-hx, 0.03, hz)]
+	var reach := light_height if light_height > 0.0 else size.y
+	var lean := -sun_direction.normalized() * (reach / maxf(-sun_direction.normalized().y, 0.05))
+	# Just above the floor and any rug on it (rugs are at most 0.1 thick).
+	var floor_corners := [Vector3(-hx, 0.12, -hz), Vector3(hx, 0.12, -hz), Vector3(hx, 0.12, hz), Vector3(-hx, 0.12, hz)]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in [0, 1, 2, 0, 2, 3]:
@@ -203,7 +208,8 @@ func _build_wisps() -> void:
 		Look.WARM_AIR, Look.SUNBEAM:
 			# Drifting dust motes across the whole zone; in a sunbeam they rise along the light.
 			var sunny := look == Look.SUNBEAM
-			p.amount = 80 if sunny else 110
+			# Sunbeam motes scale with the sunny patch (about one per square unit, at most 80).
+			p.amount = clampi(int(size.x * size.z), 24, 80) if sunny else 110
 			p.lifetime = 4.0
 			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 			p.emission_box_extents = Vector3(size.x * 0.4, 0.3, size.z * 0.4) if shape == Shape.BOX else Vector3(radius * 0.6, 0.3, radius * 0.6)

@@ -225,3 +225,62 @@ static func _planks(c: Course, x0: float, x1: float, z0: float, z1: float) -> vo
 		c.span(Vector3(x0, Course.UP_FLOOR - 0.5, z), Vector3(x1, Course.UP_FLOOR, z_next), Color("e3c8a5") if i % 2 == 0 else Color("dcc09b"), false)
 		z = z_next
 		i += 1
+
+
+## The long sunny gallery from the landing to the stair hall: a straight glide with
+## something to see every few seconds (a closed door, pictures, a hall table, the skylight).
+static func build_gallery(c: Course) -> void:
+	var f := Course.UP_FLOOR
+	var top := Course.UP_CEILING
+	var t := Course.IN_WALL
+	var x0 := Course.STAIR_HALL_MAX.x  # west end, where the gallery floor becomes the stairs
+	var x1 := Course.TAPER_TO.x
+	var south := Course.GALLERY_Z.x
+	var north := Course.GALLERY_Z.y
+	_planks(c, x0, x1, south - t, north)
+	c.solid_span(Vector3(x0, f - 0.5, south - t), Vector3(x1, f, north))
+	c.span(Vector3(x0, top, south - t), Vector3(x1, top + 0.5, north + t), Course.CEILING_COLOR)
+	# Long walls: they meet the landing's north wall and the taper at x1.
+	c.span(Vector3(x0, f, north), Vector3(x1, top, north + t), GALLERY_WALL)
+	c.span(Vector3(x0, f, south - t), Vector3(x1, top, south), GALLERY_WALL)
+	c.span(Vector3(x0, f, north - 0.12), Vector3(x1, f + 0.6, north), Color("e8d6bc"), false)
+	c.span(Vector3(x0, f, south), Vector3(x1, f + 0.6, south + 0.12), Color("e8d6bc"), false)
+	# Striped runner down the middle: the stripes stream past and show your speed.
+	var stripe := x0
+	var i := 0
+	while stripe < x1:
+		var next := minf(stripe + 2.0, x1)
+		c.span(Vector3(stripe, f, 39.6), Vector3(next, f + 0.04, 43.4), Color("f3c9d0") if i % 2 == 0 else Color("f8efe0"), false)
+		stripe = next
+		i += 1
+	# Beat 1 (x 66): a sibling's closed door with light under it, and a big picture opposite.
+	c.span(Vector3(63.6, f, north - 0.2), Vector3(68.4, f + 9.6, north), Course.TRIM, false)
+	c.span(Vector3(64.0, f + 0.25, north - 0.28), Vector3(68.0, f + 9.2, north - 0.18), Color("c7e0d6"), false)
+	c.span(Vector3(64.2, f, north - 0.3), Vector3(67.8, f + 0.22, north - 0.25), Color("fff3cf"), false)
+	c.sphere(Vector3(67.3, f + 4.6, north - 0.4), 0.18, Color("e0a63c"), false)
+	_picture_south(c, Vector3(66.0, 18.5, south), 6.0, 4.0, Color("a9c8e8"), Color("b7d8b0"))
+	# Beat 2 (x 30): a hall table with a plant, and a row of family photos opposite.
+	# Everything on and under the table is solid: what you see is what you hit.
+	c.span(Vector3(26.5, f + 3.2, north - 2.0), Vector3(33.5, f + 3.5, north), Color("e4c9a8"))
+	for leg in [26.7, 33.1]:
+		c.span(Vector3(leg, f, north - 1.8), Vector3(leg + 0.2, f + 3.2, north - 1.6), Color("d3b898"))
+	c.cylinder(Vector3(28.5, f + 3.5, north - 1.0), 0.45, 0.6, 0.9, Color("e2a888"))
+	c.sphere(Vector3(28.5, f + 5.0, north - 1.0), 0.9, Color("9cc48a"), true, Vector3(1.0, 1.1, 1.0))
+	c.box(Vector3(31.5, f + 4.2, north - 0.9), Vector3(1.2, 1.4, 0.15), Color("f6cfa8"))
+	for k in 5:
+		_picture_south(c, Vector3(20.0 + k * 3.5, 19.0 + (k % 2) * 0.8, south), 2.2, 1.8, Color(Course.BOOK_COLORS[k]), Color("fbf3ea"))
+	# Skylight halfway along: a bright square in the ceiling over the right-hand half.
+	var sky := Course.SKYLIGHT_ORIGIN
+	var sky_size := Course.SKYLIGHT_SIZE
+	# The pane matches the light shaft below it (the zone, 0.2 in from each side).
+	var pane := Vector2(sky_size.x * 0.5 - 0.2, sky_size.z * 0.5 - 0.2)
+	c.span(Vector3(sky.x - pane.x, top - 0.06, sky.z - pane.y), Vector3(sky.x + pane.x, top, sky.z + pane.y), Course.SKY_PANE, false)
+	c.span(Vector3(sky.x - pane.x - 0.3, top - 0.1, sky.z - 0.1), Vector3(sky.x + pane.x + 0.3, top - 0.04, sky.z + 0.1), Course.TRIM, false)
+
+
+## A framed picture hung on the gallery's south wall (facing +Z).
+static func _picture_south(c: Course, wall_point: Vector3, width: float, height: float, sky: Color, land: Color) -> void:
+	var at := wall_point + Vector3(0, 0, 0.08)
+	c.box(at, Vector3(width, height, 0.12), Color("b9a28f"), false)
+	c.box(at + Vector3(0, height * 0.12, 0.07), Vector3(width - 0.5, height * 0.55, 0.02), sky, false)
+	c.box(at + Vector3(0, -height * 0.29, 0.07), Vector3(width - 0.5, height * 0.24, 0.02), land, false)

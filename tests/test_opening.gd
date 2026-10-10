@@ -237,7 +237,7 @@ func test_taper_wall_collides_exactly_as_drawn() -> void:
 func test_north_wall_has_no_gaps() -> void:
 	var game := _game()
 	await physics_frames(2)
-	var x := Course.TAPER_TO.x + 0.5
+	var x := Course.STAIR_HALL_MAX.x + 0.5
 	while x < Course.LANDING_EAST_X:
 		var in_door := x > Course.BEDROOM_DOOR_X.x - 1.0 and x < Course.BEDROOM_DOOR_X.y + 1.0
 		if not in_door:
@@ -275,6 +275,9 @@ func test_late_turns_scrape_the_taper_but_do_not_crash() -> void:
 		await cleanup()
 
 
+## The late pilot's lag makes it weave after the turn; some of those weaves end on the angled
+## wall in the sunbeam (see docs/build-notes.md). This test is about the door turn itself:
+## "made it" means through the door and banked round into the gallery direction.
 func test_late_first_time_pilots_mostly_make_the_turn() -> void:
 	var made_it := 0
 	var scraped := 0
@@ -341,12 +344,86 @@ func test_sunbeam_light_and_motes_lean_with_the_sun() -> void:
 	for i in verts.size():
 		if uvs[i].y < 0.5 and not floor_corners.any(func(c: Vector3) -> bool: return c.is_equal_approx(verts[i])):
 			floor_corners.append(verts[i])
-	var tops := 0
+	var top_corners := []
 	for i in verts.size():
-		if uvs[i].y > 0.5:
-			tops += 1
-			var below := verts[i] - lean
-			var matches := floor_corners.any(func(c: Vector3) -> bool: return c.distance_to(below) < 0.01)
-			check(matches, "each top corner of the shaft is a floor corner moved up the light (%s)" % [verts[i]])
-	check(floor_corners.size() == 4 and tops > 0, "the shaft rises from a four-cornered floor patch")
+		if uvs[i].y > 0.5 and not top_corners.any(func(c: Vector3) -> bool: return c.is_equal_approx(verts[i])):
+			top_corners.append(verts[i])
+	check(floor_corners.size() == 4 and top_corners.size() == 4, "the shaft runs from four floor corners to four top corners")
+	for corner in floor_corners:
+		var up: Vector3 = corner + lean
+		check(top_corners.any(func(c: Vector3) -> bool: return c.distance_to(up) < 0.01), "every floor corner has its top corner straight up the light (%s)" % [corner])
 	check(motes.direction.is_equal_approx(-sun), "the motes rise along the light (%s)" % [motes.direction])
+
+
+func test_gallery_is_a_clear_glide_with_a_skylight_top_up() -> void:
+	var pilot := Autopilot.new(Autopilot.course_line())
+	var game := _game(pilot.fly)
+	var plane := game.get_node("Plane") as PaperPlane
+	var bumps := [0]
+	plane.bumped.connect(func(_s: float) -> void: bumps[0] += 1)
+	var zones := []
+	plane.entered_thermal.connect(func(z: Thermal) -> void: zones.append(String(z.name)))
+	await _until_released(plane)
+	var entered_gallery := -1.0
+	while plane.flight_time < 40.0 and not plane.is_ended() and plane.global_position.x > Course.STAIR_HALL_MAX.x + 1.0:
+		await tree.physics_frame
+		if entered_gallery < 0.0 and plane.global_position.x < Course.TAPER_TO.x:
+			entered_gallery = plane.flight_time
+	var gallery_time := plane.flight_time - entered_gallery
+	print("        gallery: %.1f s from x %.0f to %.0f, zones %s, height %.1f at the stairs" % [gallery_time, Course.TAPER_TO.x, Course.STAIR_HALL_MAX.x, zones, plane.global_position.y])
+	check(bumps[0] == 0 and not plane.is_ended(), "the good line glides the whole gallery untouched")
+	check(zones.has("Skylight"), "and catches the skylight on the way")
+	check_between(gallery_time, 8.0, 16.0, "seconds to glide the gallery")
+	check(plane.global_position.y > Course.UP_FLOOR + 5.0, "arriving at the stairs with height to dive (y %.1f)" % plane.global_position.y)
+
+
+func test_gallery_walls_floor_and_ceiling_are_solid_and_the_corridor_is_clear() -> void:
+	var game := _game()
+	await physics_frames(2)
+	var gz := Course.GALLERY_Z
+	var x := Course.STAIR_HALL_MAX.x + 0.5
+	while x < Course.TAPER_TO.x:
+		for y in [14.0, 19.5, 25.0]:
+			check(_probe(game, Vector3(x, y, gz.x - 0.05)), "the south wall is solid at x %.1f, y %.1f" % [x, y])
+		check(_probe(game, Vector3(x, Course.UP_FLOOR + 0.25, 41.5)), "the floor is solid at x %.1f" % x)
+		check(not _probe(game, Vector3(x, Course.UP_FLOOR + 0.4, 41.5)), "and nothing lies on it at x %.1f" % x)
+		check(_probe(game, Vector3(x, Course.UP_CEILING - 0.25, 41.5)), "the ceiling is solid at x %.1f" % x)
+		x += 1.0
+	# Nothing solid anywhere in the flying space above the furniture.
+	var clear := [
+		[Vector3(Course.STAIR_HALL_MAX.x + 0.5, 16.3, gz.x + 0.3), Vector3(Course.TAPER_TO.x, 26.2, 43.8)],
+		[Vector3(Course.STAIR_HALL_MAX.x + 0.5, 16.3, 43.8), Vector3(26.0, 26.2, gz.y - 0.3)],
+		[Vector3(34.0, 16.3, 43.8), Vector3(Course.TAPER_TO.x, 26.2, gz.y - 0.3)],
+	]
+	for region in clear:
+		check(not _box_hits(game, region[0], region[1]), "nothing protrudes into the gallery between %s and %s" % [region[0], region[1]])
+
+
+func _box_hits(game: Node, lo: Vector3, hi: Vector3) -> bool:
+	var space := (game as Node3D).get_world_3d().direct_space_state
+	var query := PhysicsShapeQueryParameters3D.new()
+	var box := BoxShape3D.new()
+	box.size = hi - lo
+	query.shape = box
+	query.collision_mask = PaperPlane.WORLD_LAYER
+	query.transform = Transform3D(Basis.IDENTITY, (lo + hi) * 0.5)
+	return not space.intersect_shape(query).is_empty()
+
+
+func test_skylight_tops_up_a_level_glide() -> void:
+	var heights := []
+	for with_skylight in [true, false]:
+		var game := _game(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+		var plane := game.get_node("Plane") as PaperPlane
+		if not with_skylight:
+			(game.get_node("Course/Skylight") as Thermal).remove_from_group("thermals")
+		plane.launch(Vector3(56.0, 20.6, 39.5), PI / 2.0)  # heading -X along the skylight side
+		await _until_released(plane)
+		var start := plane.global_position.y
+		while plane.global_position.x > 38.0 and not plane.is_ended():
+			await tree.physics_frame
+		heights.append(plane.global_position.y - start)
+		await cleanup()
+	print("        skylight: %+.1f with it, %+.1f without" % [heights[0], heights[1]])
+	check(heights[0] >= 1.0, "a level glide gains height under the skylight (%+.1f)" % heights[0])
+	check(heights[0] > heights[1] + 1.5, "much more than without it (%+.1f vs %+.1f)" % [heights[0], heights[1]])

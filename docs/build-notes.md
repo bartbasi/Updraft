@@ -12,6 +12,8 @@ decision from the designer or the owner, is written down here rather than settle
 | Door posts | Square jambs | Rounded posts, radius 0.6, drawn as they collide | A sharp corner turns a light clip into a head-on crash; rounded posts turn it into a bump. | None |
 | Cones and lamp shades | (not in plan) | Collide exactly as drawn (convex hull) | They used to collide as full cylinders, an invisible wall (code-review blocker). This also changes the existing living-room lamp shade and the outdoor trees slightly. | None |
 | Mobile in the bedroom | (dressing) | No collision | Soft paper birds on strings; the plane brushes through. | None |
+| Hall table props | Props below y 16 | Plant reaches y 18.5 and a photo frame 17.4, both solid | A plant on a hall table; solid so what you see is what you hit. Sticks out 1.9 from the north wall at x 26.5–33.5; the flying corridor stays clear. | Designer FYI |
+| Skylight light | Light source 14 up | Visible shaft reaches the ceiling pane; lift stops at y 24.5 as planned; pane sized to the shaft | The shaft looked disconnected from its skylight. | None |
 
 ## Designer's Phase A review (`docs/review-phase-a.md`): where each item went
 
@@ -31,8 +33,12 @@ decision from the designer or the owner, is written down here rather than settle
   designer's measured levers: gravity 8 → 7 (about +3 s), and a 15-unit longer gallery (about
   +3 s). See `docs/opening-plan.md` section 8.
 - The lamp style moment (under the lamp) was not earned in any test-pilot run; show it can be flown.
-- Late first-timers who scrape the taper sometimes weave across the gallery afterwards (a test
-  pilot artifact, per code review); re-check with the full gallery.
+- Late first-timers (test pilot with 0.3–0.9 s reaction lag, seeds 300–319): 15–16/20 get
+  through the door turn, but the lag makes them weave afterwards; measured to the gallery mouth
+  (x 79) only 11/20 survive: four hit the angled wall up in the sunbeam (x 80–83, y about 24),
+  and through the whole gallery 10/20. Normal first-timers: 20/20 through the whole gallery.
+  Designer to judge in Phase B whether real players would weave like this (pilot-induced
+  oscillation) and whether the angled wall or the sunbeam's height needs softening.
 - Camera and sound feel values move into `scripts/tuning.gd` (the brief's "one place" rule).
 - Crash-to-flying time and frame rate need checking on a real phone ("Fly again" rebuilds the
   house in code).
