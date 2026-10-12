@@ -53,7 +53,7 @@ func test_autopilot_flies_the_downstairs_course() -> void:
 	check(game.reached_outside, "autopilot should fly out of the window")
 	check(plane.is_ended() and Course.is_outside(plane.global_position), "flight should end on the grass outside")
 	check(thermals[0] >= 2, "both thermals should be flown through (%d)" % thermals[0])
-	check_between(plane.flight_time, 22.0, 40.0, "flight time (s)")
+	check_between(plane.flight_time, 40.0, 75.0, "flight time (s)")
 
 
 func test_autopilot_flies_from_the_bedroom_to_the_hills() -> void:
@@ -76,7 +76,7 @@ func test_autopilot_flies_from_the_bedroom_to_the_hills() -> void:
 	print("        whole run: %.1f s, %d bumps, sections %s, zones %s" % [plane.flight_time, bumps[0], sections, zones])
 	check(not plane.model.crashed, "the good line flies the whole course without crashing (at %s)" % plane.global_position)
 	check(plane.is_ended() and Course.is_outside(plane.global_position), "and lands on the grass outside")
-	for zone in ["Sunbeam", "RadiatorHeat", "KettleSteam", "MeadowHeat"]:
+	for zone in ["Sunbeam", "RadiatorHeat", "KettleSteam", "HayHeat"]:
 		check(zones.has(zone), "flies through %s" % zone)
 	check(sections.has("stair hall") and sections.has("living room"), "down the stairs into the living room: %s" % [sections])
 	check(plane.flight_time >= 60.0, "a well-flown run lasts at least a minute (%.1f s)" % plane.flight_time)
@@ -218,36 +218,82 @@ func test_floaters_who_never_dive_get_through_the_arch() -> void:
 	check(stuck.is_empty(), "every floater reaches the living room: %s" % [stuck])
 
 
-## Past the window: warm air over the hay field lifts a plane that turns for it, and gives
-## nothing to one that flies straight on down the middle.
-func test_meadow_thermal_lifts_those_who_turn_for_it() -> void:
-	for setup in [[Course.MEADOW_THERMAL.x, true], [Course.MEADOW_THERMAL.x + Course.MEADOW_THERMAL_RADIUS + 2.0, false]]:
-		var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+## The ground outdoors has the shape the designer planned (docs/outside-plan.md, section 1),
+## leaving out the soft rolls.
+func test_ground_has_the_planned_shape() -> void:
+	var rolls := func(x: float, z: float) -> float:
+		var d := maxf(0.0, Course.FAR_Z - Course.WALL - z)
+		return 0.6 * (1.4 * sin(x * 0.09 + z * 0.045) + 1.0 * sin(x * 0.05 - z * 0.08 + 1.3)) * clampf(d / 25.0, 0.0, 1.0)
+	var table := [[0.0, -95.0, -1.0], [-2.0, -118.0, -0.3], [0.0, -150.0, 0.6], [-5.0, -182.0, 1.6], [-12.0, -215.0, 2.6],
+		[34.0, -268.0, 4.4], [0.0, -320.0, 30.9], [-38.0, -200.0, 6.9], [-46.0, -200.0, 13.1], [-56.0, -200.0, 20.7], [-75.0, -200.0, 24.1]]
+	for row: Array in table:
+		var h := Course.ground_height(row[0], row[1]) - float(rolls.call(row[0], row[1]))
+		check(absf(h - float(row[2])) <= 0.15, "ground at (%.0f, %.0f) is %.2f, planned %.1f" % [row[0], row[1], h, row[2]])
+	# Every edge of the world is high ground.
+	for x in range(-120, 121, 12):
+		check(Course.ground_height(x, -336.0) > 40.0, "the head wall is high at x %d" % x)
+	for z in range(-40, -331, -10):
+		var low := minf(Course.ground_height(-126.0, z), Course.ground_height(126.0, z))
+		check(low > 38.0, "both sides are high at z %d (%.1f)" % [z, low])
+
+
+## A plane that ignores the warm air outdoors lands after about ten seconds.
+func test_a_glide_with_no_lift_lands_in_about_ten_seconds() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	await physics_frames(2)
+	for zone in tree.get_nodes_in_group("thermals"):
+		if zone.name == "HayHeat":
+			zone.remove_from_group("thermals")
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.launch(Vector3(0.0, 7.0, Course.FAR_Z - 1.5), 0.0)
+	await _fly_until_end(plane, 30.0)
+	print("        no lift: landed after %.1f s at %s" % [plane.flight_time, plane.global_position])
+	check(not plane.model.crashed, "it lands, not crashes")
+	check_between(plane.flight_time, 8.0, 12.0, "seconds from the window to the grass")
+
+
+## The hay field's warm air is right on the line out of the window: flying straight through it
+## climbs, and circling in it climbs to near its top within a dozen seconds.
+func test_hay_field_thermal_lifts_straight_and_circling_planes() -> void:
+	var hay: Vector2 = Course.HAY_FIELD["at"]
+	var top := float(Course.HAY_FIELD["top"])
+	for circling in [false, true]:
+		var roll := 1.0 if circling else 0.0
+		var game := _start(func(p: PaperPlane) -> Vector2:
+			if not circling or p.global_position.z > hay.y:
+				return Vector2.ZERO
+			return Vector2(0.0, -roll))  # full bank left once near the middle
 		var plane := game.get_node("Plane") as PaperPlane
-		var start := Vector3(float(setup[0]), 6.5, Course.MEADOW_THERMAL.y + 10.0)
+		# The circling plane enters to the right of the middle, so its full-bank circle (radius 5.6) is centred on it.
+		var start := Vector3(3.6 if circling else 0.0, 7.0, Course.FAR_Z - 1.5)
 		plane.launch(start, 0.0)
-		var entered := [false]
-		plane.entered_thermal.connect(func(z: Thermal) -> void: entered[0] = entered[0] or z.name == "MeadowHeat")
-		var top := start.y
+		var highest := start.y
 		var frames := 0
-		while plane.global_position.z > Course.MEADOW_THERMAL.y - 8.0 and not plane.is_ended() and frames < 600:
+		var limit := 60 * (12 if circling else 8)
+		while frames < limit and not plane.is_ended():
 			await tree.physics_frame
 			frames += 1
-			top = maxf(top, plane.global_position.y)
-		var label := "through the meadow thermal" if setup[1] else "straight past it"
-		if setup[1]:
-			check(entered[0], "%s: the plane meets the warm air" % label)
-			check(top > start.y + 2.0, "%s: and climbs (from y %.1f to %.1f)" % [label, start.y, top])
+			highest = maxf(highest, plane.global_position.y)
+		if circling:
+			check(highest >= top - 2.0, "circling climbs to y %.1f or more within 12 s (%.1f)" % [top - 2.0, highest])
 		else:
-			check(not entered[0], "%s: no warm air" % label)
-			check(top <= start.y + 0.05, "%s: and no climb (from y %.1f to %.1f)" % [label, start.y, top])
+			check(highest >= start.y + 6.0, "flying straight through gains at least 6 (from %.1f to %.1f)" % [start.y, highest])
+		check(not plane.model.crashed, "and nothing to hit")
 		await cleanup()
 
 
-## From the window out past the meadow the middle of the valley is open: nothing to hit but the
-## grass, so a pilot can circle in the thermal and glide on (the designer's numbers: 16 either
-## side of the centre line, out to z -240).
-func test_valley_is_clear_past_the_meadow() -> void:
+## The trees stand only where the designer allowed, and the valley floor is open: nothing to
+## hit above the grass but the hay bales.
+func test_trees_keep_clear_and_the_valley_is_open() -> void:
+	check(not Course.tree_allowed(-2.0, -118.0), "no tree in the hay-field thermal")
+	check(not Course.tree_allowed(-2.0, -133.5), "nor just past its edge")
+	check(not Course.tree_allowed(-40.0, -200.0), "nor on the ridge face")
+	check(Course.tree_allowed(80.0, -200.0), "but on the right-hand slopes, yes")
+	var spots := Course.tree_spots()
+	check(spots.size() == 40, "40 trees (%d)" % spots.size())
+	for t in spots:
+		check(Course.tree_allowed(t.x, t.z), "tree at %s is allowed" % t)
+		check(t.x >= 45.0 or t.x <= -72.0 or t.z <= -295.0, "tree at %s is on a slope, the plateau or the head wall" % t)
 	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
 	await physics_frames(2)
 	var space := (game as Node3D).get_world_3d().direct_space_state
@@ -257,19 +303,41 @@ func test_valley_is_clear_past_the_meadow() -> void:
 	query.shape = ball
 	query.collision_mask = PaperPlane.WORLD_LAYER
 	var hits := []
-	check(Course.TREE_FREE_HALF_WIDTH >= 16.0 and Course.TREE_FREE_TO_Z <= -240.0, "the tree-free valley is at least as big as the designer asked")
 	var z := Course.FAR_Z - Course.WALL - 15.0  # past the garden fence
-	while z > -240.0:
-		var x := -15.0
-		while x <= 15.0:
-			for up in [1.0, 3.0, 6.0, 10.0]:
-				var at := Vector3(x, Course.ground_height(x, z) + up, z)
-				query.transform = Transform3D(Basis.IDENTITY, at)
-				if not space.intersect_shape(query, 1).is_empty() and hits.size() < 5:
-					hits.append(at)
-			x += 2.0
-		z -= 2.0
-	check(hits.is_empty(), "nothing solid above the grass in the valley: %s" % [hits])
+	while z > -290.0:
+		var x := -24.0
+		while x <= 30.0:
+			var near_bale := false
+			for b: Vector2 in Course.HAY_BALES:
+				near_bale = near_bale or Vector2(x, z).distance_to(b) < Course.BALE_LENGTH + 1.0
+			if not near_bale:
+				for up in [1.0, 3.0, 6.0, 10.0]:
+					var at := Vector3(x, Course.ground_height(x, z) + up, z)
+					query.transform = Transform3D(Basis.IDENTITY, at)
+					if not space.intersect_shape(query, 1).is_empty() and hits.size() < 5:
+						hits.append(at)
+			x += 3.0
+		z -= 3.0
+	check(hits.is_empty(), "nothing solid above the valley floor: %s" % [hits])
+
+
+## A plane that somehow leaves the world comes to a stop instead of falling forever.
+func test_leaving_the_world_ends_the_run() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2(-1.0, 0.0))
+	var plane := game.get_node("Plane") as PaperPlane
+	await physics_frames(2)
+	plane.launch(Vector3(0.0, -11.0, -200.0), 0.0)  # below the world
+	await physics_frames(5)
+	check(plane.is_ended() and not plane.model.crashed, "it ends as a landing")
+	plane.launch(Vector3(124.0, 30.0, -200.0), 0.0)  # off the right-hand edge
+	await physics_frames(5)
+	check(plane.is_ended(), "off the side of the world ends it too")
+	# The whole house is inside the world.
+	var inside := [Course.START, Course.KID_EYE, Course.LIVING_ROOM_ENTRY]
+	for def in Course.style_moment_defs():
+		inside.append_array(Array(def["path"]))
+	for p: Vector3 in inside:
+		check(Course.WORLD_BOUNDS.has_point(p), "%s is inside the world" % p)
 
 
 ## The hills' height helper matches the grass the plane actually lands on.
@@ -303,7 +371,8 @@ func test_shadow_shows_over_painted_ground() -> void:
 	await physics_frames(2)
 	plane.held = true
 	var stream_x := 7.0
-	for spot in [Vector2(Course.MEADOW_THERMAL.x, Course.MEADOW_THERMAL.y), Vector2(Course.MEADOW_THERMAL.x + 2.5, Course.MEADOW_THERMAL.y - 3.5), Vector2(stream_x, Course.STREAM_Z + 2.0 * sin(stream_x * 0.12))]:
+	var hay: Vector2 = Course.HAY_FIELD["at"]
+	for spot in [hay + Vector2(2.0, 0.0), hay + Vector2(4.5, -6.5), Vector2(stream_x, Course.STREAM_Z + 2.0 * sin(stream_x * 0.12))]:
 		var ground := Course.terrain_height(spot.x, spot.y)
 		plane.global_position = Vector3(spot.x, ground + 1.6, spot.y)
 		plane._update_shadow()

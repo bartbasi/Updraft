@@ -46,6 +46,8 @@ var flight_time := 0.0
 var input := Vector2.ZERO
 ## While held, the plane hangs still (waiting for the game to draw smoothly before the throw).
 var held := false
+## The world: a plane that leaves this box comes to a stop (the game sets the course's bounds).
+var bounds := AABB(Vector3(-1e6, -40.0, -1e6), Vector3(2e6, 2e6, 2e6))
 ## Where the phone's gravity reading comes from (tests replace this).
 var read_gravity := func() -> Vector3: return Controls.read_gravity()
 
@@ -169,8 +171,8 @@ func _physics_process(delta: float) -> void:
 	var moved := global_position - start
 	distance += Vector2(moved.x, moved.z).length()
 	flight_time += delta
-	if global_position.y < -40.0:
-		model.stopped = true  # Fell out of the world; end the run rather than get stuck.
+	if not bounds.has_point(global_position):
+		model.stopped = true  # Left the world; end the run rather than fall forever.
 	model.update_stop(delta)
 	_update_visuals(delta)
 	if model.stopped:

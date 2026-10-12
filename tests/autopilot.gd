@@ -21,7 +21,14 @@ var max_climb := 0.3
 ## How firmly it pitches toward the height of its aim point (per unit of height).
 var pitch_gain := 0.3
 var rng := RandomNumberGenerator.new()
+## Circles to fly on the way, in order: on coming within 1.3 radii of `centre` (x, z), the pilot
+## circles it at `radius` until it has climbed (`up`) or come down to height `to_y`, or for
+## `max_time` seconds at most, then flies on along the line. Lines that go out of the window get the outdoor circles (outside_orbits()).
+var orbits: Array[Dictionary] = []
 
+var _orbit := 0  ## The next circle to fly.
+var _orbiting := false
+var _orbit_time := 0.0  ## Seconds into the current circle (the pilot flies every physics tick).
 var _segment := -1  ## Where on the line the pilot is; -1 until it has looked.
 var _last_heading := NAN
 var _delayed: Array[Vector2] = []
@@ -32,6 +39,8 @@ func _init(p_line: PackedVector3Array, p_seed := 1) -> void:
 	line = p_line
 	lengths = Scoring.arc_lengths(line)
 	rng.seed = p_seed
+	if line[line.size() - 1].z < Course.FAR_Z:
+		orbits = outside_orbits()
 
 
 ## A good line from the throw in the bedroom to the hills: the course's own optimal paths
@@ -49,7 +58,7 @@ static func course_line() -> PackedVector3Array:
 ## Course.LIVING_ROOM_ENTRY. Threading the lamp needs a firm hand on the pitch (`pitch_gain`).
 static func downstairs_style_line() -> PackedVector3Array:
 	var paths := _style_paths()
-	var out_of_window := PackedVector3Array([Vector3(0.0, 6.0, -100.0), Vector3(0.0, 2.0, -180.0)])
+	var out_of_window := PackedVector3Array([Vector3(0.0, 6.0, -100.0), Vector3(0.0, 2.0, -130.0)])
 	var line := PackedVector3Array([Course.LIVING_ROOM_ENTRY])
 	for part in [paths["radiator"], paths["lamp"], paths["kettle"], paths["window"], out_of_window]:
 		line = _join(line, part)
@@ -85,10 +94,21 @@ static func downstairs_line() -> PackedVector3Array:
 		Vector3(-1.0, 5.6, -52.0),  # under the door frame
 		Vector3(1.5, 6.5, -62.0), Vector3(2.6, 9.0, -69.0),  # up the kettle steam
 		Vector3(1.0, 8.0, -80.0), Vector3(0.0, 7.5, -88.0),  # out of the window
-		Vector3(-2.0, 6.5, -100.0), Vector3(-5.5, 6.5, -112.0),  # over the fence toward the hay field
-		Vector3(-6.0, 11.0, -123.0), Vector3(-5.5, 11.0, -133.0),  # up the meadow thermal
-		Vector3(-5.0, 6.0, -200.0),  # and a long glide down the valley
+		Vector3(-0.5, 7.0, -100.0),  # over the fence into the hay field's warm air
+		Vector3(-1.0, 9.0, -112.0),
+		Vector3(-3.0, 17.0, -150.0),  # (after circling up the hay-field thermal) glide down the valley
+		Vector3(-5.0, 4.0, -181.0),  # to the lavender field
+		Vector3(-5.0, 1.0, -195.0),
 	])
+
+
+## Outdoors: circle up the hay-field thermal, then circle down onto the lavender field.
+static func outside_orbits() -> Array[Dictionary]:
+	var lavender := Vector2((Course.LAVENDER_X.x + Course.LAVENDER_X.y) * 0.5, (Course.LAVENDER_Z.x + Course.LAVENDER_Z.y) * 0.5)
+	return [
+		{"centre": Course.HAY_FIELD["at"], "radius": 6.0, "to_y": float(Course.HAY_FIELD["top"]) - 2.0, "up": true, "max_time": 20.0},
+		{"centre": lavender, "radius": 7.0, "to_y": Course.ground_height(lavender.x, lavender.y) + 0.5, "up": false, "max_time": 40.0},
+	]
 
 
 ## A first-time player who reacts really late, so some of them turn only after the door.
@@ -112,6 +132,35 @@ static func novice(p_line: PackedVector3Array, p_seed: int) -> Autopilot:
 	return pilot
 
 
+## While circling, a point a little way round the circle (turning right), a little above (or
+## below) the plane. Starts and ends the circles.
+func _orbit_aim(p: Vector3) -> Vector3:
+	_orbit_time += 1.0 / 60.0
+	if _orbit >= orbits.size():
+		return p
+	var o := orbits[_orbit]
+	var centre: Vector2 = o["centre"]
+	var radius: float = o["radius"]
+	var to_y: float = o["to_y"]
+	var off := Vector2(p.x, p.z) - centre
+	if not _orbiting:
+		if off.length() > radius * 1.3:
+			return p
+		_orbiting = true
+		_orbit_time = 0.0
+	var up: bool = o["up"]
+	if (up and p.y >= to_y) or (not up and p.y <= to_y) or _orbit_time > float(o["max_time"]):
+		if _orbit_time > float(o["max_time"]):
+			push_warning("Autopilot gave up circling %s after %.0f s at y %.1f" % [centre, _orbit_time, p.y])
+		_orbiting = false
+		_orbit += 1
+		_segment = -1  # find the line again from wherever the circle ended
+		return p
+	var around := off.angle() + 0.8
+	var at := centre + Vector2.from_angle(around) * radius
+	return Vector3(at.x, p.y + (1.5 if up else -1.0), at.y)
+
+
 ## The point `s` units along the line (clamped to its ends).
 func point_at(s: float) -> Vector3:
 	var total := lengths[lengths.size() - 1]
@@ -125,11 +174,13 @@ func point_at(s: float) -> Vector3:
 
 func fly(plane: PaperPlane) -> Vector2:
 	var p := plane.global_position
-	# The first time, search the whole line (the pilot may start anywhere); then only nearby.
-	var hit := Scoring.project(line, lengths, p) if _segment < 0 else Scoring.project(line, lengths, p, maxi(_segment - 1, 0), mini(_segment + 2, line.size() - 2))
-	_segment = int(hit.z)
-	var speed := plane.model.velocity.length()
-	var aim := point_at(hit.x + lookahead + speed * lookahead_time)
+	var aim := _orbit_aim(p)
+	if not _orbiting:
+		# The first time, search the whole line (the pilot may start anywhere); then only nearby.
+		var hit := Scoring.project(line, lengths, p) if _segment < 0 else Scoring.project(line, lengths, p, maxi(_segment - 1, 0), mini(_segment + 2, line.size() - 2))
+		_segment = int(hit.z)
+		var speed := plane.model.velocity.length()
+		aim = point_at(hit.x + lookahead + speed * lookahead_time)
 
 	var to := aim - p
 	var want := atan2(-to.x, -to.z)

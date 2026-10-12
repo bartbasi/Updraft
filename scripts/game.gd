@@ -58,6 +58,7 @@ func _ready() -> void:
 	scoring.style_awarded.connect(_on_style_awarded)
 	best_score = BestScore.load_best()
 	plane.set_look(PlayerSettings.load_look())
+	plane.bounds = Course.WORLD_BOUNDS
 	_setup_world()
 	_setup_post_fx()
 	_setup_audio()

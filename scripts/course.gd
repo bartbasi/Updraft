@@ -33,21 +33,33 @@ const KETTLE := Vector3(7.0, 3.7, -69.0)
 const KETTLE_THERMAL := Vector3(3.0, 3.0, -69.0)
 const KETTLE_STEAM_HEIGHT := 8.2
 const KETTLE_SPOUT_TIP := KETTLE + Vector3(-1.45, 0.95, 0.0)  ## Where the steam puffs come out.
-## Outdoors: a sun-warmed hay field past the garden fence, left of the line out of the window,
-## with warm air rising over it (x, z; it stands on the ground). Seen through the kitchen window.
-const MEADOW_THERMAL := Vector2(-6.0, -118.0)
-const MEADOW_THERMAL_RADIUS := 6.0
-const MEADOW_THERMAL_HEIGHT := 12.0
-## No trees within this distance of the centre line closer than TREE_FREE_TO_Z, so a pilot can
-## circle in the meadow thermal and glide on.
-const TREE_FREE_HALF_WIDTH := 16.0
-const TREE_FREE_TO_Z := -240.0
-## A small stream across the valley, a beat to fly over after the thermal.
+## Outdoors (docs/outside-plan.md): a wide valley to explore, with a light breeze from the right
+## (+X), so the left hillside, facing into it, is a ridge with rising air along it.
+## The valley floor rises this much per unit away from the house.
+const VALLEY_RISE := 0.03
+## The left ridge: its face climbs RIDGE_HEIGHT between these x (near, far) to a flat plateau.
+const RIDGE_FACE_X := Vector2(-26.0, -66.0)
+const RIDGE_HEIGHT := 22.0
+## Warm air outdoors: each thermal stands on the ground at its centre (x, z) and rises to `top`
+## (y). `strength` scales Tuning.thermal_strength. Its ground cause is drawn under it.
+const HAY_FIELD := {"name": "HayHeat", "at": Vector2(-2.0, -118.0), "radius": 12.0, "top": 24.0, "strength": 0.9, "pitch": 0.9}
+const OUTDOOR_THERMALS := [HAY_FIELD]
+## Round hay bales on the hay field (x, z): solid, lying on their sides, out at the sides of the
+## field so a plane coming down the middle of the valley never meets one.
+const HAY_BALES := [Vector2(-11.0, -110.0), Vector2(8.0, -109.0), Vector2(-10.5, -127.0), Vector2(8.5, -126.0), Vector2(-14.5, -119.0)]
+const BALE_RADIUS := 1.0
+const BALE_LENGTH := 1.5
+## Trees stay this far (plan view) from the edge of every lift zone.
+const TREE_CLEARANCE := 4.0
+## A small stream across the valley, a beat to fly over between thermals.
 const STREAM_Z := -150.0
-## A lavender field where a good glide comes down: something to aim for at the very end
-## (painted only). x left to right; z near edge (house side) to far edge.
-const LAVENDER_X := Vector2(-12.0, 2.0)
-const LAVENDER_Z := Vector2(-170.0, -194.0)
+const STREAM_X := Vector2(-28.0, 60.0)
+## A lavender field where a good glide comes down (painted only). x left to right; z near
+## edge (house side) to far edge.
+const LAVENDER_X := Vector2(-14.0, 4.0)
+const LAVENDER_Z := Vector2(-166.0, -196.0)
+## A plane anywhere outside this box has left the world: the run ends as a landing.
+const WORLD_BOUNDS := AABB(Vector3(-123.0, -10.0, -339.0), Vector3(246.0, 400.0, 500.0))
 ## The hills are drawn, and collide, as a grid of triangles this size, starting here (x, z).
 const TERRAIN_STEP := 6.0
 const TERRAIN_ORIGIN := Vector2(-126.0, -30.0)
@@ -196,13 +208,20 @@ static func section_at(pos: Vector3) -> String:
 	return "upstairs"
 
 
-## Rolling hills that climb away from the house and up to both sides, so every
-## flight outside ends on the grass within a few seconds.
+## The hills: a gently rising valley floor with soft rolls, the ridge and its plateau on the
+## left, slopes on the right, a head wall at the far end and banks beside the house, so every
+## edge of the world is high ground.
 static func ground_height(x: float, z: float) -> float:
-	var d := maxf(0.0, FAR_Z - WALL - z)
-	var rise := d * 0.085 + x * x * 0.004
+	var d := maxf(0.0, FAR_Z - WALL - z)  # distance out from the window wall
+	var h := -1.2 + VALLEY_RISE * d
+	h += 0.015 * pow(maxf(0.0, d - 190.0), 2.0)  # head wall
+	h += 0.006 * pow(maxf(0.0, x - 28.0), 2.0)  # right-hand slopes
+	h += RIDGE_HEIGHT * smoothstep(-RIDGE_FACE_X.x, -RIDGE_FACE_X.y, -x)  # the ridge and its plateau
+	h += 0.012 * pow(maxf(0.0, -x - 84.0), 2.0)  # behind the plateau, up to the edge
+	h += 0.04 * pow(maxf(0.0, z + 64.0), 2.0) * smoothstep(12.0, 20.0, absf(x))  # banks beside the house
 	var rolls := (1.4 * sin(x * 0.09 + z * 0.045) + 1.0 * sin(x * 0.05 - z * 0.08 + 1.3)) * clampf(d / 25.0, 0.0, 1.0)
-	return -1.2 + rise + rolls
+	return h + 0.6 * rolls
+
 
 
 ## The height of the grass as drawn and as it collides: the triangle grid through
@@ -255,8 +274,10 @@ func _build() -> void:
 	_add_box_zone("StairDowndraft", DOWNDRAFT_ORIGIN, DOWNDRAFT_SIZE, Thermal.Look.DOWNDRAFT, DOWNDRAFT_STRENGTH, 1.0)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
 	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, KETTLE_STEAM_HEIGHT, Thermal.Look.STEAM, 1.26, KETTLE_SPOUT_TIP - KETTLE_THERMAL)
-	var meadow := Vector3(MEADOW_THERMAL.x, ground_height(MEADOW_THERMAL.x, MEADOW_THERMAL.y), MEADOW_THERMAL.y)
-	_add_thermal("MeadowHeat", meadow, MEADOW_THERMAL_RADIUS, MEADOW_THERMAL_HEIGHT, Thermal.Look.WARM_AIR, 0.9, Vector3.ZERO)
+	for t: Dictionary in OUTDOOR_THERMALS:
+		var at: Vector2 = t["at"]
+		var ground := ground_height(at.x, at.y)
+		_add_thermal(t["name"], Vector3(at.x, ground, at.y), t["radius"], float(t["top"]) - ground, Thermal.Look.WARM_AIR, t["pitch"], Vector3.ZERO, t["strength"])
 
 
 func _add_mesh(mesh_name: String) -> void:
@@ -274,8 +295,9 @@ func _add_mesh(mesh_name: String) -> void:
 		_body.add_child(cs)
 
 
-func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: float, look: Thermal.Look, pitch: float, source: Vector3) -> void:
+func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: float, look: Thermal.Look, pitch: float, source: Vector3, strength := 1.0) -> void:
 	var t := Thermal.new()
+	t.strength_scale = strength
 	t.name = thermal_name
 	t.radius = radius
 	t.height = height
@@ -626,24 +648,27 @@ func _build_outside() -> void:
 
 	# A low garden fence across the view.
 	var fence_z := -101.0
-	var x := -40.0
-	while x <= 40.0:
+	var x := -30.0
+	while x <= 30.0:
 		var gy := ground_height(x, fence_z)
 		box(Vector3(x, gy + 1.0, fence_z), Vector3(0.35, 2.6, 0.35), TRIM)
-		if x < 40.0:
+		if x < 30.0:
 			var mid_y := (gy + ground_height(x + 2.5, fence_z)) * 0.5
 			for rail in [0.9, 1.8]:
 				builder.box(Vector3(x + 1.25, mid_y + rail, fence_z), Vector3(2.5, 0.2, 0.15), Color("f3ece2"))
 		x += 2.5
 
-	# The hay field under the meadow thermal: golden rows, so the rising heat has a visible cause.
-	var hay := MEADOW_THERMAL
-	_ground_patch(hay.x - 6.0, hay.x + 6.0, hay.y + 6.0, hay.y - 6.0, 1.0, [Color("f4dc9b"), Color("e9c98a")])
+	# The hay field under the first thermal: golden rows and round bales, so the rising heat
+	# has a visible cause.
+	var hay: Vector2 = HAY_FIELD["at"]
+	_ground_patch(hay.x - 12.0, hay.x + 12.0, hay.y + 12.0, hay.y - 12.0, 1.0, [Color("f4dc9b"), Color("e9c98a")])
+	for bale: Vector2 in HAY_BALES:
+		_hay_bale(bale)
 
 	# A stream across the valley with a few flat stepping stones.
 	var bank := 1.3
-	var sx := -60.0
-	while sx < 60.0:
+	var sx := STREAM_X.x
+	while sx < STREAM_X.y:
 		var za := STREAM_Z + 2.0 * sin(sx * 0.12)
 		var zb := STREAM_Z + 2.0 * sin((sx + 1.0) * 0.12)
 		var water := Color("a9cfe0") if int(sx / 2.0) % 2 == 0 else Color("b8d8e6")
@@ -657,17 +682,12 @@ func _build_outside() -> void:
 	# The lavender field, in rows with grass between.
 	_ground_patch(LAVENDER_X.x, LAVENDER_X.y, LAVENDER_Z.x, LAVENDER_Z.y, 1.0, [Color("b9a6dc"), Color("d3c6ea"), Color("aed092")])
 
-	# Trees on the slopes, kept clear of the flight path from the window out past the meadow.
+	# Trees only on the right-hand slopes, the plateau and the head wall: the valley floor and
+	# the ridge face stay open to fly over.
 	var trng := RandomNumberGenerator.new()
 	trng.seed = 21
-	var placed := 0
-	while placed < 26:
-		var tx := trng.randf_range(-90.0, 90.0)
-		var tz := trng.randf_range(-105.0, -300.0)
-		if absf(tx) < TREE_FREE_HALF_WIDTH and tz > TREE_FREE_TO_Z:
-			continue
-		_tree(Vector3(tx, ground_height(tx, tz), tz), trng)
-		placed += 1
+	for spot in tree_spots():
+		_tree(spot, trng)
 
 	# Far hills and clouds (no collision), softened by the fog.
 	var hills := [[-220.0, -380.0, 90.0, Color("a9c9a4")], [-60.0, -430.0, 120.0, Color("b5cfb0")], [120.0, -400.0, 100.0, Color("a7c4b8")],
@@ -713,6 +733,53 @@ func _grass(rng: RandomNumberGenerator) -> Color:
 	if rng.randf() < 0.025:
 		return FLOWERS[rng.randi() % FLOWERS.size()]
 	return GRASS[rng.randi() % GRASS.size()]
+
+
+## Where the trees stand (bases on the ground), the same every time.
+static func tree_spots() -> Array[Vector3]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	var spots: Array[Vector3] = []
+	var tries := 0
+	while spots.size() < 40 and tries < 5000:
+		tries += 1
+		var area := rng.randi() % 3
+		var x: float
+		var z: float
+		if area == 0:  # right-hand slopes
+			x = rng.randf_range(45.0, 110.0)
+			z = rng.randf_range(-100.0, -300.0)
+		elif area == 1:  # the plateau behind the ridge
+			x = rng.randf_range(-115.0, -72.0)
+			z = rng.randf_range(-100.0, -300.0)
+		else:  # the head wall
+			x = rng.randf_range(-100.0, 100.0)
+			z = rng.randf_range(-295.0, -330.0)
+		if tree_allowed(x, z):
+			spots.append(Vector3(x, ground_height(x, z), z))
+	return spots
+
+
+## Trees keep clear of every lift zone and the ridge face.
+static func tree_allowed(x: float, z: float) -> bool:
+	for t: Dictionary in OUTDOOR_THERMALS:
+		if Vector2(x, z).distance_to(t["at"]) < float(t["radius"]) + TREE_CLEARANCE:
+			return false
+	if x > RIDGE_FACE_X.y and x < RIDGE_FACE_X.x + 2.0 and z < -120.0 and z > -270.0:
+		return false
+	return true
+
+
+## A round hay bale lying on its side, solid.
+func _hay_bale(at: Vector2) -> void:
+	var ground := terrain_height(at.x, at.y)
+	var basis := Basis(Vector3.UP, at.x * 0.3) * Basis(Vector3.BACK, PI * 0.5)
+	var centre := Vector3(at.x, ground + BALE_RADIUS * 0.9, at.y)
+	builder.cylinder(centre - basis * Vector3(0.0, BALE_LENGTH * 0.5, 0.0), BALE_RADIUS, BALE_RADIUS, BALE_LENGTH, Color("e3c27e"), 10, basis)
+	var shape := CylinderShape3D.new()
+	shape.radius = BALE_RADIUS
+	shape.height = BALE_LENGTH
+	solid_shape(shape, Transform3D(basis, centre))
 
 
 func _tree(base: Vector3, rng: RandomNumberGenerator) -> void:
