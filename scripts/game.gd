@@ -1,7 +1,7 @@
 extends Node3D
 ## Runs one flight: sets up the look and sound, starts the plane in the air in the bedroom
 ## (seen from the kid who threw it), keeps score, and shows the end card with distance,
-## style, total, best and "Fly again".
+## style, total, best, "Fly again" and a button to swap the paper plane for a balloon.
 
 const POST_SHADER := preload("res://shaders/watercolor.gdshader")
 const INK := Color("5d5468")
@@ -24,6 +24,7 @@ var _swell_fade := 1.0  ## Decibels per second the swell dies away.
 var _chime: AudioStreamPlayer
 var _tap: AudioStreamPlayer
 var _crumple: AudioStreamPlayer
+var _pop: AudioStreamPlayer
 var _downdraft: AudioStreamPlayer
 var _style_good: AudioStreamPlayer
 var _style_perfect: AudioStreamPlayer
@@ -39,6 +40,7 @@ var _card: Control
 var _card_title: Label
 var _card_lines: Label
 var _fly_again: Button
+var _swap_look: Button
 var _hint: Label
 var _hud: Label
 var _popup: Label
@@ -55,6 +57,7 @@ func _ready() -> void:
 	scoring = Scoring.new(plane.tuning, Course.spine(), Course.style_moment_defs())
 	scoring.style_awarded.connect(_on_style_awarded)
 	best_score = BestScore.load_best()
+	plane.set_look(PlayerSettings.load_look())
 	_setup_world()
 	_setup_post_fx()
 	_setup_audio()
@@ -199,7 +202,7 @@ func _on_style_awarded(_id: StringName, title: String, points: int, quality: flo
 
 
 func _on_crashed() -> void:
-	_crumple.play()
+	(_pop if plane.balloon else _crumple).play()
 	camera.shake(plane.tuning.crash_shake)
 	_finish("Crumpled!", plane.tuning.card_delay_crash)
 
@@ -234,6 +237,18 @@ func _show_card(title: String, total: int, new_best: bool) -> void:
 
 func _on_fly_again() -> void:
 	get_tree().reload_current_scene()
+
+
+## Flies the other one next time (and every time after, until swapped back).
+func _on_swap_look() -> void:
+	save_other_look()
+	get_tree().reload_current_scene()
+
+
+## Saves the other look (plane or balloon) as the player's choice.
+func save_other_look() -> void:
+	if not PlayerSettings.save_look(PlayerSettings.PLANE if plane.balloon else PlayerSettings.BALLOON):
+		push_warning("Could not save the choice of plane or balloon; flying the same one again.")
 
 
 # --- Setup -----------------------------------------------------------------------
@@ -294,6 +309,7 @@ func _setup_audio() -> void:
 	_chime = _player("res://audio/chime.wav", tune.chime_volume_db)
 	_tap = _player("res://audio/tap.wav", tune.tap_volume_db)
 	_crumple = _player("res://audio/crumple.wav", tune.crumple_volume_db)
+	_pop = _player("res://audio/pop.wav", tune.pop_volume_db)
 	_downdraft = _player("res://audio/downdraft.wav", tune.downdraft_volume_db)
 	_style_good = _player("res://audio/style_good.wav", tune.style_good_volume_db)
 	_style_perfect = _player("res://audio/style_perfect.wav", tune.style_perfect_volume_db)
@@ -397,6 +413,12 @@ func _setup_ui() -> void:
 	_fly_again.add_theme_font_size_override("font_size", 36)
 	_fly_again.pressed.connect(_on_fly_again)
 	box.add_child(_fly_again)
+	_swap_look = Button.new()
+	_swap_look.text = "Fly the paper plane" if plane.balloon else "Fly the balloon"
+	_swap_look.custom_minimum_size = Vector2(340, 64)
+	_swap_look.add_theme_font_size_override("font_size", 26)
+	_swap_look.pressed.connect(_on_swap_look)
+	box.add_child(_swap_look)
 
 
 func _on_fps_tapped(event: InputEvent) -> void:

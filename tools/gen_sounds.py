@@ -174,6 +174,22 @@ def whoosh(rng):
     return out
 
 
+def pop(rng):
+    """A balloon popping: a sharp crack, a short rubbery slap and a puff of air."""
+    n = int(0.45 * RATE)
+    noise = [rng.uniform(-1, 1) for _ in range(n)]
+    crack = highpass(noise, 1800)
+    puff = lowpass(noise, 1200)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        v = crack[i] * math.exp(-t / 0.006) * 1.6
+        v += puff[i] * min(1.0, t / 0.004) * math.exp(-t / 0.08) * 1.2
+        v += math.sin(2 * math.pi * 140 * t) * math.exp(-t / 0.04) * 0.5
+        out.append(v)
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -185,6 +201,7 @@ def main():
     write_wav("style_good.wav", style_good(), peak=0.55)
     write_wav("style_perfect.wav", style_perfect(), peak=0.6)
     write_wav("whoosh.wav", whoosh(rng), peak=0.6)
+    write_wav("pop.wav", pop(rng), peak=0.8)
 
 
 if __name__ == "__main__":

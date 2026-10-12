@@ -12,6 +12,7 @@ const SUITES := [
 	"res://tests/test_opening.gd",
 	"res://tests/test_course.gd",
 	"res://tests/test_game_scoring.gd",
+	"res://tests/test_balloon.gd",
 ]
 
 
@@ -58,6 +59,9 @@ func _run() -> void:
 	# Keep the player's real best score out of the tests.
 	BestScore.file_path = "user://test_best_score.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
+	# ...and their choice of plane or balloon.
+	PlayerSettings.file_path = "user://test_settings.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
 	var passed := 0
 	var failed := 0
 	var only := OS.get_environment("TEST_ONLY")
@@ -95,4 +99,5 @@ func _run() -> void:
 		OS.delay_msec(20)
 		await process_frame
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
 	quit(1 if failed > 0 else 0)

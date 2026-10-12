@@ -141,6 +141,7 @@ extends Resource
 @export var downdraft_volume_db := -4.0
 @export var tap_volume_db := -3.0
 @export var crumple_volume_db := -1.0
+@export var pop_volume_db := -3.0
 @export var style_good_volume_db := -6.0
 @export var style_perfect_volume_db := -4.0
 @export var whoosh_volume_db := -6.0
@@ -197,6 +198,17 @@ extends Resource
 @export var card_delay_landed := 0.4
 
 @export_group("The plane's look")
+## How big the plane (or balloon) is drawn. Looks only: it collides, lifts and flies exactly
+## the same at any size.
+@export_range(0.5, 2.5) var look_scale := 1.3
+## The balloon (picked on the end card) is drawn mostly upright: it leans this fraction of the
+## plane's bank into turns and this fraction of its pitch into climbs and dives.
+@export_range(0.0, 1.0) var balloon_bank_lean := 0.4
+@export_range(0.0, 1.0) var balloon_pitch_lean := 0.25
+## The balloon's string: length (units, before `look_scale`) and how quickly its swing dies away
+## (0 = never, 1 = at once).
+@export var balloon_string_length := 1.3
+@export_range(0.0, 1.0) var balloon_string_damping := 0.15
 ## How quickly the drawn plane swings round to its heading (per second).
 @export var visual_turn_speed := 14.0
 ## A bump makes the plane wobble: this far (radians), this fast, dying away at `bump_wobble_fade`

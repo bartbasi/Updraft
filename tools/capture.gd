@@ -1,6 +1,6 @@
 extends SceneTree
 ## Flies the course with the autopilot in a real window and saves screenshots along the way.
-##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...]
+##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...] [--look=balloon]
 
 var _times: Array[float] = [0.3, 4.6, 5.6, 8.2, 9.6, 12.8, 15.4, 18.0, 23.0]
 var _out := "user://screens"
@@ -9,6 +9,7 @@ var _plane: PaperPlane
 var _pilot := Autopilot.new(Autopilot.course_line())  # Held here: a Callable alone does not keep its object alive.
 var _shot := 0
 var _ended_at := -1.0
+var _look := PlayerSettings.PLANE
 
 
 func _initialize() -> void:
@@ -19,10 +20,15 @@ func _initialize() -> void:
 			_times.clear()
 			for t in arg.trim_prefix("--times=").split(","):
 				_times.append(float(t))
+		elif arg.begins_with("--look="):
+			_look = arg.trim_prefix("--look=")
 	DirAccess.make_dir_recursive_absolute(_out)
 	# The test pilot's score goes to its own file, never the player's best score.
 	BestScore.file_path = "user://capture_best_score.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
+	# ...and its own choice of plane or balloon.
+	PlayerSettings.file_path = "user://capture_settings.json"
+	PlayerSettings.save_look(_look)
 	_game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_game)
 	_plane = _game.get_node("Plane")
