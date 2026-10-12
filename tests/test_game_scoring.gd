@@ -73,7 +73,7 @@ func test_every_moment_is_tuned() -> void:
 	var t := Tuning.new()
 	for def in Course.style_moment_defs():
 		check(t.style_moments.has(String(def["id"])), "%s has points and a radius in Tuning" % def["id"])
-	check(Course.style_moment_defs().size() == 9, "the eight moments from the brief, and the ridge run")
+	check(Course.style_moment_defs().size() == 10, "the eight moments from the brief, the ridge run and the Gap")
 
 
 func test_a_whole_run_scores_distance_and_style_and_distance_never_drops() -> void:
@@ -498,3 +498,95 @@ func test_no_circling_hint_high_up_or_on_the_ridge() -> void:
 		check(not entered.is_empty(), "from %s the plane flies into rising air (%s)" % [start, entered])
 		check(not game.circle_hint_shown, "from %s: no circling hint" % start)
 		await cleanup()
+
+
+## Past the Gap: resting on the island or the beach pays their bonuses; airtime now caps at 90 s.
+func test_the_island_and_the_beach_pay_and_airtime_caps_at_ninety_seconds() -> void:
+	var t := Tuning.new()
+	var spots := Course.landing_spots()
+	for spot in [["island", Vector3(Course.ISLAND.x, 0.3, Course.ISLAND.y)], ["beach", Vector3(50.0, 0.2, -430.0)]]:
+		var s := Scoring.new(t, PackedVector3Array([Vector3.ZERO, Vector3(0, 0, -1)]), [])
+		s.land(spot[1], spots)
+		check(s.landing.get("id", "") == spot[0] and s.landing_points == int(t.landing_bonus[spot[0]]), "resting on the %s pays %d (%d)" % [spot[0], int(t.landing_bonus[spot[0]]), s.landing_points])
+	var a := Scoring.new(t, PackedVector3Array([Vector3.ZERO, Vector3(0, 0, -1)]), [])
+	for i in 60 * 150:
+		a.add_airtime(1.0 / 60.0)
+	check(a.airtime_points() == 450, "airtime pays at most 450 (%d)" % a.airtime_points())
+	check(Course.on_water(Vector3(20.0, -1.15, -420.0)) and not Course.on_water(Vector3(Course.ISLAND.x, 0.2, Course.ISLAND.y)) and not Course.on_water(Vector3(50.0, 0.2, -430.0)), "the lake is water; the island and the beach are not")
+
+
+## In the game: coming down in the lake is a "Splashdown!" with no bonus (and not a crash: the
+## airtime counts); coming to rest elsewhere past the crest is "Through the Gap!".
+func test_splashdown_and_through_the_gap_on_the_card() -> void:
+	for case in [["Splashdown!", Vector3(20.0, 0.2, -420.0)], ["Through the Gap!", Vector3(-20.0, 0.0, -470.0)]]:
+		var game: Node = add_node(MAIN.instantiate())
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		await physics_frames(2)
+		var at: Vector3 = case[1]
+		plane.launch(Vector3(at.x, Course.terrain_height(at.x, at.z) + 1.0, at.z), 0.0)
+		var frames := 0
+		while not plane.is_ended() and frames < 60 * 20:
+			await tree.physics_frame
+			frames += 1
+		await tree.create_timer(1.0).timeout
+		check(not plane.model.crashed, "%s: not a crash" % case[0])
+		check(game._card_title.text == case[0], "the card says %s (%s at %s)" % [case[0], game._card_title.text, plane.global_position])
+		check(game.scoring.landing_points == 0, "%s: no landing bonus" % case[0])
+		check(game.scoring.airtime > 0.0, "%s: the airtime counts" % case[0])
+		await cleanup()
+
+
+## The first time over the saddle: a gust, a whoosh and the view widening a moment, once.
+func test_crossing_the_gap_gusts_and_widens_the_view() -> void:
+	var game: Node = add_node(MAIN.instantiate())
+	var plane := game.get_node("Plane") as PaperPlane
+	var camera := game.get_node("Camera") as FollowCamera
+	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	await physics_frames(2)
+	plane.launch(Vector3(Course.GAP_X, 22.0, Course.SADDLE.x + 12.0), 0.0)
+	camera.snap()
+	var widest := 0.0
+	var base := camera.fov
+	for f in 60 * 4:
+		await tree.process_frame
+		widest = maxf(widest, camera.fov - camera._base_fov)
+	check(game.crossed_gap, "it crossed the Gap")
+	check_between(widest, plane.tuning.camera_fov_gap_kick - 0.6, plane.tuning.camera_fov_gap_kick + 0.01, "the view's widest kick (degrees)")
+	check(absf(camera.fov - camera._base_fov) < 0.01, "and it eases back (%.2f, from %.1f)" % [camera.fov - camera._base_fov, base])
+	plane.launch(Vector3(Course.GAP_X, 22.0, Course.SADDLE.x + 12.0), 0.0)  # and across again
+	var again := 0.0
+	for f in 60 * 3:
+		await tree.process_frame
+		again = maxf(again, camera.fov - camera._base_fov)
+	check(again < 0.01, "only the first time (%.2f)" % again)
+
+
+## A pilot arriving over the Gap at 21.5 and diving down its style path in real flight earns
+## "Through the Gap" without touching the ground or the Gap's walls.
+func test_diving_through_the_gap_earns_its_moment() -> void:
+	var game: Node = add_node(MAIN.instantiate())
+	var plane := game.get_node("Plane") as PaperPlane
+	var path: PackedVector3Array
+	for def in Course.style_moment_defs():
+		if def["id"] == &"gap":
+			path = def["path"]
+	var pilot := Autopilot.new(PackedVector3Array([Vector3(Course.GAP_X, 21.5, -300.0)]) + path + PackedVector3Array([Vector3(4.0, 8.0, -385.0)]))
+	pilot.pitch_gain = 0.6
+	plane.autopilot = pilot.fly
+	await physics_frames(2)
+	plane.launch(Vector3(Course.GAP_X, 21.5, -300.0), 0.0)
+	var touches := plane.touches
+	var frames := 0
+	while frames < 60 * 14 and not plane.is_ended() and plane.global_position.z > -380.0:
+		await tree.physics_frame
+		frames += 1
+	var award := 0
+	var quality := 0.0
+	for m in game.scoring.moments:
+		if m.id == &"gap":
+			award = m.award
+			quality = m.quality
+	print("        through the Gap: +%d (quality %.2f), y %.1f at z %.0f" % [award, quality, plane.global_position.y, plane.global_position.z])
+	check(award > 0, "the dive earns the Gap moment (+%d)" % award)
+	check(not plane.model.crashed and plane.touches == touches, "without touching anything")

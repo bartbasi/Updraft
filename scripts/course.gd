@@ -244,7 +244,7 @@ static func spine() -> PackedVector3Array:
 		Vector3(-3.0, 8.5, 31.0), Vector3(-3.0, 7.5, 22.0), Vector3(-2.0, 8.5, 15.0),
 		Vector3(-4.5, 8.0, -22.0), Vector3(0.0, 5.0, -45.0), Vector3(0.0, 5.5, -52.0),
 		Vector3(2.5, 7.0, -69.0), Vector3(0.0, 7.5, -88.5), Vector3(0.0, 4.0, -130.0),
-		Vector3(0.0, 6.0, -280.0),
+		Vector3(0.0, 6.0, -280.0), Vector3(6.0, 18.0, -334.0), Vector3(4.0, 6.0, -400.0), Vector3(0.0, 4.0, -480.0),
 	])
 
 
@@ -270,6 +270,10 @@ static func style_moment_defs() -> Array:
 			Vector3(1, 9.0, -79), Vector3(0.3, 8.0, -84), Vector3(0, 7.5, -88.5), Vector3(0, 7.2, -93)])},
 		{"id": &"ridge_run", "title": "Ridge run", "path": PackedVector3Array([
 			Vector3(-33, 20.0, -160), Vector3(-37, 26.0, -188), Vector3(-37, 30.5, -212)])},  # ends where the routes turn off
+		# Low over the saddle and diving into the bowl: arriving at 21-22 means diving about 4 units
+		# in the last 30, the outdoor answer to the stair dive. Gliding straight over high pays nothing.
+		{"id": &"gap", "title": "Through the Gap", "path": PackedVector3Array([
+			Vector3(6, 19.5, -318), Vector3(6, 17.5, -334), Vector3(6, 15.5, -350), Vector3(5, 12.0, -366)])},
 	]
 
 
@@ -280,7 +284,17 @@ static func landing_spots() -> Array:
 	return [
 		{"id": "lavender", "title": "Lavender landing!", "area": Rect2(LAVENDER_X.x, LAVENDER_Z.y, LAVENDER_X.y - LAVENDER_X.x, LAVENDER_Z.x - LAVENDER_Z.y)},
 		{"id": "picnic", "title": "Picnic landing!", "area": Rect2(PICNIC_X.x - slide, PICNIC_Z.y - slide, PICNIC_X.y - PICNIC_X.x + slide * 2.0, PICNIC_Z.x - PICNIC_Z.y + slide * 2.0)},
+		# The island: its corners are at the shoreline, and a plane that slid into the water is a
+		# splashdown, not an island landing (see on_water()).
+		{"id": "island", "title": "Island landing!", "area": Rect2(ISLAND.x - 5.5, ISLAND.y - 5.5, 11.0, 11.0)},
+		# The beach's south part (the warm sand's lift ends at its north end), clear of the waterline.
+		{"id": "beach", "title": "Beach landing!", "area": Rect2(BEACH_X.x + 2.0, BEACH_Z.y, BEACH_X.y - BEACH_X.x - 2.0, 34.0)},
 	]
+
+
+## Resting in the water: the lake, or the inlet where the Gap's stream meets it.
+static func on_water(pos: Vector3) -> bool:
+	return pos.z < CREST_Z and terrain_height(pos.x, pos.z) < LAKE_Y - 0.05
 
 
 ## Over the lavender field (seen from above).

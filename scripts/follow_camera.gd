@@ -10,6 +10,9 @@ var _look := Vector3.ZERO
 var _shake := 0.0
 var _intro_eye := Vector3.ZERO
 var _intro_time := -1.0  ## Seconds into the opening shot; negative when not in it.
+var _base_fov := 70.0  ## The field of view before any kick.
+var _kick := 0.0  ## Degrees of the current kick at its height.
+var _kick_time := -1.0  ## Seconds into the kick; negative when there is none.
 
 
 func _ready() -> void:
@@ -26,9 +29,31 @@ func shake(amount: float) -> void:
 	_shake = maxf(_shake, amount)
 
 
+## Widens the view by `degrees` for a moment (Tuning camera_fov_kick_in / _out).
+func kick_fov(degrees: float) -> void:
+	_kick = degrees
+	_kick_time = 0.0
+
+
+## The kick's degrees now: up over the kick-in, back down over the kick-out.
+func _kick_now(delta: float) -> float:
+	if _kick_time < 0.0:
+		return 0.0
+	_kick_time += delta
+	var up := maxf(_t().camera_fov_kick_in, 0.01)
+	var down := maxf(_t().camera_fov_kick_out, 0.01)
+	if _kick_time >= up + down:
+		_kick_time = -1.0
+		return 0.0
+	if _kick_time < up:
+		return _kick * smoothstep(0.0, 1.0, _kick_time / up)
+	return _kick * (1.0 - smoothstep(0.0, 1.0, (_kick_time - up) / down))
+
+
 ## Jumps straight to the resting spot behind the plane.
 func snap() -> void:
-	fov = _wanted_fov()
+	_base_fov = _wanted_fov()
+	fov = _base_fov
 	var p := target.global_position
 	_follow = _unblocked(p, _resting_spot(p))
 	global_position = _follow
@@ -57,7 +82,8 @@ func _process(delta: float) -> void:
 		return
 	# Outdoors the view widens, easing over camera_fov_ease seconds.
 	var fov_span := absf(_t().camera_fov_outside - _t().camera_fov)
-	fov = move_toward(fov, _wanted_fov(), fov_span / maxf(_t().camera_fov_ease, 0.01) * delta) if fov_span > 0.0 else _wanted_fov()
+	_base_fov = move_toward(_base_fov, _wanted_fov(), fov_span / maxf(_t().camera_fov_ease, 0.01) * delta) if fov_span > 0.0 else _wanted_fov()
+	fov = _base_fov + _kick_now(delta)
 	var p := target.get_global_transform_interpolated().origin
 	var want := _unblocked(p, _resting_spot(p))
 	_follow = _unblocked(p, _follow.lerp(want, 1.0 - exp(-_t().camera_follow_speed * delta)))

@@ -245,6 +245,25 @@ def sink_tick():
     return out
 
 
+def splash(rng):
+    """Landing on the water: a soft slap, a rush of spray and a couple of bubbly blips."""
+    n = int(0.7 * RATE)
+    noise = [rng.uniform(-1, 1) for _ in range(n)]
+    spray = lowpass(highpass(noise, 900), 5000)
+    body = lowpass(noise, 500)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        v = body[i] * math.exp(-t / 0.05) * 2.5
+        v += spray[i] * min(1.0, t / 0.01) * math.exp(-t / 0.18) * 0.9
+        for start, f in [(0.18, 520.0), (0.31, 640.0)]:  # bubbles: short rising blips
+            if t > start:
+                u = t - start
+                v += 0.35 * math.sin(2 * math.pi * f * (1.0 + 2.0 * u) * u) * math.exp(-u / 0.03)
+        out.append(v)
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -261,6 +280,7 @@ def main():
     write_wav("sigh.wav", sigh(rng), peak=0.5)
     write_wav("gull.wav", gull(), peak=0.55)
     write_wav("sink_tick.wav", sink_tick(), peak=0.6)
+    write_wav("splash.wav", splash(rng), peak=0.7)
 
 
 if __name__ == "__main__":

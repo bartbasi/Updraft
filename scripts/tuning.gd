@@ -125,6 +125,11 @@ extends Resource
 ## seconds: the world opens up after the window.
 @export_range(40.0, 110.0) var camera_fov_outside := 80.0
 @export var camera_fov_ease := 1.5
+## Crossing the Gap's saddle, the view widens by `camera_fov_gap_kick` degrees over
+## `camera_fov_kick_in` seconds and eases back over `camera_fov_kick_out`.
+@export var camera_fov_gap_kick := 5.0
+@export var camera_fov_kick_in := 0.4
+@export var camera_fov_kick_out := 1.6
 ## The camera aims this far above the plane's path ahead (units).
 @export var camera_look_above := 0.3
 ## Flying the balloon outdoors (it is bigger from behind than the plane), the camera sits higher and
@@ -181,6 +186,12 @@ extends Resource
 ## `window_gust_fade` seconds.
 @export var window_gust_db := 6.0
 @export var window_gust_fade := 1.5
+## Crossing the Gap's saddle the first time: a gust of wind that swells by `gap_gust_db` and
+## fades over `gap_gust_fade` seconds, with a whoosh.
+@export var gap_gust_db := 4.0
+@export var gap_gust_fade := 1.2
+## Coming down on the water.
+@export var splash_db := -8.0
 ## Flying into the ridge's rising air: a swell of breeze this much louder, fading over
 ## `ridge_swell_fade` seconds.
 @export var ridge_swell_db := 3.0
@@ -335,14 +346,17 @@ extends Resource
 	"kettle": {"points": 100, "radius": 2.5},
 	"window": {"points": 150, "radius": 2.0},
 	"ridge_run": {"points": 120, "radius": 4.0},
+	"gap": {"points": 150, "radius": 4.0},
 }
 ## Outdoors, points for every second in the air, up to `airtime_max_seconds` (so circling
 ## forever doesn't pay forever).
 @export var airtime_points_per_second := 5.0
-@export var airtime_max_seconds := 60.0
+@export var airtime_max_seconds := 90.0
 ## Coming to rest (not crashing) on a landing spot outdoors pays a bonus. Spots are in
 ## Course.landing_spots().
 @export var landing_bonus := {
 	"lavender": 200,
 	"picnic": 400,
+	"island": 500,
+	"beach": 250,
 }

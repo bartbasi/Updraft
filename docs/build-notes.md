@@ -195,3 +195,7 @@ for the phone test"). From the build:
     seen edge-on, a bar turning in place.
   - Moving props (the sails, the sailboat) are a small PropMotion node, moved in `_process` with
     physics interpolation off, like the birds.
+- **Scoring past the Gap (B5):** "Through the Gap!" goes on the card for any run that crossed the
+  saddle (where the gust blows), not only for one resting past the crest; the beach landing
+  starts 2 u in from the waterline (x 42..58, as the plan's rectangle); a fast nose-dive into the
+  lake is still a crash (crumple, no splash); only coming to rest on the water is a splashdown.

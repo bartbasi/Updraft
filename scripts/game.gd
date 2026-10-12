@@ -14,6 +14,8 @@ const GOLD := Color("e0a63c")
 @onready var camera: FollowCamera = $Camera
 
 var reached_outside := false
+var crossed_gap := false  ## Through the Gap's saddle this flight.
+var _splash: AudioStreamPlayer
 var scoring: Scoring
 var best_score := 0
 var _ended := false
@@ -166,6 +168,40 @@ func _tick_in_sink(delta: float) -> void:
 	sink_ticks += 1
 
 
+## Coming down on the water: a splash, and a ring of droplets thrown up around the plane.
+func _splash_at(at: Vector3) -> void:
+	_splash.play()
+	var drops := CPUParticles3D.new()
+	drops.one_shot = true
+	drops.explosiveness = 1.0
+	drops.amount = 12
+	drops.lifetime = 0.9
+	drops.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	drops.emission_ring_axis = Vector3.UP
+	drops.emission_ring_radius = 0.6
+	drops.emission_ring_inner_radius = 0.5
+	drops.emission_ring_height = 0.0
+	drops.direction = Vector3.UP
+	drops.spread = 25.0
+	drops.initial_velocity_min = 2.5
+	drops.initial_velocity_max = 3.5
+	drops.gravity = Vector3(0.0, -9.0, 0.0)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.18, 0.18)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.albedo_texture = Art.soft_dot()
+	mat.albedo_color = Color("dceef6")
+	quad.material = mat
+	drops.mesh = quad
+	drops.position = Vector3(at.x, Course.LAKE_Y + 0.05, at.z)
+	add_child(drops)
+	drops.finished.connect(drops.queue_free)
+	drops.emitting = true
+
+
 ## Lift lost: a soft sigh in the voice of the air just left, quieter if soon after the last one.
 func _play_sigh() -> void:
 	var tune := plane.tuning
@@ -269,6 +305,12 @@ func _process(delta: float) -> void:
 		reached_outside = true
 		swell(tune.window_gust_db, tune.window_gust_fade)
 		_whoosh.play()
+	var at := plane.global_position
+	if not crossed_gap and at.z < Course.SADDLE.x and absf(at.x - Course.GAP_X) < 30.0 and not plane.is_ended():
+		crossed_gap = true  # the reveal: a gust, a whoosh and the view opening up
+		swell(tune.gap_gust_db, tune.gap_gust_fade)
+		_whoosh.play()
+		camera.kick_fov(tune.camera_fov_gap_kick)
 	# Wind rises and falls with airspeed, plus any swell on top.
 	var span := maxf(tune.wind_loud_speed - tune.wind_quiet_speed, 0.01)
 	var t := 0.0 if plane.is_ended() else clampf((plane.model.velocity.length() - tune.wind_quiet_speed) / span, 0.0, 1.0)
@@ -374,9 +416,15 @@ func _on_stopped() -> void:
 	if _ended:
 		return
 	var p := plane.global_position
-	if p.y - Course.terrain_height(p.x, p.z) < 1.0:  # resting on the grass, not up in a tree
+	var splashed := Course.on_water(p)
+	if p.y - Course.terrain_height(p.x, p.z) < 1.0 and not splashed:  # resting on the grass, not up in a tree
 		scoring.land(p, Course.landing_spots())
 	var title := "You flew outside!" if reached_outside else "Touchdown"
+	if crossed_gap:
+		title = "Through the Gap!"  # past the saddle, where the gust blew
+	if splashed:
+		title = "Splashdown!"  # not a crash: the airtime counts, there's just no bonus
+		_splash_at(p)
 	if not scoring.landing.is_empty():
 		title = scoring.landing["title"]
 	_finish(title, plane.tuning.card_delay_landed)
@@ -525,6 +573,7 @@ func _setup_audio() -> void:
 	_vario_beep = _player("res://audio/vario.wav", tune.vario_db_quiet)
 	_sigh = _player("res://audio/sigh.wav", tune.lift_lost_db)
 	_sink_tick = _player("res://audio/sink_tick.wav", tune.sink_tick_db_quiet)
+	_splash = _player("res://audio/splash.wav", tune.splash_db)
 	vario = Vario.new(tune)
 	_near_query.shape = SphereShape3D.new()
 	_near_query.collision_mask = PaperPlane.WORLD_LAYER
