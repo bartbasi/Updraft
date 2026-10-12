@@ -8,6 +8,10 @@ extends RefCounted
 ## Tilting the top edge away from you dives; tilting it toward you climbs.
 
 var tuning: Tuning
+## The player's own settings (PlayerSettings), on top of the tuning: tilt sensitivity as a
+## multiplier, and climb and dive swapped (tilt and keys alike).
+var sensitivity_scale := 1.0
+var swap_climb_dive := false
 ## Gravity direction recorded as "level" when the run started.
 var level := Vector3.ZERO
 var _tilt := Vector2.ZERO
@@ -49,7 +53,7 @@ func tilt_input(gravity: Vector3) -> Vector2:
 
 
 func _shape(degrees: float) -> float:
-	var full := tuning.full_tilt_deg / maxf(tuning.sensitivity, 0.01)
+	var full := tuning.full_tilt_deg / maxf(tuning.sensitivity * sensitivity_scale, 0.01)
 	var dead := tuning.tilt_dead_zone_deg
 	var amount := maxf(absf(degrees) - dead, 0.0) / maxf(full - dead, 0.01)
 	return signf(degrees) * minf(amount, 1.0)
@@ -61,7 +65,10 @@ func update(dt: float, gravity: Vector3, keys: Vector2) -> Vector2:
 		calibrate(gravity)
 	_tilt = _tilt.lerp(tilt_input(gravity), 1.0 - exp(-tuning.tilt_smoothing * dt))
 	_keys = _keys.move_toward(keys, tuning.key_response * dt)
-	return (_tilt + _keys).clamp(Vector2(-1.0, -1.0), Vector2(1.0, 1.0))
+	var input := (_tilt + _keys).clamp(Vector2(-1.0, -1.0), Vector2(1.0, 1.0))
+	if swap_climb_dive:
+		input.x = -input.x
+	return input
 
 
 ## Keyboard: Up/W dives, Down/S climbs, Left/A and Right/D bank.

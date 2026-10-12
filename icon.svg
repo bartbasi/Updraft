@@ -1,14 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 432 432">
+  <!-- Updraft: the adaptive icon layers (icons/background.svg, icons/foreground.svg) on a rounded square. -->
+  <clipPath id="round"><rect width="432" height="432" rx="96"/></clipPath>
+  <g clip-path="url(#round)">
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#b9d6ee"/>
-      <stop offset="1" stop-color="#f7dfcf"/>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9fc3e6"/>
+      <stop offset="0.75" stop-color="#f6e1d3"/>
     </linearGradient>
   </defs>
-  <rect width="128" height="128" rx="28" fill="url(#sky)"/>
-  <path d="M10 104 Q40 88 64 98 T118 92 V128 H10 Z" fill="#bcd6a8"/>
-  <path d="M22 66 L108 30 L58 76 Z" fill="#fbf8f1"/>
-  <path d="M58 76 L108 30 L66 92 Z" fill="#e6dfd2"/>
-  <path d="M58 76 L66 92 L52 80 Z" fill="#d4ccbe"/>
-  <path d="M22 66 L108 30 L58 76" fill="none" stroke="#9b8fa6" stroke-width="2" stroke-linejoin="round"/>
+  <rect width="432" height="432" fill="url(#sky2)"/>
+  <g fill="#fdfbf8" opacity="0.9">
+    <ellipse cx="300" cy="92" rx="62" ry="22"/>
+    <ellipse cx="262" cy="100" rx="40" ry="18"/>
+    <ellipse cx="336" cy="102" rx="38" ry="15"/>
+  </g>
+  <path d="M0 352 Q110 312 216 336 T432 322 V432 H0 Z" fill="#b9d79c"/>
+  <path d="M0 384 Q140 356 260 376 T432 370 V432 H0 Z" fill="#a3c98f"/>
+  <g transform="translate(216 216) scale(1.25) translate(-216 -216)">
+  <!-- Updraft: a paper plane rising on warm air. Everything sits inside the adaptive icon's
+       safe circle (radius 144 around the centre). -->
+  <g fill="none" stroke-linecap="round" stroke-width="13">
+    <path d="M150 330 C 120 290, 190 270, 160 225" stroke="#f3b27a" opacity="0.95"/>
+    <path d="M205 345 C 175 300, 245 280, 215 232" stroke="#f6c98f" opacity="0.95"/>
+    <path d="M260 330 C 230 292, 296 272, 268 230" stroke="#f3b27a" opacity="0.85"/>
+  </g>
+  <g transform="translate(216 186) rotate(-24) translate(-216 -186)">
+    <path d="M112 196 L320 150 L196 214 Z" fill="#fbf8f1"/>
+    <path d="M196 214 L320 150 L214 252 Z" fill="#e6dfd2"/>
+    <path d="M196 214 L214 252 L182 222 Z" fill="#b8acc9"/>
+    <path d="M112 196 L150 188 L146 202 Z" fill="#e8604c"/>
+    <path d="M112 196 L320 150 L196 214 Z M196 214 L320 150 L214 252 Z" fill="none" stroke="#5d5468" stroke-width="5" stroke-linejoin="round"/>
+  </g>
+</g>
+  </g>
 </svg>

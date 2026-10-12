@@ -129,3 +129,45 @@ func test_relaunching_a_popped_balloon_restores_it() -> void:
 	await physics_frames(10)
 	check(plane._balloon_body.visible and plane._scraps.is_empty(), "a new flight has a whole balloon and no scraps")
 	check(plane.string_points[0].distance_to(plane.knot_position()) < 0.01, "the string is tied on again")
+
+
+## Settings: each setting is checked on load, and bad or missing ones fall back to defaults.
+func test_settings_are_checked_and_bad_values_fall_back() -> void:
+	var path := "user://test_settings_all.json"
+	check(PlayerSettings.save_all({"look": "balloon", "sensitivity": 1.5, "sound": false, "invert_pitch": true}, path), "saves")
+	var s := PlayerSettings.load_all(path)
+	check(s["look"] == "balloon" and is_equal_approx(s["sensitivity"], 1.5) and s["sound"] == false and s["invert_pitch"] == true, "everything comes back: %s" % s)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string('{"look": 3, "sensitivity": 99, "sound": "yes", "invert_pitch": 1, "cheat": true}')
+	f.close()
+	s = PlayerSettings.load_all(path)
+	check(s == {"look": "plane", "sensitivity": PlayerSettings.SENSITIVITY_MAX, "sound": true, "invert_pitch": false}, "bad values fall back or are clamped, unknown keys dropped: %s" % s)
+	PlayerSettings.save_look("balloon", path)
+	check(PlayerSettings.load_all(path)["sensitivity"] == PlayerSettings.SENSITIVITY_MAX, "changing the look keeps the other settings")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## The settings panel changes the flight at once and saves: sensitivity, sound, swapped climb.
+func test_settings_panel_applies_and_saves() -> void:
+	PlayerSettings.save_all(PlayerSettings.DEFAULTS)
+	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+	await physics_frames(2)
+	var plane := game.plane as PaperPlane
+	game.show_settings(true)
+	check(game._settings_panel.visible and not game._card.visible, "the panel opens")
+	game._sensitivity.value = 1.5
+	game._sound.button_pressed = false
+	game._swap_pitch.button_pressed = true
+	var master := AudioServer.get_bus_index("Master")
+	check(is_equal_approx(plane.controls.sensitivity_scale, 1.5) and plane.controls.swap_climb_dive, "tilt settings apply")
+	check(AudioServer.is_bus_mute(master), "sound off mutes the game")
+	var saved := PlayerSettings.load_all()
+	check(is_equal_approx(saved["sensitivity"], 1.5) and saved["sound"] == false and saved["invert_pitch"] == true, "and they are saved: %s" % saved)
+	var keys_dive := plane.controls.update(1.0, Vector3.ZERO, Vector2(-1.0, 0.0))  # Up/W, normally a dive
+	check(keys_dive.x > 0.0, "swapped: the dive key climbs (%.2f)" % keys_dive.x)
+	game.show_settings(false)
+	check(not game._settings_panel.visible, "Done closes it")
+	PlayerSettings.save_all(PlayerSettings.DEFAULTS)
+	game.settings = PlayerSettings.DEFAULTS.duplicate()
+	game.apply_settings()
+	check(not AudioServer.is_bus_mute(master), "(sound back on for the other tests)")

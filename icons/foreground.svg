@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="432" viewBox="0 0 432 432">
+  <!-- Updraft: a paper plane rising on warm air. Everything sits inside the adaptive icon's
+       safe circle (radius 144 around the centre). -->
+  <g fill="none" stroke-linecap="round" stroke-width="13">
+    <path d="M150 330 C 120 290, 190 270, 160 225" stroke="#f3b27a" opacity="0.95"/>
+    <path d="M205 345 C 175 300, 245 280, 215 232" stroke="#f6c98f" opacity="0.95"/>
+    <path d="M260 330 C 230 292, 296 272, 268 230" stroke="#f3b27a" opacity="0.85"/>
+  </g>
+  <g transform="translate(216 186) rotate(-24) translate(-216 -186)">
+    <path d="M112 196 L320 150 L196 214 Z" fill="#fbf8f1"/>
+    <path d="M196 214 L320 150 L214 252 Z" fill="#e6dfd2"/>
+    <path d="M196 214 L214 252 L182 222 Z" fill="#b8acc9"/>
+    <path d="M112 196 L150 188 L146 202 Z" fill="#e8604c"/>
+    <path d="M112 196 L320 150 L196 214 Z M196 214 L320 150 L214 252 Z" fill="none" stroke="#5d5468" stroke-width="5" stroke-linejoin="round"/>
+  </g>
+</svg>

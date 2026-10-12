@@ -1,7 +1,7 @@
 extends Node3D
 ## Runs one flight: sets up the look and sound, starts the plane in the air in the bedroom
 ## (seen from the kid who threw it), keeps score, and shows the end card with distance,
-## style, total, best, "Fly again" and a button to swap the paper plane for a balloon.
+## style, total, best, "Fly again", a button to swap the paper plane for a balloon, and settings.
 
 const POST_SHADER := preload("res://shaders/watercolor.gdshader")
 const INK := Color("5d5468")
@@ -44,6 +44,14 @@ var _card_title: Label
 var _card_lines: Label
 var _fly_again: Button
 var _swap_look: Button
+var _settings_button: Button
+var _settings_panel: Control
+var _sensitivity: HSlider
+var _sensitivity_value: Label
+var _sound: CheckButton
+var _swap_pitch: CheckButton
+## The player's settings (PlayerSettings), as loaded and as changed on the settings panel.
+var settings := {}
 var _hint: Label
 var _hint_tween: Tween
 ## Has the "keep circling" hint been shown this run?
@@ -54,6 +62,11 @@ var _popup: Label
 var _popup_tween: Tween
 var _fps: Label
 var _fps_timer := 0.0
+## Debug builds only: a line a second in the log (adb logcat -s godot) with the frame rate, the
+## slowest frame and where the plane is, for checking the frame rate on a phone.
+var _perf_time := 0.0
+var _perf_frames := 0
+var _perf_worst := 0.0
 var _overlay: DebugOverlay
 var _smooth_frames := 0
 var _waited := 0.0
@@ -64,7 +77,9 @@ func _ready() -> void:
 	scoring = Scoring.new(plane.tuning, Course.spine(), Course.style_moment_defs())
 	scoring.style_awarded.connect(_on_style_awarded)
 	best_score = BestScore.load_best()
-	plane.set_look(PlayerSettings.load_look())
+	settings = PlayerSettings.load_all()
+	plane.set_look(settings["look"])
+	apply_settings()
 	plane.bounds = Course.WORLD_BOUNDS
 	_setup_world()
 	_setup_post_fx()
@@ -140,6 +155,11 @@ func _check_close_call(delta: float) -> void:
 
 ## Debug builds only: F3 shows the style paths.
 func _unhandled_input(event: InputEvent) -> void:
+	# Back (on Android) or Escape closes the settings.
+	if _settings_panel and _settings_panel.visible and event.is_action_pressed("ui_cancel"):
+		show_settings(false)
+		get_viewport().set_input_as_handled()
+		return
 	var key := event as InputEventKey
 	if _overlay and key and key.pressed and not key.echo and key.keycode == KEY_F3:
 		_overlay.visible = not _overlay.visible
@@ -185,6 +205,25 @@ func _process(delta: float) -> void:
 		if _fps_timer <= 0.0:
 			_fps_timer = 0.5
 			_fps.text = "%d fps" % Engine.get_frames_per_second()
+		_log_perf(delta)
+
+
+func _log_perf(delta: float) -> void:
+	_perf_time += delta
+	_perf_frames += 1
+	_perf_worst = maxf(_perf_worst, delta)
+	if _perf_time < 1.0:
+		return
+	var p := plane.global_position
+	var air := ""
+	for node in get_tree().get_nodes_in_group("thermals"):
+		var zone := node as Thermal
+		if zone.visible and absf(zone.vertical_air_speed(camera.global_position, plane.tuning)) > 0.0:
+			air = " in " + zone.name  # the camera is inside this zone's column
+	print("PERF t %.0f %s%s fps %.0f worst %.0f ms at (%.0f, %.0f, %.0f)" % [plane.flight_time, Course.section_at(p), air, _perf_frames / _perf_time, _perf_worst * 1000.0, p.x, p.y, p.z])
+	_perf_time = 0.0
+	_perf_frames = 0
+	_perf_worst = 0.0
 
 
 ## A swell of wind `db` louder, dying away over `seconds` (a bigger swell wins over a smaller one).
@@ -309,8 +348,34 @@ func _on_swap_look() -> void:
 
 ## Saves the other look (plane or balloon) as the player's choice.
 func save_other_look() -> void:
-	if not PlayerSettings.save_look(PlayerSettings.PLANE if plane.balloon else PlayerSettings.BALLOON):
+	settings["look"] = PlayerSettings.PLANE if plane.balloon else PlayerSettings.BALLOON
+	if not PlayerSettings.save_all(settings):
 		push_warning("Could not save the choice of plane or balloon; flying the same one again.")
+
+
+## Puts the player's settings into effect: tilt sensitivity and climb/dive for this flight,
+## and the sound.
+func apply_settings() -> void:
+	plane.controls.sensitivity_scale = settings["sensitivity"]
+	plane.controls.swap_climb_dive = settings["invert_pitch"]
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), not settings["sound"])
+
+
+func _on_setting_changed(_value: Variant = null) -> void:
+	settings["sensitivity"] = _sensitivity.value
+	settings["sound"] = _sound.button_pressed
+	settings["invert_pitch"] = _swap_pitch.button_pressed
+	settings = PlayerSettings.clean(settings)
+	_sensitivity_value.text = "%.2fx" % settings["sensitivity"]
+	apply_settings()
+	if not PlayerSettings.save_all(settings):
+		push_warning("Could not save the settings; they last until the game closes.")
+
+
+func show_settings(on: bool) -> void:
+	_settings_panel.visible = on
+	_card.visible = not on
+	(_sensitivity if on else _settings_button).grab_focus()
 
 
 # --- Setup -----------------------------------------------------------------------
@@ -481,7 +546,84 @@ func _setup_ui() -> void:
 	_swap_look.custom_minimum_size = Vector2(340, 64)
 	_swap_look.add_theme_font_size_override("font_size", 26)
 	_swap_look.pressed.connect(_on_swap_look)
-	box.add_child(_swap_look)
+	_settings_button = Button.new()
+	_settings_button.text = "Settings"
+	_settings_button.custom_minimum_size = Vector2(200, 64)
+	_settings_button.add_theme_font_size_override("font_size", 26)
+	_settings_button.pressed.connect(show_settings.bind(true))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.add_child(_swap_look)
+	row.add_child(_settings_button)
+	box.add_child(row)
+	_build_settings_panel()
+
+
+## Settings: tilt sensitivity, sound, and swapping climb and dive. Changes save at once.
+func _build_settings_panel() -> void:
+	_settings_panel = CenterContainer.new()
+	_settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_settings_panel.visible = false
+	_ui.add_child(_settings_panel)
+	var panel := PanelContainer.new()
+	_settings_panel.add_child(panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 56)
+	for side in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 36)
+	panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 18)
+	margin.add_child(box)
+	var title := Label.new()
+	title.text = "Settings"
+	title.add_theme_font_size_override("font_size", 44)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var sens_row := HBoxContainer.new()
+	sens_row.add_theme_constant_override("separation", 16)
+	var sens_label := Label.new()
+	sens_label.text = "Tilt sensitivity"
+	sens_label.add_theme_font_size_override("font_size", 28)
+	sens_row.add_child(sens_label)
+	_sensitivity = HSlider.new()
+	_sensitivity.min_value = PlayerSettings.SENSITIVITY_MIN
+	_sensitivity.max_value = PlayerSettings.SENSITIVITY_MAX
+	_sensitivity.step = PlayerSettings.SENSITIVITY_STEP
+	_sensitivity.custom_minimum_size = Vector2(320, 48)
+	_sensitivity.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sens_row.add_child(_sensitivity)
+	_sensitivity_value = Label.new()
+	_sensitivity_value.add_theme_font_size_override("font_size", 28)
+	_sensitivity_value.custom_minimum_size = Vector2(80, 0)
+	sens_row.add_child(_sensitivity_value)
+	box.add_child(sens_row)
+
+	_sound = CheckButton.new()
+	_sound.text = "Sound"
+	_swap_pitch = CheckButton.new()
+	_swap_pitch.text = "Swap climb and dive"
+	for check in [_sound, _swap_pitch]:
+		check.add_theme_font_size_override("font_size", 28)
+		box.add_child(check)
+
+	var done := Button.new()
+	done.text = "Done"
+	done.custom_minimum_size = Vector2(340, 80)
+	done.add_theme_font_size_override("font_size", 32)
+	done.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	done.pressed.connect(show_settings.bind(false))
+	box.add_child(done)
+
+	_sensitivity.set_value_no_signal(settings["sensitivity"])
+	_sound.set_pressed_no_signal(settings["sound"])
+	_swap_pitch.set_pressed_no_signal(settings["invert_pitch"])
+	_sensitivity_value.text = "%.2fx" % settings["sensitivity"]
+	_sensitivity.value_changed.connect(_on_setting_changed)
+	_sound.toggled.connect(_on_setting_changed)
+	_swap_pitch.toggled.connect(_on_setting_changed)
 
 
 ## Shows a hint low in the middle of the screen for `seconds`, then fades it out.

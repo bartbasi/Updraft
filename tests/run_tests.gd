@@ -85,6 +85,9 @@ func _run() -> void:
 			_errors.take()
 			await suite.call(test_name)
 			await suite.cleanup()
+			# Whatever a test did to the player's settings or the sound, the next starts clean.
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
+			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), false)
 			for error in _errors.take():
 				suite.failures.append("error during the test: " + error)
 			if suite.failures.is_empty():
