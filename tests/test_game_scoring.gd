@@ -3,7 +3,7 @@ extends TestCase
 ## and restarting many times in a row.
 
 const MAIN := preload("res://scenes/main.tscn")
-const ZONES := ["Sunbeam", "Skylight", "StairDowndraft", "RadiatorHeat", "KettleSteam", "HayHeat"]
+const ZONES := ["Sunbeam", "Skylight", "StairDowndraft", "RadiatorHeat", "KettleSteam", "HayHeat", "BarnHeat", "FieldHeat", "BonfireSmoke", "RidgeLift"]
 
 
 func _only(def: Dictionary) -> Scoring:

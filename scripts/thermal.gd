@@ -1,13 +1,13 @@
 @tool
 class_name Thermal
 extends Node3D
-## A zone of moving air. Rising air (radiator heat, kettle steam, a warm sunbeam) pushes the
-## plane up; sinking air (a cool downdraft) pushes it down. The zone starts at this node's
+## A zone of moving air. Rising air (radiator heat, kettle steam, a warm sunbeam, bonfire smoke,
+## wind blowing up a hillside) pushes the plane up; sinking air (a cool downdraft) pushes it down. The zone starts at this node's
 ## origin: either a vertical cylinder (`radius`, `height`) or a box (`size`, sitting on the
 ## origin and turning with the node). A sunbeam's box leans along `sun_direction`, so the
 ## lift is exactly where the light is.
 
-enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT }
+enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT, RIDGE }
 enum Shape { CYLINDER, BOX }
 ## Motes and puffs fade out when closer to the camera than WISP_FADE_FAR, and are gone by
 ## WISP_FADE_NEAR, so flying through warm air never hides the plane.
@@ -36,6 +36,25 @@ const SHAFT_SHADER := preload("res://shaders/light_shaft.gdshader")
 ## Sunbeam only: how high the visible light reaches (0 = the zone's height), e.g. up to a
 ## skylight above the top of the lift.
 @export var light_height := 0.0
+## Outdoors: big, tall columns. The column is fainter (it is much wider), there are more
+## motes and they rise the whole height, and steam becomes slow bonfire smoke leaning with
+## the breeze.
+@export var outdoors := false
+## Ridge only: which way the breeze carries the seeds up the slope (in local space).
+@export var breeze := Vector3(-0.5, 1.0, 0.0)
+
+## The breeze outdoors blows toward -X: smoke drifts this way (units/s^2).
+const SMOKE_DRIFT := Vector3(-0.12, 0.0, 0.0)
+## Big outdoor smoke puffs fade out closer to the camera than this, and are gone by the near
+## distance, so circling in the smoke never fills the screen.
+const SMOKE_FADE_NEAR := 4.0
+const SMOKE_FADE_FAR := 10.0
+## Outdoors, columns and motes farther than this from the camera are not drawn (the fog has
+## mostly hidden them by then), fading out over the last VISIBLE_FADE units.
+const VISIBLE_RANGE := 150.0
+const VISIBLE_FADE := 20.0
+
+var _wisps: CPUParticles3D
 
 var sinks: bool:
 	get:
@@ -104,12 +123,16 @@ func _ready() -> void:
 		push_warning("%s: sun_direction must point down into the room; using straight down" % name)
 		sun_direction = Vector3.DOWN
 	match look:
-		Look.WARM_AIR, Look.STEAM:
-			_build_column(Color(1.0, 0.74, 0.52, 0.6) if look == Look.WARM_AIR else Color(0.93, 0.97, 1.0, 0.45), 1.0)
+		Look.WARM_AIR:
+			_build_column(Color(1.0, 0.74, 0.52, 0.45 if outdoors else 0.6), 1.0)
+		Look.STEAM:
+			_build_column(Color("e2ddd8", 0.4) if outdoors else Color(0.93, 0.97, 1.0, 0.45), 1.0)
 		Look.SUNBEAM:
 			_build_sunbeam()
 		Look.DOWNDRAFT:
 			_build_column(Color(0.78, 0.88, 1.0, 0.35), -1.0)
+		Look.RIDGE:
+			pass  # no column: a wall of shimmer 140 units long would read as glass; seeds show it
 	_build_wisps()
 
 
@@ -141,6 +164,7 @@ func _build_column(tint: Color, direction: float) -> void:
 	column.material_override = mat
 	column.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	column.position.y = column_height * 0.5
+	_limit_range(column)
 	add_child(column)
 
 
@@ -217,15 +241,15 @@ func _build_wisps() -> void:
 			# Drifting dust motes across the whole zone; in a sunbeam they rise along the light.
 			var sunny := look == Look.SUNBEAM
 			# Sunbeam motes scale with the sunny patch (about one per square unit, at most 80).
-			p.amount = clampi(int(size.x * size.z), 24, 80) if sunny else 110
-			p.lifetime = 4.0
+			p.amount = clampi(int(size.x * size.z), 24, 80) if sunny else (clampi(int(radius * radius * 0.8), 80, 120) if outdoors else 110)
+			p.lifetime = 7.0 if outdoors else 4.0
 			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 			p.emission_box_extents = Vector3(size.x * 0.4, 0.3, size.z * 0.4) if shape == Shape.BOX else Vector3(radius * 0.6, 0.3, radius * 0.6)
 			p.position = Vector3(0.0, 0.6, 0.0)
 			p.direction = -sun_direction.normalized() if sunny else Vector3.UP
 			p.spread = 10.0
-			p.initial_velocity_min = 1.0
-			p.initial_velocity_max = 1.9
+			p.initial_velocity_min = 2.5 if outdoors else 1.0
+			p.initial_velocity_max = 3.5 if outdoors else 1.9
 			p.gravity = Vector3(0.0, 0.25, 0.0)
 			quad.size = Vector2(0.35, 0.35) if sunny else Vector2(0.45, 0.45)
 			p.scale_amount_min = 0.5
@@ -235,30 +259,36 @@ func _build_wisps() -> void:
 			fade.add_point(0.2, Color(1.0, 0.9, 0.6, 1.0) if sunny else Color(1.0, 0.88, 0.62, 0.9))
 			fade.add_point(0.75, Color(1.0, 0.94, 0.75, 0.7) if sunny else Color(1.0, 0.92, 0.75, 0.6))
 		Look.STEAM:
-			# Soft steam puffs from the source that spread as they rise.
-			p.amount = 56
-			p.lifetime = 3.6
+			# Soft steam puffs from the source that spread as they rise; outdoors, slow smoke
+			# that rises the whole column and leans with the breeze.
+			p.amount = 40 if outdoors else 56
+			p.lifetime = 8.0 if outdoors else 3.6
 			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 			p.emission_sphere_radius = 0.3
 			p.position = source_offset
 			p.spread = 16.0
-			p.initial_velocity_min = 1.8
-			p.initial_velocity_max = 2.6
+			p.initial_velocity_min = 3.0 if outdoors else 1.8
+			p.initial_velocity_max = 3.6 if outdoors else 2.6
 			# Drift from the source toward the middle of the column as the steam rises.
 			p.gravity = Vector3(-source_offset.x, 0.0, -source_offset.z) * 0.45 + Vector3(0.0, 0.3, 0.0)
 			p.damping_min = 0.2
 			p.damping_max = 0.4
-			quad.size = Vector2(1.3, 1.3)
+			if outdoors:
+				p.gravity = SMOKE_DRIFT + Vector3(0.0, 0.05, 0.0)
+				p.damping_min = 0.0  # so the smoke rises the whole column
+				p.damping_max = 0.0
+			quad.size = Vector2(2.0, 2.0) if outdoors else Vector2(1.3, 1.3)
 			p.scale_amount_min = 0.6
 			p.scale_amount_max = 1.1
 			var grow := Curve.new()
 			grow.add_point(Vector2(0.0, 0.35))
-			grow.add_point(Vector2(1.0, 2.2))
+			grow.add_point(Vector2(1.0, 1.6 if outdoors else 2.2))
 			p.scale_amount_curve = grow
-			fade.set_color(0, Color(1, 1, 1, 0.0))
-			fade.set_color(1, Color(1, 1, 1, 0.0))
-			fade.add_point(0.15, Color(1, 1, 1, 0.6))
-			fade.add_point(0.6, Color(0.97, 0.98, 1.0, 0.35))
+			var puff := Color("e2ddd8") if outdoors else Color(1, 1, 1)
+			fade.set_color(0, Color(puff, 0.0))
+			fade.set_color(1, Color(puff, 0.0))
+			fade.add_point(0.15, Color(puff, 0.7 if outdoors else 0.6))
+			fade.add_point(0.6, Color(puff.lerp(Color(0.97, 0.98, 1.0), 0.5), 0.35))
 		Look.DOWNDRAFT:
 			# Pale, cool wisps drifting down from the top of the zone, fading out before
 			# they reach its bottom.
@@ -280,5 +310,47 @@ func _build_wisps() -> void:
 			fade.set_color(1, Color(0.85, 0.92, 1.0, 0.0))
 			fade.add_point(0.2, Color(0.78, 0.88, 1.0, 0.65))
 			fade.add_point(0.7, Color(0.82, 0.9, 1.0, 0.45))
+		Look.RIDGE:
+			# Dandelion seeds lifted up the slope by the breeze, all along the band.
+			p.amount = 160
+			p.lifetime = 6.0
+			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+			# Above the hillside (up to y 16 at the uphill side), up to near the top of the lift.
+			p.emission_box_extents = Vector3(size.x * 0.4, 5.0, size.z * 0.45)
+			p.position = Vector3(0.0, 21.0, 0.0)
+			p.direction = breeze.normalized()
+			p.spread = 12.0
+			p.initial_velocity_min = 2.0
+			p.initial_velocity_max = 3.0
+			p.gravity = Vector3.ZERO
+			quad.size = Vector2(0.3, 0.3)
+			p.scale_amount_min = 0.7
+			p.scale_amount_max = 1.2
+			fade.set_color(0, Color("fbf7f0", 0.0))
+			fade.set_color(1, Color("fbf7f0", 0.0))
+			fade.add_point(0.15, Color("fbf7f0", 0.95))
+			fade.add_point(0.8, Color("fbf7f0", 0.7))
 	p.color_ramp = fade
+	if outdoors and look == Look.STEAM:
+		mat.distance_fade_min_distance = SMOKE_FADE_NEAR
+		mat.distance_fade_max_distance = SMOKE_FADE_FAR
+	_limit_range(p)
+	_wisps = p
 	add_child(p)
+
+
+## Outdoors, far-away columns and motes are not drawn.
+func _limit_range(g: GeometryInstance3D) -> void:
+	if not outdoors and look != Look.RIDGE:
+		return
+	g.visibility_range_end = VISIBLE_RANGE
+	g.visibility_range_end_margin = VISIBLE_FADE
+	g.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+
+
+## Shows or hides this zone's column and motes; hidden motes stop being made and updated, so
+## zones out of sight cost nothing. The air itself keeps moving either way.
+func set_shown(on: bool) -> void:
+	visible = on
+	if _wisps:
+		_wisps.emitting = on

@@ -131,7 +131,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		_overlay.visible = not _overlay.visible
 
 
+## Which air zones are drawn: indoor ones while the camera is in the house, outdoor ones from
+## the kitchen on (they show through the window). Out of sight, they cost nothing to draw.
+var _zones_seen := -1  ## 0 = upstairs and living room, 1 = kitchen, 2 = outside.
+
+
+func _show_zones_near_camera() -> void:
+	var p := camera.global_position
+	var seen := 2 if Course.is_outside(p) else (1 if p.z < Course.DIVIDER_Z else 0)
+	if seen == _zones_seen:
+		return
+	_zones_seen = seen
+	for node in get_tree().get_nodes_in_group("thermals"):
+		var zone := node as Thermal
+		zone.set_shown(seen >= 1 if zone.outdoors else seen <= 1)
+
+
 func _process(delta: float) -> void:
+	_show_zones_near_camera()
 	if plane.held:
 		_throw_when_ready(delta)
 	var tune := plane.tuning
@@ -181,6 +198,8 @@ func _on_entered_thermal(zone: Thermal) -> void:
 	var player := _downdraft if zone.sinks else _chime
 	player.pitch_scale = zone.chime_pitch
 	player.play()
+	if zone.look == Thermal.Look.RIDGE:
+		swell(plane.tuning.ridge_swell_db, plane.tuning.ridge_swell_fade)  # the breeze up the hillside
 
 
 ## A cheerful pop-up and sound for style points; a near-perfect pass gets a bigger, golden

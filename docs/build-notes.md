@@ -110,3 +110,16 @@ for the phone test"). From the build:
   - **The sunbeam and the arch.**
 - Listen to a fast close call in the stair dive (wind at its +2 dB ceiling plus the whoosh) for
   any crackle; if it clips, lower `wind_max_db`.
+
+# Phase 3: the balloon and the outside (docs/outside-plan.md)
+
+## Deviations from the outside plan
+
+| Where | Plan | Built | Why |
+|---|---|---|---|
+| Hay bales | 5 bales on the hay field | 5 bales out at the sides of the field (|x| ≥ 8 from the line) | A bale on the line out of the window crashed planes that came down low and straight. |
+| Picnic blanket | Landing rectangle x -77..-67, z -209.5..-200.5 | Blanket drawn at x -75..-69, z -202.5..-207.5; the 2 u slide margin is added when scoring the landing | So `PICNIC_X/Z` is exactly what you see. |
+| Outdoor motes | clamp(r² × 1.2, 110, 170), 1 in 4 a seed or leaf | clamp(r² × 0.8, 80, 120), all motes | Phone frame budget (code review). |
+| Bonfire smoke | Puffs live 8 s | 40 puffs, 8 s, fading out 4-10 u from the camera | Phone frame budget: big see-through puffs close to the camera are costly (code review). |
+| Air-zone visuals | Not covered | Indoor zones are drawn only while the camera is in the house, outdoor zones from the kitchen on, and outdoor ones not beyond 150 u | Phone frame budget (code review). The air itself always works. |
+| Plan step 3 test (tour pilot, ≥ 12 above the ground at each thermal, lands ≥ 55 s after the window) | Step 3 | Step 8, with the new pilots | The test pilot learns the full chain in step 8. Until then, a circling test per thermal plus glide arithmetic stand in for it. |

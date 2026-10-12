@@ -42,8 +42,27 @@ const RIDGE_FACE_X := Vector2(-26.0, -66.0)
 const RIDGE_HEIGHT := 22.0
 ## Warm air outdoors: each thermal stands on the ground at its centre (x, z) and rises to `top`
 ## (y). `strength` scales Tuning.thermal_strength. Its ground cause is drawn under it.
+## Each is in sight from the top of the one before (docs/outside-plan.md, section 2).
 const HAY_FIELD := {"name": "HayHeat", "at": Vector2(-2.0, -118.0), "radius": 12.0, "top": 24.0, "strength": 0.9, "pitch": 0.9}
-const OUTDOOR_THERMALS := [HAY_FIELD]
+const BARN_ROOF := {"name": "BarnHeat", "at": Vector2(30.0, -165.0), "radius": 10.0, "top": 27.0, "strength": 0.8, "pitch": 0.95}
+const PLOUGHED_FIELD := {"name": "FieldHeat", "at": Vector2(-12.0, -215.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.0}
+const BONFIRE_SMOKE := {"name": "BonfireSmoke", "at": Vector2(34.0, -268.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.05}
+const OUTDOOR_THERMALS := [HAY_FIELD, BARN_ROOF, PLOUGHED_FIELD, BONFIRE_SMOKE]
+## The barn (centre x, z): solid walls and a pitched roof of dark slate that warms in the sun.
+const BARN := Vector2(35.0, -163.0)
+const BARN_SIZE := Vector3(10.0, 5.0, 7.0)  ## Width (x), wall height, depth (z).
+const BARN_RIDGE := 8.5  ## Roof ridge height above the ground.
+## The leaf bonfire whose smoke is the last thermal (not solid).
+const BONFIRE := Vector2(36.0, -268.0)
+## Rising air along the left ridge, where the breeze blows up the hillside: a box standing on
+## y 0 (x, z centre), its size, and its strength (scales Tuning.thermal_strength).
+const RIDGE_LIFT := Vector3(-38.0, 0.0, -195.0)
+const RIDGE_LIFT_SIZE := Vector3(24.0, 33.0, 140.0)
+const RIDGE_LIFT_STRENGTH := 0.4
+## A picnic blanket on the plateau above the ridge (x from/to, z near/far): the expert's
+## landing spot.
+const PICNIC_X := Vector2(-75.0, -69.0)
+const PICNIC_Z := Vector2(-202.5, -207.5)
 ## Round hay bales on the hay field (x, z): solid, lying on their sides, out at the sides of the
 ## field so a plane coming down the middle of the valley never meets one.
 const HAY_BALES := [Vector2(-11.0, -110.0), Vector2(8.0, -109.0), Vector2(-10.5, -127.0), Vector2(8.5, -126.0), Vector2(-14.5, -119.0)]
@@ -277,7 +296,11 @@ func _build() -> void:
 	for t: Dictionary in OUTDOOR_THERMALS:
 		var at: Vector2 = t["at"]
 		var ground := ground_height(at.x, at.y)
-		_add_thermal(t["name"], Vector3(at.x, ground, at.y), t["radius"], float(t["top"]) - ground, Thermal.Look.WARM_AIR, t["pitch"], Vector3.ZERO, t["strength"])
+		var base := Vector3(at.x, ground, at.y)
+		var smoke: bool = t["name"] == BONFIRE_SMOKE["name"]
+		var source := Vector3(BONFIRE.x, terrain_height(BONFIRE.x, BONFIRE.y) + 0.6, BONFIRE.y) - base if smoke else Vector3.ZERO
+		_add_thermal(t["name"], base, t["radius"], float(t["top"]) - ground, Thermal.Look.STEAM if smoke else Thermal.Look.WARM_AIR, t["pitch"], source, t["strength"], true)
+	_add_box_zone("RidgeLift", RIDGE_LIFT, RIDGE_LIFT_SIZE, Thermal.Look.RIDGE, RIDGE_LIFT_STRENGTH, 0.85, Vector3.DOWN, 0.0, true)
 
 
 func _add_mesh(mesh_name: String) -> void:
@@ -295,9 +318,10 @@ func _add_mesh(mesh_name: String) -> void:
 		_body.add_child(cs)
 
 
-func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: float, look: Thermal.Look, pitch: float, source: Vector3, strength := 1.0) -> void:
+func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: float, look: Thermal.Look, pitch: float, source: Vector3, strength := 1.0, outdoors := false) -> void:
 	var t := Thermal.new()
 	t.strength_scale = strength
+	t.outdoors = outdoors
 	t.name = thermal_name
 	t.radius = radius
 	t.height = height
@@ -309,8 +333,9 @@ func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: floa
 
 
 ## Everything is set before add_child, because the zone builds its visuals in _ready.
-func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN, light_height := 0.0) -> Thermal:
+func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN, light_height := 0.0, outdoors := false) -> Thermal:
 	var zone := Thermal.new()
+	zone.outdoors = outdoors
 	zone.sun_direction = sun
 	zone.light_height = light_height
 	zone.name = zone_name
@@ -664,6 +689,13 @@ func _build_outside() -> void:
 	_ground_patch(hay.x - 12.0, hay.x + 12.0, hay.y + 12.0, hay.y - 12.0, 1.0, [Color("f4dc9b"), Color("e9c98a")])
 	for bale: Vector2 in HAY_BALES:
 		_hay_bale(bale)
+	_build_barn()
+	# The ploughed field: dark furrows that soak up the sun.
+	var field: Vector2 = PLOUGHED_FIELD["at"]
+	_ground_patch(field.x - 11.0, field.x + 11.0, field.y + 11.0, field.y - 11.0, 1.0, [Color("a88b74"), Color("94785f")])
+	_build_bonfire()
+	# The picnic blanket on the plateau, in red and white stripes.
+	_ground_patch(PICNIC_X.x, PICNIC_X.y, PICNIC_Z.x, PICNIC_Z.y, 1.5, [Color("f19e8f"), Color("fbf7f0")])
 
 	# A stream across the valley with a few flat stepping stones.
 	var bank := 1.3
@@ -760,14 +792,66 @@ static func tree_spots() -> Array[Vector3]:
 	return spots
 
 
-## Trees keep clear of every lift zone and the ridge face.
+## Trees keep clear of every lift zone, the ridge face, the barn, the bonfire and the picnic.
 static func tree_allowed(x: float, z: float) -> bool:
 	for t: Dictionary in OUTDOOR_THERMALS:
 		if Vector2(x, z).distance_to(t["at"]) < float(t["radius"]) + TREE_CLEARANCE:
 			return false
+	var picnic := Vector2((PICNIC_X.x + PICNIC_X.y) * 0.5, (PICNIC_Z.x + PICNIC_Z.y) * 0.5)
+	for spot in [BARN, BONFIRE, picnic]:
+		if Vector2(x, z).distance_to(spot) < 8.0:
+			return false
 	if x > RIDGE_FACE_X.y and x < RIDGE_FACE_X.x + 2.0 and z < -120.0 and z > -270.0:
 		return false
 	return true
+
+
+## The barn under the second thermal: rose walls, a dark slate roof and a bare earth yard.
+func _build_barn() -> void:
+	var ground := ground_height(BARN.x, BARN.y)
+	# Its floor sits at the lowest corner, so no wall floats above the slope.
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		ground = minf(ground, terrain_height(BARN.x + c.x * BARN_SIZE.x * 0.5, BARN.y + c.y * BARN_SIZE.z * 0.5))
+	_ground_patch(BARN.x - 8.0, BARN.x + 8.0, BARN.y + 8.0, BARN.y - 8.0, 2.0, [Color("b8a68c"), Color("c2b195")])
+	var base := Vector3(BARN.x, ground, BARN.y)
+	box(base + Vector3(0.0, BARN_SIZE.y * 0.5, 0.0), BARN_SIZE, Color("d98b7a"))
+	# Gable ends: a triangle of wall at each end, drawn both ways round (the roof is solid above).
+	var gable := BARN_RIDGE - BARN_SIZE.y
+	var half := BARN_SIZE.x * 0.5
+	for z in [-BARN_SIZE.z * 0.5, BARN_SIZE.z * 0.5]:
+		var l := base + Vector3(-half, BARN_SIZE.y, z)
+		var r := base + Vector3(half, BARN_SIZE.y, z)
+		var top := base + Vector3(0.0, BARN_RIDGE, z)
+		builder.triangle(l, top, r, Color("d98b7a"))
+		builder.triangle(r, top, l, Color("d98b7a"))
+	# The attic between the gables is solid (a plane can't fly in under the roof).
+	var attic := ConvexPolygonShape3D.new()
+	var prism := PackedVector3Array()
+	for z in [-BARN_SIZE.z * 0.5, BARN_SIZE.z * 0.5]:
+		prism.append_array([Vector3(-half, BARN_SIZE.y, z), Vector3(half, BARN_SIZE.y, z), Vector3(0.0, BARN_RIDGE, z)])
+	attic.points = prism
+	solid_shape(attic, Transform3D(Basis.IDENTITY, base))
+	# The two roof slopes, overhanging the walls a little.
+	var slope := atan2(gable, half)
+	var length := sqrt(half * half + gable * gable) + 0.6
+	for s in [-1.0, 1.0]:
+		var basis := Basis(Vector3.BACK, -s * slope)
+		var mid := base + Vector3(s * half * 0.5, BARN_SIZE.y + gable * 0.5, 0.0) + basis * Vector3(0.0, 0.15, 0.0)
+		box(mid, Vector3(length, 0.3, BARN_SIZE.z + 0.8), Color("5f5b70"), true, basis)
+	# A white door on the side facing the house.
+	box(base + Vector3(0.0, 1.6, BARN_SIZE.z * 0.5 + 0.03), Vector3(2.6, 3.2, 0.05), TRIM, false)
+
+
+## The leaf bonfire under the last thermal: a ring of stones, crossed logs and small flames.
+func _build_bonfire() -> void:
+	var base := Vector3(BONFIRE.x, terrain_height(BONFIRE.x, BONFIRE.y), BONFIRE.y)
+	for i in 9:
+		var a := TAU * i / 9.0
+		builder.sphere(base + Vector3(cos(a) * 1.2, 0.1, sin(a) * 1.2), 0.3, Color("c9c2ba"), Vector3(1.0, 0.7, 1.0), 7, 3)
+	for a in [0.3, 1.9, 3.4]:
+		builder.cylinder(base + Vector3(cos(a) * 0.7, 0.05, sin(a) * 0.7), 0.12, 0.12, 1.5, Color("a88b74"), 6, Basis(Vector3(sin(a), 0.0, -cos(a)), 1.1))
+	for f in [[Vector3(0.0, 0.0, 0.0), 1.1, Color("f4a46a")], [Vector3(0.3, 0.0, 0.2), 0.8, Color("f6c66f")], [Vector3(-0.3, 0.0, -0.1), 0.7, Color("ef8a6a")]]:
+		builder.cylinder(base + f[0], 0.35, 0.0, f[1], f[2], 6)
 
 
 ## A round hay bale lying on its side, solid.

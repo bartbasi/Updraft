@@ -283,7 +283,7 @@ func test_hay_field_thermal_lifts_straight_and_circling_planes() -> void:
 
 
 ## The trees stand only where the designer allowed, and the valley floor is open: nothing to
-## hit above the grass but the hay bales.
+## hit above the grass but the hay bales and the barn.
 func test_trees_keep_clear_and_the_valley_is_open() -> void:
 	check(not Course.tree_allowed(-2.0, -118.0), "no tree in the hay-field thermal")
 	check(not Course.tree_allowed(-2.0, -133.5), "nor just past its edge")
@@ -310,7 +310,8 @@ func test_trees_keep_clear_and_the_valley_is_open() -> void:
 			var near_bale := false
 			for b: Vector2 in Course.HAY_BALES:
 				near_bale = near_bale or Vector2(x, z).distance_to(b) < Course.BALE_LENGTH + 1.0
-			if not near_bale:
+			var at_barn := absf(x - Course.BARN.x) < Course.BARN_SIZE.x * 0.5 + 1.5 and absf(z - Course.BARN.y) < Course.BARN_SIZE.z * 0.5 + 1.5
+			if not near_bale and not at_barn:
 				for up in [1.0, 3.0, 6.0, 10.0]:
 					var at := Vector3(x, Course.ground_height(x, z) + up, z)
 					query.transform = Transform3D(Basis.IDENTITY, at)
@@ -319,6 +320,85 @@ func test_trees_keep_clear_and_the_valley_is_open() -> void:
 			x += 3.0
 		z -= 3.0
 	check(hits.is_empty(), "nothing solid above the valley floor: %s" % [hits])
+
+
+## Every outdoor thermal lifts a plane circling in it to near its top, and each next one is far
+## enough away to be a glide but close enough to reach from the top of the one before.
+func test_every_outdoor_thermal_lifts_a_circling_plane_to_near_its_top() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2(0.0, -1.0))  # full bank left
+	var plane := game.get_node("Plane") as PaperPlane
+	await physics_frames(2)
+	for t: Dictionary in Course.OUTDOOR_THERMALS:
+		var at: Vector2 = t["at"]
+		var top := float(t["top"])
+		var y0 := Course.ground_height(at.x, at.y) + 11.0  # above the barn's roof
+		# Heading -Z, banking left: the circle (radius 5.6) is centred 5.6 to the left.
+		plane.launch(Vector3(at.x + 5.6, y0, at.y), 0.0)
+		var touches := plane.touches
+		var highest := y0
+		var frames := 0
+		while frames < 60 * 15 and not plane.is_ended():
+			await tree.physics_frame
+			frames += 1
+			highest = maxf(highest, plane.global_position.y)
+		check(highest >= top - 3.0, "%s: circling from y %.1f climbs to %.1f (top %.0f)" % [t["name"], y0, highest, top])
+		check(plane.touches == touches, "%s: nothing to touch while circling" % t["name"])
+	for i in range(1, Course.OUTDOOR_THERMALS.size()):
+		var a: Dictionary = Course.OUTDOOR_THERMALS[i - 1]
+		var b: Dictionary = Course.OUTDOOR_THERMALS[i]
+		var gap := (a["at"] as Vector2).distance_to(b["at"])
+		# A 9.7 : 1 glide from the top of one (less a few units of height) reaches the next with room to spare.
+		var arrive := float(a["top"]) - gap / 9.7 - Course.ground_height((b["at"] as Vector2).x, (b["at"] as Vector2).y)
+		check(arrive > 10.0, "%s -> %s: a glide arrives %.1f above the ground" % [a["name"], b["name"], arrive])
+
+
+## A plane flying along the ridge, just out from the hillside, climbs on the breeze blowing up it
+## and never touches the slope; the bonfire smoke rises from the fire, and the barn is solid.
+func test_ridge_lifts_a_plane_flying_along_it() -> void:
+	var game := _start(func(p: PaperPlane) -> Vector2:
+		var err := wrapf(atan2(-(-37.0 - p.global_position.x), 8.0) - p.model.heading, -PI, PI)
+		return Vector2(0.0, clampf(-err * 2.0, -1.0, 1.0)))
+	var plane := game.get_node("Plane") as PaperPlane
+	await physics_frames(2)
+	plane.launch(Vector3(-36.0, 20.0, -150.0), 0.0)
+	var touches := plane.touches
+	var y_at := {}
+	var ridge_entered := [false]
+	plane.entered_thermal.connect(func(z: Thermal) -> void: ridge_entered[0] = ridge_entered[0] or z.name == "RidgeLift")
+	while plane.global_position.z > -250.0 and not plane.is_ended():
+		await tree.physics_frame
+		if plane.global_position.z < -220.0 and not y_at.has("-220"):
+			y_at["-220"] = plane.global_position.y
+	print("        ridge: y %.1f at z -220, %.1f at the end (z %.0f)" % [y_at.get("-220", -1.0), plane.global_position.y, plane.global_position.z])
+	check(ridge_entered[0], "the plane flies into the ridge's rising air")
+	check(float(y_at.get("-220", 0.0)) >= 29.0, "it climbs to y 29 or more by z -220 (%.1f)" % float(y_at.get("-220", 0.0)))
+	check(plane.touches == touches and not plane.is_ended(), "without touching the hillside")
+	var space := (game as Node3D).get_world_3d().direct_space_state
+	var barn_ground := Course.terrain_height(Course.BARN.x, Course.BARN.y)
+	var ray := PhysicsRayQueryParameters3D.create(Vector3(Course.BARN.x, barn_ground + 2.5, Course.BARN.y + 12.0), Vector3(Course.BARN.x, barn_ground + 2.5, Course.BARN.y))
+	ray.collision_mask = PaperPlane.WORLD_LAYER
+	check(not space.intersect_ray(ray).is_empty(), "the barn's wall is solid")
+	ray = PhysicsRayQueryParameters3D.create(Vector3(Course.BARN.x + 2.0, barn_ground + 20.0, Course.BARN.y), Vector3(Course.BARN.x + 2.0, barn_ground - 1.0, Course.BARN.y))
+	ray.collision_mask = PaperPlane.WORLD_LAYER
+	var roof := space.intersect_ray(ray)
+	check(not roof.is_empty() and (roof["position"] as Vector3).y > barn_ground + Course.BARN_SIZE.y, "the barn's roof is solid, above its walls")
+	# Nothing can fly in under the roof, along the barn, at any height up to the ridge.
+	var ball := SphereShape3D.new()
+	ball.radius = PaperPlane.RADIUS
+	for up in [5.5, 6.5, 7.5, 8.0]:
+		var sweep := PhysicsShapeQueryParameters3D.new()
+		sweep.shape = ball
+		sweep.collision_mask = PaperPlane.WORLD_LAYER
+		sweep.transform = Transform3D(Basis.IDENTITY, Vector3(Course.BARN.x, barn_ground + up, Course.BARN.y + 8.0))
+		sweep.motion = Vector3(0.0, 0.0, -16.0)
+		check(space.cast_motion(sweep)[0] < 1.0, "a plane %.1f up meets the barn's gable instead of flying through its attic" % up)
+	var fire := Vector3(Course.BONFIRE.x, Course.terrain_height(Course.BONFIRE.x, Course.BONFIRE.y) + 0.5, Course.BONFIRE.y)
+	ray = PhysicsRayQueryParameters3D.create(fire + Vector3(0.0, 5.0, 0.0), fire)
+	ray.collision_mask = PaperPlane.WORLD_LAYER
+	check(space.intersect_ray(ray).is_empty(), "the bonfire is not solid")
+	for zone in tree.get_nodes_in_group("thermals"):
+		if zone.name == "BonfireSmoke":
+			check((zone as Thermal).look == Thermal.Look.STEAM and (zone as Thermal).outdoors, "the bonfire's thermal looks like smoke")
 
 
 ## A plane that somehow leaves the world comes to a stop instead of falling forever.
@@ -403,3 +483,20 @@ func test_low_planes_catch_the_kettle_steam_and_make_the_window() -> void:
 			check(steam[0], "%s: the plane catches the steam" % label)
 			check(game.reached_outside, "%s: and it carries it out of the window (%s at %s)" % [label, "crashed" if plane.model.crashed else "ended", plane.global_position])
 			await cleanup()
+
+
+## Air zones out of sight are not drawn and their motes stop: indoor ones once the camera is
+## outside, outdoor ones until it reaches the kitchen (they show through the window from there).
+func test_only_air_zones_in_sight_are_drawn() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	var plane := game.get_node("Plane") as PaperPlane
+	var camera := game.get_node("Camera") as FollowCamera
+	await physics_frames(3)
+	for where in [["bedroom", Course.START, false, true], ["kitchen", Vector3(0.0, 7.0, -70.0), true, true], ["outside", Vector3(0.0, 15.0, -130.0), true, false]]:
+		plane.launch(where[1], 0.0)
+		camera.snap()
+		await physics_frames(3)
+		for zone in tree.get_nodes_in_group("thermals"):
+			var t := zone as Thermal
+			var want: bool = where[2] if t.outdoors else where[3]
+			check(t.visible == want and t._wisps.emitting == want, "%s: %s is %s" % [where[0], t.name, "shown" if want else "hidden"])

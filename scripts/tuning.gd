@@ -177,6 +177,10 @@ extends Resource
 ## `window_gust_fade` seconds.
 @export var window_gust_db := 6.0
 @export var window_gust_fade := 1.5
+## Flying into the ridge's rising air: a swell of breeze this much louder, fading over
+## `ridge_swell_fade` seconds.
+@export var ridge_swell_db := 3.0
+@export var ridge_swell_fade := 1.0
 ## The wind never gets louder than this (decibels), even with a swell on top of a fast dive.
 ## (wind.wav peaks at -4.4 dB full scale, so at +2 the loudest wind still peaks below -2.)
 @export var wind_max_db := 2.0
