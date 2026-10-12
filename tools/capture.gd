@@ -1,6 +1,6 @@
 extends SceneTree
 ## Flies the course with the autopilot in a real window and saves screenshots along the way.
-##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...] [--look=balloon]
+##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...] [--look=balloon] [--route=ridge]
 
 var _times: Array[float] = [0.3, 4.6, 5.6, 8.2, 9.6, 12.8, 15.4, 18.0, 23.0]
 var _out := "user://screens"
@@ -22,6 +22,8 @@ func _initialize() -> void:
 				_times.append(float(t))
 		elif arg.begins_with("--look="):
 			_look = arg.trim_prefix("--look=")
+		elif arg.begins_with("--route="):
+			_pilot = Autopilot.touring(arg.trim_prefix("--route="))
 	DirAccess.make_dir_recursive_absolute(_out)
 	# The test pilot's score goes to its own file, never the player's best score.
 	BestScore.file_path = "user://capture_best_score.json"

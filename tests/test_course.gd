@@ -748,3 +748,99 @@ func test_the_chain_route_thins_each_cloud_it_tops() -> void:
 	print("        chain route thinned: %s" % [thinned])
 	check(plane.is_ended(), "the flight finished")
 	check(thinned.size() == Course.OUTDOOR_THERMALS.size(), "every cloud the chain climbs thins (%s)" % [thinned])
+
+
+## The ridge route: a gull joins about 1.5 s after the pilot starts along the ridge lift, soars
+## beside it for about 6 s and leaves, once a run. On every frame of the visit it keeps clear of
+## the plane, stays above the hillside and stays out of the middle of the screen.
+func test_a_gull_joins_once_along_the_ridge_and_keeps_its_distance() -> void:
+	for look in [PlayerSettings.PLANE, PlayerSettings.BALLOON]:
+		var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.set_look(look)
+		var tune := plane.tuning
+		var pilot := Autopilot.touring("ridge")  # held here: a Callable alone does not keep its object alive
+		plane.autopilot = pilot.fly
+		var gull := game.gull as Gull
+		var camera := game.get_node("Camera") as Camera3D
+		var ridge := (game.get_node("Course") as Course).get_node("RidgeLift") as Thermal
+		var entered := INF
+		var joined := INF
+		var leaving := INF
+		var joins := [0]  # an array: a lambda captures an int by value
+		var bad := []
+		gull.joined.connect(func() -> void: joins[0] += 1)
+		var frames := 0
+		while not plane.is_ended() and frames < 150 * 60:
+			await tree.physics_frame
+			frames += 1
+			var t := plane.flight_time
+			if entered == INF and ridge.contains(plane.global_position):
+				entered = t
+			if joined == INF and gull.state != Gull.State.WAITING:
+				joined = t
+			if leaving == INF and gull.state == Gull.State.LEAVING:
+				leaving = t
+			if gull.state == Gull.State.ESCORTING:
+				var g := gull.global_position
+				var away := g.distance_to(plane.global_position)
+				var ground := Course.terrain_height(g.x, g.z)
+				var view := -camera.global_basis.z
+				var off_centre := rad_to_deg(view.angle_to(g - camera.global_position))
+				if away < Gull.NEAREST - 0.01 or g.y < ground + tune.gull_min_ground - 0.6 or off_centre < 15.0:
+					bad.append("%.1f s: %.1f away, %.1f over the ground, %.0f° off centre" % [t, away, g.y - ground, off_centre])
+		print("        %s: ridge at %.1f s, gull joins %.1f s, leaves %.1f s" % [look, entered, joined, leaving])
+		check(joins[0] == 1, "%s: one gull a run (%d)" % [look, joins[0]])
+		check_between(joined - entered, tune.gull_wait - 0.1, tune.gull_wait + 3.0, "%s: seconds from the ridge to the gull" % look)
+		check_between(leaving - joined, Gull.ARRIVE_SECONDS + tune.gull_stay - 0.5, Gull.ARRIVE_SECONDS + tune.gull_stay + 0.1, "%s: seconds of company" % look)
+		check(bad.is_empty(), "%s: the gull keeps clear: %s" % [look, bad.slice(0, 4)])
+		await cleanup()
+
+
+## The lavender route never flies along the ridge, so no gull.
+func test_no_gull_off_the_ridge() -> void:
+	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+	var plane := game.get_node("Plane") as PaperPlane
+	var pilot := Autopilot.touring("lavender")  # held here: a Callable alone does not keep its object alive
+	plane.autopilot = pilot.fly
+	var frames := 0
+	while not plane.is_ended() and frames < 150 * 60:
+		await tree.physics_frame
+		frames += 1
+	check(game.gull.state == Gull.State.WAITING and not game.gull.visible, "no gull on the lavender route")
+
+
+## Soaring close along the ridge face, the way ridge lift is flown: the gull's whole visit
+## (arriving, soaring and leaving) keeps it clear of the plane and above the grass, whichever
+## side it ends up on.
+func test_a_gull_keeps_off_the_hillside_on_a_low_pass() -> void:
+	for case in [[-30.0, 5.0], [-34.0, 5.0], [-38.0, 4.5], [-42.0, 4.0], [-46.0, 3.0], [-38.0, 3.0]]:
+		var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var tune := plane.tuning
+		var gull := game.gull as Gull
+		await physics_frames(2)
+		var x: float = case[0]
+		var z := -140.0
+		plane.launch(Vector3(x, Course.terrain_height(x, z) + case[1], z), 0.0)
+		var lowest := INF
+		var nearest := INF
+		var frames := 0
+		while gull.state != Gull.State.GONE and frames < 20 * 60:
+			await tree.physics_frame
+			frames += 1
+			# Hold the plane on its line: case[1] above the face, heading along the ridge.
+			z -= 6.0 / 60.0
+			plane.global_position = Vector3(x, Course.terrain_height(x, z) + case[1], z)
+			plane.model.position = plane.global_position
+			plane.model.velocity = Vector3(0.0, 0.0, -6.0)
+			if gull.visible:
+				var g := gull.global_position
+				lowest = minf(lowest, g.y - Course.terrain_height(g.x, g.z))
+				nearest = minf(nearest, g.distance_to(plane.global_position))
+		var tag := "x %d, %.1f up" % [x, case[1]]
+		check(gull.state == Gull.State.GONE, "%s: the gull came and went" % tag)
+		check(lowest >= tune.gull_min_ground - 0.05, "%s: never nearer the grass than %.1f (%.2f)" % [tag, tune.gull_min_ground, lowest])
+		check(nearest >= Gull.NEAREST - 0.05, "%s: never nearer the plane than %.1f (%.2f)" % [tag, Gull.NEAREST, nearest])
+		await cleanup()

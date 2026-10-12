@@ -97,6 +97,13 @@ func _fly(run_seed: int) -> Dictionary:
 		if game.vario.on != bool(state.get("vario", false)):
 			state["vario"] = game.vario.on
 			note.call("vario %s  (y %.1f)" % ["on" if game.vario.on else "off", p.y])
+		if game.gull.state != int(state.get("gull", Gull.State.WAITING)):
+			var was := int(state.get("gull", Gull.State.WAITING))
+			state["gull"] = game.gull.state
+			if was == Gull.State.WAITING:
+				note.call("gull joins  (%.1f away)" % game.gull.global_position.distance_to(p))
+			elif game.gull.state == Gull.State.LEAVING:
+				note.call("gull leaves")
 		if game.sighs > int(state.get("sighs", 0)):
 			state["sighs"] = game.sighs
 			note.call("lift lost (sigh) in %s at y %.1f" % [game.vario.zone.name, p.y])

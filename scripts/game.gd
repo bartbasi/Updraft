@@ -37,6 +37,8 @@ var sighs := 0  ## "Lift lost" sighs this flight.
 var _last_sigh := -INF  ## Flight time of the last sigh.
 var _drifting: Array[Thermal] = []  ## The outdoor columns, which drift with the breeze.
 var _clouds: Clouds
+## The ridge's gull (looks only).
+var gull: Gull
 var _near_query := PhysicsShapeQueryParameters3D.new()  ## Reused each tick for close calls.
 var _close_call_wait := 0.0  ## Seconds until the next close call may sound.
 enum Pass { CLEAR, CLOSE, SPOILED }  ## Clear of everything; rushing close past something; touched it.
@@ -89,6 +91,10 @@ func _ready() -> void:
 	for node in get_tree().get_nodes_in_group("thermals"):
 		if (node as Thermal).drifts():
 			_drifting.append(node)
+	gull = Gull.new()
+	gull.name = "Gull"
+	add_child(gull)
+	gull.setup(plane, course.get_node("RidgeLift"))
 	_clouds = course.get_node_or_null("Clouds")
 	if _clouds != null:
 		_clouds.tuning = plane.tuning

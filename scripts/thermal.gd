@@ -125,6 +125,15 @@ func drift(delta: float, plane_at: Vector3, tuning: Tuning) -> void:
 	position = home + drift_offset
 
 
+## Whether a world position is inside this zone's shape. A sunbeam counts as its upright box, not
+## the leaning light, so don't use this for sunbeams.
+func contains(world_pos: Vector3) -> bool:
+	var local := global_transform.affine_inverse() * world_pos
+	if shape == Shape.CYLINDER:
+		return local.y >= 0.0 and local.y <= height and Vector2(local.x, local.z).length() < radius
+	return local.y >= 0.0 and local.y <= size.y and absf(local.x) < size.x * 0.5 and absf(local.z) < size.z * 0.5
+
+
 ## World height where this zone's air stops.
 func top() -> float:
 	return global_position.y + (height if shape == Shape.CYLINDER else size.y)

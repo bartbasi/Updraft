@@ -216,6 +216,24 @@ def sigh(rng):
     return out
 
 
+def gull():
+    """A gull's "kee-ow": a quick rise, then a long fall, with a little vibrato."""
+    n = int(0.55 * RATE)
+    out = []
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        if t < 0.08:
+            freq = 1500.0 + 400.0 * (t / 0.08)
+        else:
+            freq = 1900.0 - 800.0 * ((t - 0.08) / 0.47) ** 0.8
+        freq *= 1.0 + 0.03 * math.sin(2 * math.pi * 7.0 * t)
+        phase += 2 * math.pi * freq / RATE
+        env = min(1.0, t / 0.015) * (1.0 - t / 0.55) ** 1.2
+        out.append(env * (math.sin(phase) + 0.25 * math.sin(2 * phase) + 0.1 * math.sin(3 * phase)))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -230,6 +248,7 @@ def main():
     write_wav("pop.wav", pop(rng), peak=0.8)
     write_wav("vario.wav", vario(), peak=0.6)
     write_wav("sigh.wav", sigh(rng), peak=0.5)
+    write_wav("gull.wav", gull(), peak=0.55)
 
 
 if __name__ == "__main__":
