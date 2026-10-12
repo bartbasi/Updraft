@@ -144,6 +144,8 @@ const BLUFF_FACE_X := Vector2(-44.0, -84.0)
 const BLUFF_HEIGHT := 24.0
 ## From the valley this close to the Downs (z), the Gap and the bowl beyond are in view.
 const GAP_VIEW_Z := -300.0
+## A wildflower meadow on the lake's far shore (z near, far).
+const MEADOW_Z := Vector2(-455.0, -485.0)
 ## The bowl's grass is a second grid on the same lattice as the valley's, out to here (z).
 const BOWL_END_Z := -528.0
 ## The hills are drawn, and collide, as a grid of triangles this size, starting here (x, z).
@@ -556,8 +558,8 @@ func cylinder(base: Vector3, r_bottom: float, r_top: float, height: float, color
 	_collider(hull, Transform3D(Basis.IDENTITY, base + Vector3(0.0, height * 0.5, 0.0)))
 
 
-func sphere(center: Vector3, radius: float, color: Color, solid := true, stretch := Vector3.ONE) -> void:
-	builder.sphere(center, radius, color, stretch)
+func sphere(center: Vector3, radius: float, color: Color, solid := true, stretch := Vector3.ONE, segments := 9, rings := 5) -> void:
+	builder.sphere(center, radius, color, stretch, segments, rings)
 	if solid:
 		var shape := SphereShape3D.new()
 		shape.radius = radius * minf(stretch.x, minf(stretch.y, stretch.z))
@@ -886,6 +888,7 @@ func _build_outside() -> void:
 
 	_build_windsock()
 	_build_kite()
+	CourseFar.build_valley(self)
 	# Wind-bent grass up the ridge face: pale tufts leaning with the breeze, all along the lift.
 	var grng := RandomNumberGenerator.new()
 	grng.seed = 8
@@ -974,6 +977,7 @@ func _build_bowl() -> void:
 	_build_lake()
 	# The beach: pale sand at the lake's east side, warm enough at its north end to rise.
 	_ground_patch(BEACH_X.x, BEACH_X.y, BEACH_Z.x, BEACH_Z.y, 1.0, [Color("f1e3c4"), Color("ead8b0")])
+	CourseFar.build_bowl(self)
 	# Wind-bent grass up the bluff face, like the ridge's.
 	var grng := RandomNumberGenerator.new()
 	grng.seed = 9
@@ -986,9 +990,12 @@ func _build_bowl() -> void:
 			builder.triangle(foot + Vector3(0.0, 0.0, -0.25 * s), tip, foot + Vector3(0.0, 0.0, 0.25 * s), Color("d4e6b5"))
 
 
-## Pale sand where the grass meets the water, so the shore follows the real waterline.
+## Pale sand where the grass meets the water, so the shore follows the real waterline; a
+## wildflower meadow on the far shore.
 func _shore_or_grass(a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator) -> Color:
 	var grass := _grass(rng)
+	if a.z < MEADOW_Z.x and a.z > MEADOW_Z.y and rng.randf() < 0.05:
+		grass = FLOWERS[rng.randi() % FLOWERS.size()]  # with _grass()'s own 2.5%, about three times the flowers
 	if minf(a.y, minf(b.y, c.y)) < LAKE_Y + 0.1 and maxf(a.y, maxf(b.y, c.y)) > LAKE_Y:  # it crosses the waterline
 		return Color("efe2c6") if rng.randf() < 0.5 else Color("e6d6b4")
 	return grass

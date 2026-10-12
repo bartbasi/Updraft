@@ -181,3 +181,17 @@ for the phone test"). From the build:
   field, the bonfire and the chalk pit) and the bowl's zones are drawn, to keep live motes down.
 - **Glide arrivals (B2):** each leg arrives at least as high as the plan's pure-glide figure,
   and the chalk legs about 5 higher (they leave one column and end inside the next).
+- **Landmarks (B3):**
+  - **Windmill on the Gap's right shoulder** (36, -336), not the left: on the left, the chalk
+    pit's cloud hid it from the valley. **For fun review 4:** from the kitchen window the hay
+    field's warm column and the row of thermal clouds cover the whole far skyline, so neither
+    the notch nor the windmill shows from the sill (the plan's B4 first sight line). Both show
+    clearly from the valley's far end and the ridge.
+  - **The jetty is 13 long** (plan 8) and steps down the bank: the bank slopes gently from the
+    boathouse (floor -0.2) to open water about 10 u out, so a flat 8 u deck was half buried.
+  - **32 bowl trees** (plan about 24): the orchard's two rows at a 10 u step, plus 6 pines,
+    built light (6 x 3 crowns, 5-sided trunks) to stay near the plan's triangle budget.
+  - **For fun review 4:** the windmill's sails face the breeze (+X), so from the valley they are
+    seen edge-on, a bar turning in place.
+  - Moving props (the sails, the sailboat) are a small PropMotion node, moved in `_process` with
+    physics interpolation off, like the birds.

@@ -1034,3 +1034,57 @@ func test_sink_ticks_only_over_the_lake() -> void:
 	plane.launch(Course.DOWNDRAFT_ORIGIN + Vector3(0.0, Course.DOWNDRAFT_SIZE.y * 0.6, 3.0), PI * 0.5)
 	await physics_frames(60 * 2)
 	check(game.sink_ticks == over_lake, "none in the stair downdraft")
+
+
+## The landmarks past the valley: the windmill's tower, the wall, the huts and the boathouse are
+## solid; the sails, sheep, boat, flag and jetty are not. The sails turn, the boat sails round the
+## lake clear of the island, and no bowl tree stands in the lift, the water or the way.
+func test_the_landmarks_past_the_valley() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	await physics_frames(2)
+	var course := game.get_node("Course") as Course
+	var space := (game as Node3D).get_world_3d().direct_space_state
+	var solid := func(p: Vector3) -> bool:
+		var ray := PhysicsRayQueryParameters3D.create(p + Vector3(6.0, 0.0, 0.0), p - Vector3(6.0, 0.0, 0.0))
+		ray.collision_mask = PaperPlane.WORLD_LAYER
+		return not space.intersect_ray(ray).is_empty()
+	var mill := CourseFar.WINDMILL
+	var mill_y := Course.terrain_height(mill.x, mill.y)
+	check(solid.call(Vector3(mill.x, mill_y + 5.0, mill.y)), "the windmill's tower is solid")
+	var wall_x := (CourseFar.WALL_X.x + CourseFar.GATE_X.x) * 0.5
+	var wall := Vector3(wall_x, Course.terrain_height(wall_x, CourseFar.WALL_Z) + 0.6, CourseFar.WALL_Z)
+	var across := PhysicsRayQueryParameters3D.create(wall + Vector3(0.0, 0.0, 3.0), wall - Vector3(0.0, 0.0, 3.0))
+	across.collision_mask = PaperPlane.WORLD_LAYER
+	check(not space.intersect_ray(across).is_empty(), "the stone wall is solid")
+	for hut in CourseFar.HUTS:
+		check(solid.call(Vector3(hut.x, Course.terrain_height(hut.x, hut.y) + 1.2, hut.y)), "the beach hut at %s is solid" % hut)
+	var house := CourseFar.BOATHOUSE
+	check(solid.call(Vector3(house.x, Course.terrain_height(house.x, house.y) + 1.5, house.y)), "the boathouse is solid")
+	var flag := Vector3(CourseFar.FLAG.x - 1.5, Course.terrain_height(CourseFar.FLAG.x, CourseFar.FLAG.y) + 7.4, CourseFar.FLAG.y)
+	var jetty := Vector3(house.x, Course.LAKE_Y + 0.25, house.y + CourseFar.BOATHOUSE_SIZE.z * 0.5 + CourseFar.JETTY_LENGTH - 0.5)  # its far end, over the water
+	for p in [flag, jetty]:
+		check(not solid.call(p), "nothing solid at %s (the flag, the jetty)" % p)
+	var sails := course.get_node("WindmillSails") as PropMotion
+	var boat := course.get_node("Sailboat") as PropMotion
+	var sails_then := sails.transform
+	var boat_then := boat.global_position
+	for f in 60 * 3:
+		await tree.process_frame
+	check(not sails.transform.is_equal_approx(sails_then), "the sails turn")
+	check(boat.global_position.distance_to(boat_then) > 2.0, "the boat sails")
+	check(boat.global_basis.y.x < -0.1, "heeled away from the breeze (mast lean %.2f)" % boat.global_basis.y.x)
+	for k in 360:  # its whole circle, on open water and clear of the island
+		var at := CourseFar.BOAT_CIRCLE + Vector2.from_angle(deg_to_rad(k)) * CourseFar.BOAT_RADIUS
+		if Course.lake_reach(at.x, at.y) >= 0.9 or at.distance_to(Course.ISLAND) <= Course.ISLAND_RADIUS + 2.0:
+			check(false, "the boat's circle leaves open water at %s" % at)
+	var planted := 0
+	for z in CourseFar.ORCHARD_Z:
+		var x := CourseFar.ORCHARD_X.x
+		while x <= CourseFar.ORCHARD_X.y:
+			planted += 1 if CourseFar.bowl_tree_allowed(x, z) else 0
+			x += CourseFar.ORCHARD_X.z
+	for at in CourseFar.PINES:
+		planted += 1 if CourseFar.bowl_tree_allowed(at.x, at.y) else 0
+	print("        bowl trees: %d" % planted)
+	check_between(planted, 18, 34, "bowl trees planted")
+	check(not CourseFar.bowl_tree_allowed(Course.GAP_X, -370.0) and not CourseFar.bowl_tree_allowed(0.0, -420.0) and not CourseFar.bowl_tree_allowed(-60.0, -420.0), "none in the Gap's channel, the lake or the bluff's lift")
