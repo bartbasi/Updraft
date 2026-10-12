@@ -91,7 +91,11 @@ best score.
 In a debug build, F3 (or a tap on the fps counter) shows the style moments' best lines and
 corridors. Release builds have no debug tools.
 
-The package id is the placeholder `com.example.paperplane`; pick a real one before publishing.
+The app is **Updraft**, package `io.github.bartbasi.updraft` (the old test builds were
+`com.example.paperplane` and install as a separate app). The signed release (`.aab` for Google
+Play, `.apk` to share) is built with `bash tools/build_release.sh`. See
+[docs/release.md](docs/release.md) for the signing key, the Play upload steps and the store
+listing.
 
 ## Layout
 
@@ -113,6 +117,7 @@ scripts/art.gd            materials and the low-poly mesh builder
 shaders/                  watercolor screen pass, thermal shimmer
 audio/                    synthesized WAVs (from tools/gen_sounds.py)
 tests/                    headless test runner, suites, autopilot
-tools/                    screenshots, flight log, sound generator
-docs/                     the brief, design plans and reviews, build notes
+tools/                    screenshots, flight log, sound generator, icons, release build
+docs/                     the brief, design plans and reviews, build notes, release guide
+docs/store/               Play store images (icon, feature graphic, screenshots)
 ```
