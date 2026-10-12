@@ -96,6 +96,11 @@ static func along_light_to_floor(local: Vector3, sun: Vector3) -> Vector3:
 	return Vector3(local.x + down.x * t, local.y, local.z + down.z * t)
 
 
+## World height where this zone's air stops.
+func top() -> float:
+	return global_position.y + (height if shape == Shape.CYLINDER else size.y)
+
+
 ## Strongest vertical air speed in this zone (always positive).
 func peak_speed(tuning: Tuning) -> float:
 	return (tuning.downdraft_strength if sinks else tuning.thermal_strength) * strength_scale

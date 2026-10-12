@@ -119,6 +119,7 @@ The vario currently goes silent both at the edge of a column and at its top. The
    - Topping out is silent: the beeps just slow and stop, and A3 thins the cloud.
    - A ridge pilot holding y 31 under the ridge's 33 top never sighs.
 4. No sigh in the last `lift_lost_cooldown` seconds.
+5. *(Added in the build; see build-notes.)* The air at the plane has dropped to `lift_lost_air_drop` (0.5) of the strongest felt during the climb, so a dive inside a thermal is silent.
 
 Sound and tuning:
 

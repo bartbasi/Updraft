@@ -214,6 +214,20 @@ extends Resource
 @export var vario_db_quiet := -14.0
 @export var vario_db_loud := -7.0
 
+@export_group("Lift feel")
+## "Lift lost": a soft sigh when the beeps stop because the plane flew out of the side of
+## rising air outdoors, so the player knows to turn back. It needs the beeps to have run for
+## `lift_lost_min_on` seconds (a quick pass doesn't sigh), the plane to be more than
+## `lift_lost_top_margin` below the top of that air (topping out is silent), the air at the
+## plane to have dropped to `lift_lost_air_drop` of the strongest felt during the climb (pulling
+## out into a dive in the middle of a thermal isn't lost lift), and `lift_lost_cooldown`
+## seconds since the last sigh.
+@export var lift_lost_min_on := 1.5
+@export var lift_lost_top_margin := 3.0
+@export_range(0.0, 1.0) var lift_lost_air_drop := 0.5
+@export var lift_lost_cooldown := 4.0
+@export var lift_lost_db := -15.0
+
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass
 ## starts smaller and grows bigger, so it bounces more.

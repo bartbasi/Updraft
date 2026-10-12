@@ -30,8 +30,11 @@ var _style_good: AudioStreamPlayer
 var _style_perfect: AudioStreamPlayer
 var _whoosh: AudioStreamPlayer
 var _vario_beep: AudioStreamPlayer
+var _sigh: AudioStreamPlayer
 var vario: Vario
 var vario_beeps := 0  ## Beeps this flight.
+var sighs := 0  ## "Lift lost" sighs this flight.
+var _last_sigh := -INF  ## Flight time of the last sigh.
 var _near_query := PhysicsShapeQueryParameters3D.new()  ## Reused each tick for close calls.
 var _close_call_wait := 0.0  ## Seconds until the next close call may sound.
 enum Pass { CLEAR, CLOSE, SPOILED }  ## Clear of everything; rushing close past something; touched it.
@@ -115,11 +118,24 @@ func _physics_process(delta: float) -> void:
 		if Course.is_outside(plane.global_position) and not plane.model.grounded:
 			scoring.add_airtime(delta)
 		_check_close_call(delta)
-		if vario.tick(delta, plane.air_here().y, plane.model.velocity.y, plane.model.stalled):
+		if vario.tick(delta, plane.air_here().y, plane.model.velocity.y, plane.model.stalled, plane.lift_zone(), plane.global_position.y):
 			_vario_beep.pitch_scale = vario.pitch()
 			_vario_beep.volume_db = vario.volume_db()
 			_vario_beep.play()
 			vario_beeps += 1
+		if vario.sigh:
+			_play_sigh()
+
+
+## Lift lost: a soft sigh in the voice of the air just left, quieter if soon after the last one.
+func _play_sigh() -> void:
+	var tune := plane.tuning
+	_sigh.pitch_scale = vario.zone.chime_pitch * 0.9
+	var again := plane.flight_time - _last_sigh < tune.chime_repeat_window
+	_sigh.volume_db = tune.lift_lost_db + (tune.chime_repeat_db if again else 0.0)
+	_sigh.play()
+	_last_sigh = plane.flight_time
+	sighs += 1
 
 
 ## Rushing past something without touching it: a soft whoosh and a swell of wind, once the
@@ -442,6 +458,7 @@ func _setup_audio() -> void:
 	_style_perfect = _player("res://audio/style_perfect.wav", tune.style_perfect_volume_db)
 	_whoosh = _player("res://audio/whoosh.wav", tune.whoosh_volume_db)
 	_vario_beep = _player("res://audio/vario.wav", tune.vario_db_quiet)
+	_sigh = _player("res://audio/sigh.wav", tune.lift_lost_db)
 	vario = Vario.new(tune)
 	_near_query.shape = SphereShape3D.new()
 	_near_query.collision_mask = PaperPlane.WORLD_LAYER

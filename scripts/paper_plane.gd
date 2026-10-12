@@ -70,6 +70,7 @@ var _string: ImmediateMesh
 var string_points := PackedVector3Array()
 var _string_prev := PackedVector3Array()
 var _air := Vector3.ZERO  ## The rising or sinking air at the plane this tick.
+var _lift_zone: Thermal  ## The zone giving the most lift this tick, or null.
 var _ground_y := -INF  ## The ground under the plane (the string never sinks below it).
 var _popped := false
 var _scraps: Array[MeshInstance3D] = []
@@ -184,15 +185,25 @@ func air_here() -> Vector3:
 	return _air
 
 
+## The zone giving the plane the most lift as of this physics tick, or null if none does.
+func lift_zone() -> Thermal:
+	return _lift_zone
+
+
 ## Sum of the rising and sinking air at the plane. Emits entered_thermal when the plane
 ## flies into a thermal or a downdraft.
 func _wind_here() -> Vector3:
 	var up := 0.0
+	var most := 0.0
+	_lift_zone = null
 	for node in get_tree().get_nodes_in_group("thermals"):
 		var zone := node as Thermal
 		var full := zone.peak_speed(tuning)
 		var air := zone.vertical_air_speed(global_position, tuning)
 		up += air
+		if air > most:
+			most = air
+			_lift_zone = zone
 		if absf(air) > 0.25 * full and not _inside.has(zone):
 			_inside[zone] = true
 			entered_thermal.emit(zone)

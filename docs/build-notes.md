@@ -136,3 +136,17 @@ for the phone test"). From the build:
   - the top of the hay field, the barn's top, along the ridge, and the kitchen looking out of the window;
   - first cut if slow: outdoor motes to clamp(r² × 0.8, 50, 80), then ridge seeds 160 -> 100.
 - **Landing bonuses:** the lavender (+200) and the picnic blanket on the plateau (+400, the hard one).
+
+# Phase 4: deeper flying and more world (docs/phase4-plan.md)
+
+## Deviations from the Phase 4 plan
+
+- **Lift-lost sigh (A2), a fifth rule:** the sigh also needs the air at the plane to have dropped
+  to `lift_lost_air_drop` (0.5) of the strongest air felt during that climb. Without it, pulling
+  into a dive in the middle of a thermal stops the beeps and would sigh, though no lift was lost.
+  The risk: on a weaker column, an exit where the beeps stop while the air is still over half its
+  peak stays silent. When drift (A1) lands, a test checks that a naive off-centre orbit in
+  BarnHeat still sighs at least once per drifted lap.
+- **Measured:** the four skilled routes sigh 0 times and land and score as before; 10 novice
+  flights sighed 5 times in all, each a side exit from the hay field at y 16-18 (the plan
+  expected 1-4 per novice; most novices pass through too briefly to have beeped 1.5 s).

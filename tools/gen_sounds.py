@@ -201,6 +201,21 @@ def vario():
     return out
 
 
+def sigh(rng):
+    """Lift lost: a soft falling tone with a breath of noise under it."""
+    n = int(0.38 * RATE)
+    noise = lowpass(highpass([rng.uniform(-1, 1) for _ in range(n)], 600), 2400)
+    out = []
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        freq = 470.0 * (300.0 / 470.0) ** (t / 0.38)  # an exponential glide down
+        phase += 2 * math.pi * freq / RATE
+        env = min(1.0, t / 0.04) * (1.0 - t / 0.38) ** 1.5
+        out.append(env * (math.sin(phase) + 0.5 * noise[i]))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -214,6 +229,7 @@ def main():
     write_wav("whoosh.wav", whoosh(rng), peak=0.6)
     write_wav("pop.wav", pop(rng), peak=0.8)
     write_wav("vario.wav", vario(), peak=0.6)
+    write_wav("sigh.wav", sigh(rng), peak=0.5)
 
 
 if __name__ == "__main__":
