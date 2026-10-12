@@ -673,7 +673,8 @@ func test_camera_looks_down_on_the_plane_in_rising_air() -> void:
 				var mat := ((child as CPUParticles3D).mesh as QuadMesh).material as StandardMaterial3D
 				check(mat.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA and mat.distance_fade_min_distance < mat.distance_fade_max_distance,
 					"%s: its motes fade out as they come close to the camera" % zone.name)
-	check(motes >= zones.size(), "every air zone has motes to check (%d for %d zones)" % [motes, zones.size()])
+	var with_motes := zones.filter(func(z: Node) -> bool: return (z as Thermal).look != Thermal.Look.LAKE)  # the lake's sink has none
+	check(motes >= with_motes.size(), "every air zone but the lake has motes to check (%d for %d zones)" % [motes, with_motes.size()])
 	await cleanup()
 
 

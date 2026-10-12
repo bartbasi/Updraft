@@ -47,7 +47,30 @@ const HAY_FIELD := {"name": "HayHeat", "at": Vector2(-2.0, -118.0), "radius": 12
 const BARN_ROOF := {"name": "BarnHeat", "at": Vector2(30.0, -165.0), "radius": 10.0, "top": 27.0, "strength": 0.8, "pitch": 0.95}
 const PLOUGHED_FIELD := {"name": "FieldHeat", "at": Vector2(-12.0, -215.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.0}
 const BONFIRE_SMOKE := {"name": "BonfireSmoke", "at": Vector2(30.0, -258.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.05}
-const OUTDOOR_THERMALS := [HAY_FIELD, BARN_ROOF, PLOUGHED_FIELD, BONFIRE_SMOKE]
+## Past the valley (Phase 4): warm air off the chalk pit at the foot of the Downs, the last step
+## up to the Gap, and off the sand at the north end of the beach in the bowl.
+const CHALK_HEAT := {"name": "ChalkHeat", "at": Vector2(-14.0, -290.0), "radius": 10.0, "top": 27.0, "strength": 0.8, "pitch": 1.08}
+const SAND_HEAT := {"name": "SandHeat", "at": Vector2(50.0, -392.0), "radius": 10.0, "top": 30.0, "strength": 0.85, "pitch": 1.12}
+## The valley's thermals as first laid out: trees are still placed around these (see tree_spots()).
+const VALLEY_THERMALS := [HAY_FIELD, BARN_ROOF, PLOUGHED_FIELD, BONFIRE_SMOKE]
+const OUTDOOR_THERMALS := [HAY_FIELD, BARN_ROOF, PLOUGHED_FIELD, BONFIRE_SMOKE, CHALK_HEAT, SAND_HEAT]
+## The chalk scar under ChalkHeat and the beach (x from/to, z near/far).
+const CHALK_X := Vector2(-24.0, -4.0)
+const CHALK_Z := Vector2(-282.0, -300.0)
+const BEACH_X := Vector2(40.0, 58.0)
+const BEACH_Z := Vector2(-380.0, -446.0)
+## Ridge lift up the west bluff in the bowl: a box standing on y 0, like RIDGE_LIFT.
+const BLUFF_LIFT := Vector3(-60.0, 0.0, -420.0)
+const BLUFF_LIFT_SIZE := Vector3(24.0, 34.0, 100.0)
+const BLUFF_LIFT_STRENGTH := 0.45
+## Weak sinking air over the lake (scales Tuning.downdraft_strength): a box standing on its
+## bottom centre.
+const LAKE_SINK := Vector3(0.0, -1.0, -420.0)
+const LAKE_SINK_SIZE := Vector3(72.0, 26.0, 54.0)
+const LAKE_SINK_STRENGTH := 0.115
+## Birds hanging on the breeze over the bluff (x, z), this far above its plateau.
+const BLUFF_BIRDS: Array[Vector2] = [Vector2(-60.0, -385.0), Vector2(-61.0, -399.0), Vector2(-59.0, -413.0),
+	Vector2(-60.0, -427.0), Vector2(-61.0, -441.0), Vector2(-59.0, -455.0)]
 ## The barn (centre x, z): solid walls and a pitched roof of dark slate that warms in the sun.
 const BARN := Vector2(35.0, -163.0)
 const BARN_SIZE := Vector3(10.0, 5.0, 7.0)  ## Width (x), wall height, depth (z).
@@ -119,8 +142,8 @@ const ISLAND_RADIUS := 8.0
 ## The west bluff: where its face starts and ends (x), and its height.
 const BLUFF_FACE_X := Vector2(-44.0, -84.0)
 const BLUFF_HEIGHT := 24.0
-## The chalk pit at the foot of the Downs, under the valley's last thermal (x, z).
-const CHALK_PIT := Vector2(-14.0, -290.0)
+## From the valley this close to the Downs (z), the Gap and the bowl beyond are in view.
+const GAP_VIEW_Z := -300.0
 ## The bowl's grass is a second grid on the same lattice as the valley's, out to here (z).
 const BOWL_END_Z := -528.0
 ## The hills are drawn, and collide, as a grid of triangles this size, starting here (x, z).
@@ -412,12 +435,22 @@ func _build() -> void:
 		var source := Vector3(BONFIRE.x, terrain_height(BONFIRE.x, BONFIRE.y) + 0.6, BONFIRE.y) - base if smoke else Vector3.ZERO
 		outdoor_zones.append(_add_thermal(t["name"], base, t["radius"], float(t["top"]) - ground, Thermal.Look.STEAM if smoke else Thermal.Look.WARM_AIR, t["pitch"], source, t["strength"], true))
 	_add_box_zone("RidgeLift", RIDGE_LIFT, RIDGE_LIFT_SIZE, Thermal.Look.RIDGE, RIDGE_LIFT_STRENGTH, 0.85, Vector3.DOWN, 0.0, true)
+	# The bluff's seeds rise above its face (the hillside is up to y 19 at the uphill side), fewer
+	# than the ridge's.
+	var bluff := _add_box_zone("BluffLift", BLUFF_LIFT, BLUFF_LIFT_SIZE, Thermal.Look.RIDGE, BLUFF_LIFT_STRENGTH, 0.8, Vector3.DOWN, 0.0, true, false)
+	bluff.seed_amount = 100
+	bluff.seed_centre_y = 24.0
+	bluff.seed_half_height = 5.0
+	add_child(bluff)
+	_add_box_zone("LakeSink", LAKE_SINK, LAKE_SINK_SIZE, Thermal.Look.LAKE, LAKE_SINK_STRENGTH, 1.0, Vector3.DOWN, 0.0, true)
 	var birds := Birds.new()
 	birds.name = "Birds"
 	var crest := ground_height(RIDGE_FACE_X.y, RIDGE_LIFT.z)
 	var hover: Array[Vector3] = []
 	for b in RIDGE_BIRDS:
 		hover.append(Vector3(b.x, crest + RIDGE_BIRDS_ABOVE_CREST, b.z))
+	for b in BLUFF_BIRDS:
+		hover.append(Vector3(b.x, BLUFF_HEIGHT + RIDGE_BIRDS_ABOVE_CREST, b.y))
 	birds.setup(OUTDOOR_THERMALS, hover, outdoor_zones)
 	add_child(birds)
 	# A cumulus over each thermal, its base just above the top of the rising air.
@@ -457,8 +490,9 @@ func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: floa
 	return t
 
 
-## Everything is set before add_child, because the zone builds its visuals in _ready.
-func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN, light_height := 0.0, outdoors := false) -> Thermal:
+## Everything is set before add_child, because the zone builds its visuals in _ready (pass
+## add false to set more first, then add it yourself).
+func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.Look, strength: float, pitch: float, sun := Vector3.DOWN, light_height := 0.0, outdoors := false, add := true) -> Thermal:
 	var zone := Thermal.new()
 	zone.outdoors = outdoors
 	zone.sun_direction = sun
@@ -470,7 +504,8 @@ func _add_box_zone(zone_name: String, at: Vector3, box: Vector3, look: Thermal.L
 	zone.strength_scale = strength
 	zone.chime_pitch = pitch
 	zone.position = at
-	add_child(zone)
+	if add:
+		add_child(zone)
 	return zone
 
 
@@ -819,6 +854,8 @@ func _build_outside() -> void:
 	var field: Vector2 = PLOUGHED_FIELD["at"]
 	_ground_patch(field.x - 11.0, field.x + 11.0, field.y + 11.0, field.y - 11.0, 1.0, [Color("a88b74"), Color("94785f")])
 	_build_bonfire()
+	# The chalk pit at the foot of the Downs: a white scar that bakes in the sun.
+	_ground_patch(CHALK_X.x, CHALK_X.y, CHALK_Z.x, CHALK_Z.y, 1.0, [Color("efe9df"), Color("e4ddd0")])
 	# The picnic blanket on the plateau, in red and white stripes.
 	_ground_patch(PICNIC_X.x, PICNIC_X.y, PICNIC_Z.x, PICNIC_Z.y, 1.5, [Color("f19e8f"), Color("fbf7f0")])
 
@@ -935,6 +972,18 @@ func _build_bowl() -> void:
 			builder.triangle(p00, p01, p10, _shore_or_grass(p00, p01, p10, rng), true)
 			builder.triangle(p10, p01, p11, _shore_or_grass(p10, p01, p11, rng), true)
 	_build_lake()
+	# The beach: pale sand at the lake's east side, warm enough at its north end to rise.
+	_ground_patch(BEACH_X.x, BEACH_X.y, BEACH_Z.x, BEACH_Z.y, 1.0, [Color("f1e3c4"), Color("ead8b0")])
+	# Wind-bent grass up the bluff face, like the ridge's.
+	var grng := RandomNumberGenerator.new()
+	grng.seed = 9
+	for i in 180:
+		var gx := grng.randf_range(-70.0, -46.0)
+		var gz := grng.randf_range(BLUFF_LIFT.z - BLUFF_LIFT_SIZE.z * 0.5, BLUFF_LIFT.z + BLUFF_LIFT_SIZE.z * 0.5)
+		var foot := Vector3(gx, terrain_height(gx, gz), gz)
+		var tip := foot + Vector3(-1.35, 1.65, grng.randf_range(-0.3, 0.3))
+		for s in [-1.0, 1.0]:
+			builder.triangle(foot + Vector3(0.0, 0.0, -0.25 * s), tip, foot + Vector3(0.0, 0.0, 0.25 * s), Color("d4e6b5"))
 
 
 ## Pale sand where the grass meets the water, so the shore follows the real waterline.
@@ -976,7 +1025,7 @@ func _grass(rng: RandomNumberGenerator) -> Color:
 static func gap_tree(spot: Vector3) -> bool:
 	if spot.z < GAP_CUT_Z.x and absf(spot.x - GAP_X) < GAP_HALF + 12.0:
 		return true
-	return Vector2(spot.x, spot.z).distance_to(CHALK_PIT) < 10.0 * 1.5 + 4.0
+	return Vector2(spot.x, spot.z).distance_to(CHALK_HEAT["at"]) < float(CHALK_HEAT["radius"]) * 1.5 + 4.0
 
 
 ## Where the trees stand (bases on the ground), the same every time.
@@ -1004,9 +1053,11 @@ static func tree_spots() -> Array[Vector3]:
 	return spots
 
 
-## Trees keep clear of every lift zone, the ridge face, the barn, the bonfire and the picnic.
+## Trees keep clear of every valley lift zone, the ridge face, the barn, the bonfire and the
+## picnic. (The valley's thermals as first laid out, so the trees stay where they were; the ones
+## by the chalk pit are dropped afterwards, see gap_tree().)
 static func tree_allowed(x: float, z: float) -> bool:
-	for t: Dictionary in OUTDOOR_THERMALS:
+	for t: Dictionary in VALLEY_THERMALS:
 		if Vector2(x, z).distance_to(t["at"]) < float(t["radius"]) + TREE_CLEARANCE:
 			return false
 	for spot in [BARN, BONFIRE]:

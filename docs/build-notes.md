@@ -175,3 +175,9 @@ for the phone test"). From the build:
     lowest crossing there is 31.7 at x -25, on the Gap's left shoulder (the crest at x -24 is
     30.2). From the ridge top (33) a pilot could skim over the shoulder instead of through the
     Gap. It lands in the same bowl, so it does no harm; raising the shoulder would stop it.
+- **Sink ticks (A2):** they reach their fastest and loudest at 0.4 u/s of sink
+  (`sink_tick_air_full`), the lake's strongest, not at the plan's 1.0, which nothing reaches.
+- **At the Gap** (camera between z -300 and the crest), only the valley's far end (the ploughed
+  field, the bonfire and the chalk pit) and the bowl's zones are drawn, to keep live motes down.
+- **Glide arrivals (B2):** each leg arrives at least as high as the plan's pure-glide figure,
+  and the chalk legs about 5 higher (they leave one column and end inside the next).

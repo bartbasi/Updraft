@@ -7,7 +7,7 @@ extends Node3D
 ## origin and turning with the node). A sunbeam's box leans along `sun_direction`, so the
 ## lift is exactly where the light is.
 
-enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT, RIDGE }
+enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT, RIDGE, LAKE }
 enum Shape { CYLINDER, BOX }
 ## Motes and puffs fade out when closer to the camera than WISP_FADE_FAR, and are gone by
 ## WISP_FADE_NEAR, so flying through warm air never hides the plane.
@@ -42,6 +42,11 @@ const SHAFT_SHADER := preload("res://shaders/light_shaft.gdshader")
 @export var outdoors := false
 ## Ridge only: which way the breeze carries the seeds up the slope (in local space).
 @export var breeze := Vector3(-0.5, 1.0, 0.0)
+## Ridge only: how many seeds, and the band they rise in (its middle and half its height, above
+## this node), which should sit above the hillside.
+@export var seed_amount := 160
+@export var seed_centre_y := 21.0
+@export var seed_half_height := 5.0
 
 ## The breeze outdoors blows toward -X: smoke drifts this way (units/s^2).
 const SMOKE_DRIFT := Vector3(-0.12, 0.0, 0.0)
@@ -66,7 +71,7 @@ var _wisps: CPUParticles3D
 
 var sinks: bool:
 	get:
-		return look == Look.DOWNDRAFT
+		return look == Look.DOWNDRAFT or look == Look.LAKE
 
 
 ## 0..1 strength at a point relative to a cylinder's base: full in the middle,
@@ -177,6 +182,8 @@ func _ready() -> void:
 			_build_column(Color(0.78, 0.88, 1.0, 0.35), -1.0)
 		Look.RIDGE:
 			pass  # no column: a wall of shimmer 140 units long would read as glass; seeds show it
+		Look.LAKE:
+			return  # weak sinking air over open water: the water is its look, and the ticks its sound
 	_build_wisps()
 
 
@@ -356,12 +363,12 @@ func _build_wisps() -> void:
 			fade.add_point(0.7, Color(0.82, 0.9, 1.0, 0.45))
 		Look.RIDGE:
 			# Dandelion seeds lifted up the slope by the breeze, all along the band.
-			p.amount = 160
+			p.amount = seed_amount
 			p.lifetime = 6.0
 			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-			# Above the hillside (up to y 16 at the uphill side), up to near the top of the lift.
-			p.emission_box_extents = Vector3(size.x * 0.4, 5.0, size.z * 0.45)
-			p.position = Vector3(0.0, 21.0, 0.0)
+			# Above the hillside, up to near the top of the lift.
+			p.emission_box_extents = Vector3(size.x * 0.4, seed_half_height, size.z * 0.45)
+			p.position = Vector3(0.0, seed_centre_y, 0.0)
 			p.direction = breeze.normalized()
 			p.spread = 12.0
 			p.initial_velocity_min = 2.0

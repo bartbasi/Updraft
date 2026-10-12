@@ -234,6 +234,17 @@ def gull():
     return out
 
 
+def sink_tick():
+    """A low, soft tick for sinking air."""
+    n = int(0.06 * RATE)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        env = min(1.0, t / 0.003) * math.exp(-t / 0.045)
+        out.append(env * (math.sin(2 * math.pi * 210 * t) + 0.3 * math.sin(2 * math.pi * 420 * t)))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -249,6 +260,7 @@ def main():
     write_wav("vario.wav", vario(), peak=0.6)
     write_wav("sigh.wav", sigh(rng), peak=0.5)
     write_wav("gull.wav", gull(), peak=0.55)
+    write_wav("sink_tick.wav", sink_tick(), peak=0.6)
 
 
 if __name__ == "__main__":

@@ -492,20 +492,30 @@ func test_low_planes_catch_the_kettle_steam_and_make_the_window() -> void:
 
 
 ## Air zones out of sight are not drawn and their motes stop: indoor ones once the camera is
-## outside, outdoor ones until it reaches the kitchen (they show through the window from there).
+## outside, outdoor ones until it reaches the kitchen (they show through the window from there);
+## the bowl's only once the camera nears the Gap, and the valley's not from inside the bowl. The
+## chalk pit's shows from both.
 func test_only_air_zones_in_sight_are_drawn() -> void:
 	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
 	var plane := game.get_node("Plane") as PaperPlane
 	var camera := game.get_node("Camera") as FollowCamera
 	await physics_frames(3)
-	for where in [["bedroom", Course.START, false, true], ["kitchen", Vector3(0.0, 7.0, -70.0), true, true], ["outside", Vector3(0.0, 15.0, -130.0), true, false]]:
+	# [where, plane at, valley zones shown, indoor zones shown, bowl zones shown]
+	for where in [["bedroom", Course.START, false, true, false], ["kitchen", Vector3(0.0, 7.0, -70.0), true, true, false],
+			["outside", Vector3(0.0, 15.0, -130.0), true, false, false], ["at the Gap", Vector3(6.0, 22.0, -318.0), false, false, true],
+			["in the bowl", Vector3(6.0, 20.0, -380.0), false, false, true]]:
 		plane.launch(where[1], 0.0)
 		camera.snap()
 		await physics_frames(3)
 		for zone in tree.get_nodes_in_group("thermals"):
 			var t := zone as Thermal
-			var want: bool = where[2] if t.outdoors else where[3]
-			check(t.visible == want and t._wisps.emitting == want, "%s: %s is %s" % [where[0], t.name, "shown" if want else "hidden"])
+			var want: bool = where[3]
+			if t.outdoors:
+				var in_bowl := t.global_position.z < Course.CREST_Z
+				want = (where[2] or where[4]) if t.name == "ChalkHeat" else (where[4] if in_bowl else where[2])
+				if where[0] == "at the Gap" and not in_bowl:
+					want = t.global_position.z < -200.0 or t.name == "ChalkHeat"  # only the valley's far end
+			check(t.visible == want and (t._wisps == null or t._wisps.emitting == want), "%s: %s is %s" % [where[0], t.name, "shown" if want else "hidden"])
 
 
 ## Signs of rising air outdoors: three birds circle just under the top of each thermal (inside
@@ -514,7 +524,7 @@ func test_birds_mark_the_lift_and_cues_are_not_solid() -> void:
 	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
 	await physics_frames(2)
 	var birds := (game.get_node("Course") as Course).get_node("Birds") as Birds
-	check(birds.multimesh.instance_count == Course.OUTDOOR_THERMALS.size() * 3 + Course.RIDGE_BIRDS.size(), "3 birds per thermal and the ridge's birds")
+	check(birds.multimesh.instance_count == Course.OUTDOOR_THERMALS.size() * 3 + Course.RIDGE_BIRDS.size() + Course.BLUFF_BIRDS.size(), "3 birds per thermal and the ridge's and bluff's birds")
 	for i in Course.OUTDOOR_THERMALS.size() * 3:
 		var t: Dictionary = Course.OUTDOOR_THERMALS[i / 3]
 		for time in [0.0, 3.3, 11.0]:
@@ -536,9 +546,14 @@ func test_birds_mark_the_lift_and_cues_are_not_solid() -> void:
 	down.collision_mask = PaperPlane.WORLD_LAYER
 	check(not space.intersect_ray(down).is_empty(), "(and the same rays do meet the merged grass mesh)")
 	var ridge_x := Vector2(Course.RIDGE_LIFT.x - Course.RIDGE_LIFT_SIZE.x * 0.5, Course.RIDGE_LIFT.x + Course.RIDGE_LIFT_SIZE.x * 0.5)
-	for i in range(Course.OUTDOOR_THERMALS.size() * 3, birds.multimesh.instance_count):
+	var first := Course.OUTDOOR_THERMALS.size() * 3
+	for i in range(first, first + Course.RIDGE_BIRDS.size()):
 		var at := birds.bird_transform(i, 1.0).origin
 		check(at.x > ridge_x.x and at.x < ridge_x.y, "ridge bird %d hangs over the ridge's rising air (x %.0f)" % [i, at.x])
+	var bluff := (game.get_node("Course") as Course).get_node("BluffLift") as Thermal
+	for i in range(first + Course.RIDGE_BIRDS.size(), birds.multimesh.instance_count):
+		var at := birds.bird_transform(i, 1.0).origin
+		check(bluff.contains(at) and bluff.vertical_air_speed(at, (game.get_node("Plane") as PaperPlane).tuning) > 0.5, "bluff bird %d hangs in the bluff's rising air (%s)" % [i, at])
 
 
 ## Test pilots fly each outdoor route from the living room (docs/outside-plan.md, section 7):
@@ -746,9 +761,10 @@ func test_the_chain_route_thins_each_cloud_it_tops() -> void:
 	for k in clouds.thinning.size():
 		if clouds.thinning[k] >= 0.0:
 			thinned.append(Course.OUTDOOR_THERMALS[k]["name"])
+	var valley_names := Course.VALLEY_THERMALS.map(func(t: Dictionary) -> String: return t["name"])
 	print("        chain route thinned: %s" % [thinned])
 	check(plane.is_ended(), "the flight finished")
-	check(thinned.size() == Course.OUTDOOR_THERMALS.size(), "every cloud the chain climbs thins (%s)" % [thinned])
+	check(thinned == valley_names, "every cloud the chain climbs thins, and only those (%s)" % [thinned])
 
 
 ## The ridge route: a gull joins about 1.5 s after the pilot starts along the ridge lift, soars
@@ -935,3 +951,86 @@ func test_a_hands_off_glide_through_the_gap_lands_by_the_far_rim() -> void:
 		frames += 1
 	check(plane.is_ended() and not plane.model.grounded, "past the far edge, the run ends in the air")
 	check_between(plane.global_position.z, -527.0, -524.0, "where it ends (z)")
+
+
+## Glides hands-off from `from` straight toward `to` (plan view): the height on arriving over it,
+## or NAN if the run ended first.
+func _glide_arrival(plane: PaperPlane, from: Vector3, to: Vector2) -> float:
+	var dir := (to - Vector2(from.x, from.z)).normalized()
+	plane.launch(from, atan2(-dir.x, -dir.y))
+	var frames := 0
+	while frames < 60 * 40 and not plane.is_ended():
+		await tree.physics_frame
+		frames += 1
+		var p := plane.global_position
+		if (to - Vector2(p.x, p.z)).dot(dir) <= 0.0:
+			return p.y
+	return NAN
+
+
+## The gate to the Gap and what lies beyond, glided straight (plan B2): the chalk pit's warm air
+## is reachable from the barn's top and the ploughed field's, the Gap clears from the chalk's top,
+## and everything in the bowl is reachable from a normal Gap crossing. (The plan's heights are a
+## pure glide; the real flight leaves one column and ends in the next, so it arrives higher.)
+func test_the_chalk_pit_and_the_gap_are_within_a_glide() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	var plane := game.get_node("Plane") as PaperPlane
+	await physics_frames(2)
+	var chalk: Vector2 = Course.CHALK_HEAT["at"]
+	var saddle := Vector2(Course.GAP_X, Course.SADDLE.x)
+	var legs := [
+		["barn top -> chalk", Course.BARN_ROOF, 0.0, chalk, 13.3],
+		["ploughed field top -> chalk", Course.PLOUGHED_FIELD, 0.0, chalk, 21.3],
+		["chalk top -> the saddle", Course.CHALK_HEAT, 0.0, saddle, 22.0],
+	]
+	for leg in legs:
+		var t: Dictionary = leg[1]
+		var at: Vector2 = t["at"]
+		var y := await _glide_arrival(plane, Vector3(at.x, float(t["top"]), at.y), leg[3])
+		var ground := Course.ground_height((leg[3] as Vector2).x, (leg[3] as Vector2).y)
+		print("        %s: arrives at y %.1f (%.1f above the ground)" % [leg[0], y, y - ground])
+		check(y >= float(leg[4]) - 1.5, "%s: arrives at y %.1f, at least the planned %.1f" % [leg[0], y, leg[4]])
+	var from_saddle := Vector3(Course.GAP_X, 22.5, Course.SADDLE.x)
+	for target in [["the island", Course.ISLAND, 11.2], ["the beach", Vector2(50.0, -425.0), 11.9]]:
+		var y := await _glide_arrival(plane, from_saddle, target[1])
+		print("        saddle -> %s: arrives at y %.1f" % [target[0], y])
+		check(y >= float(target[2]) - 1.5, "saddle -> %s: arrives at y %.1f, at least the planned %.1f" % [target[0], y, target[2]])
+
+
+## Flying along the bluff face in its lift climbs well, without touching the hillside.
+func test_the_bluff_lifts_a_pilot_flying_along_it() -> void:
+	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+	var plane := game.get_node("Plane") as PaperPlane
+	var pilot := Autopilot.new(PackedVector3Array([Vector3(-58.0, 32.0, -380.0), Vector3(-58.0, 32.0, -470.0)]))
+	plane.autopilot = pilot.fly
+	await physics_frames(2)
+	plane.launch(Vector3(-50.0, 13.0, -380.0), 0.0)
+	var touches := plane.touches
+	var top := -INF
+	while not plane.is_ended() and plane.global_position.z > -460.0:
+		await tree.physics_frame
+		top = maxf(top, plane.global_position.y)
+	print("        bluff: y %.1f by z -460" % top)
+	check(top >= 28.0, "climbs to y 28 or more along the bluff (%.1f)" % top)
+	check(plane.touches == touches, "without touching the face")
+
+
+## Low ticks over the lake, and nowhere else: not in the stair downdraft, not over the grass.
+func test_sink_ticks_only_over_the_lake() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	var plane := game.get_node("Plane") as PaperPlane
+	await physics_frames(2)
+	plane.launch(Vector3(0.0, 10.0, -398.0), 0.0)
+	var beeped := false
+	for f in 60 * 4:
+		await tree.physics_frame
+		beeped = beeped or game.vario.on
+	check(game.sink_ticks >= 4, "ticks over the lake at y 10 (%d)" % game.sink_ticks)
+	check(not beeped, "and the vario stays quiet over the water")
+	var over_lake: int = game.sink_ticks
+	plane.launch(Vector3(40.0, 15.0, -130.0), 0.0)  # open grass, in no air
+	await physics_frames(60 * 4)
+	check(game.sink_ticks == over_lake, "none over the grass")
+	plane.launch(Course.DOWNDRAFT_ORIGIN + Vector3(0.0, Course.DOWNDRAFT_SIZE.y * 0.6, 3.0), PI * 0.5)
+	await physics_frames(60 * 2)
+	check(game.sink_ticks == over_lake, "none in the stair downdraft")

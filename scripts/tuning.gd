@@ -256,6 +256,15 @@ extends Resource
 @export var gull_follow := 3.0
 @export var gull_min_ground := 2.5
 @export var gull_call_db := -12.0
+## Low ticks while flying in sinking air outdoors (over the lake) at `sink_tick_air` or below
+## (units/s), coming faster and louder down to `sink_tick_air_full` (the lake's strongest sink).
+## Never indoors: the stair downdraft is a thrill with its own whoosh.
+@export var sink_tick_air := -0.3
+@export var sink_tick_air_full := -0.4
+@export var sink_tick_interval_slow := 0.8
+@export var sink_tick_interval_fast := 0.5
+@export var sink_tick_db_quiet := -21.0
+@export var sink_tick_db_loud := -16.0
 
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass

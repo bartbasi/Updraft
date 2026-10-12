@@ -31,6 +31,9 @@ var _style_perfect: AudioStreamPlayer
 var _whoosh: AudioStreamPlayer
 var _vario_beep: AudioStreamPlayer
 var _sigh: AudioStreamPlayer
+var _sink_tick: AudioStreamPlayer
+var sink_ticks := 0  ## Sink ticks this flight.
+var _sink_wait := 0.0
 var vario: Vario
 var vario_beeps := 0  ## Beeps this flight.
 var sighs := 0  ## "Lift lost" sighs this flight.
@@ -143,6 +146,24 @@ func _physics_process(delta: float) -> void:
 			vario_beeps += 1
 		if vario.sigh:
 			_play_sigh()
+		_tick_in_sink(delta)
+
+
+## Low ticks while sinking in the air over the lake (outdoors only), faster and louder the
+## stronger the sink.
+func _tick_in_sink(delta: float) -> void:
+	var tune := plane.tuning
+	var air := plane.air_here().y
+	_sink_wait -= delta  # keeps counting down out of the sink too, so re-entering can't tick at once
+	if air > tune.sink_tick_air or plane.model.grounded or not Course.is_outside(plane.global_position):
+		return
+	if _sink_wait > 0.0:
+		return
+	var k := clampf((tune.sink_tick_air - air) / maxf(tune.sink_tick_air - tune.sink_tick_air_full, 0.01), 0.0, 1.0)
+	_sink_wait = lerpf(tune.sink_tick_interval_slow, tune.sink_tick_interval_fast, k)
+	_sink_tick.volume_db = lerpf(tune.sink_tick_db_quiet, tune.sink_tick_db_loud, k)
+	_sink_tick.play()
+	sink_ticks += 1
 
 
 ## Lift lost: a soft sigh in the voice of the air just left, quieter if soon after the last one.
@@ -201,18 +222,42 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Which air zones are drawn: indoor ones while the camera is in the house, outdoor ones from
 ## the kitchen on (they show through the window). Out of sight, they cost nothing to draw.
-var _zones_seen := -1  ## 0 = upstairs and living room, 1 = kitchen, 2 = outside.
+var _zones_seen := -1  ## See _show_zones_near_camera(): 0 indoors .. 4 in the bowl.
+
+
+## The chalk pit's warm air shows from the valley and the bowl alike.
+const CHALK_ZONE := &"ChalkHeat"
+## At the Gap, the valley's zones nearer the house than this (z) are left undrawn: they are far
+## behind, and their motes would only add to the bowl's.
+const GAP_VALLEY_Z := -200.0
 
 
 func _show_zones_near_camera() -> void:
 	var p := camera.global_position
-	var seen := 2 if Course.is_outside(p) else (1 if p.z < Course.DIVIDER_Z else 0)
+	var seen := 0
+	if p.z < Course.CREST_Z:
+		seen = 4  # in the bowl
+	elif p.z < Course.GAP_VIEW_Z:
+		seen = 3  # at the Gap, looking through
+	elif Course.is_outside(p):
+		seen = 2
+	elif p.z < Course.DIVIDER_Z:
+		seen = 1  # the kitchen, looking out of the window
 	if seen == _zones_seen:
 		return
 	_zones_seen = seen
 	for node in get_tree().get_nodes_in_group("thermals"):
 		var zone := node as Thermal
-		zone.set_shown(seen >= 1 if zone.outdoors else seen <= 1)
+		if not zone.outdoors:
+			zone.set_shown(seen <= 1)
+		elif zone.name == CHALK_ZONE:
+			zone.set_shown(seen >= 1)
+		elif zone.global_position.z < Course.CREST_Z:
+			zone.set_shown(seen >= 3)  # the bowl's zones
+		elif seen == 3:
+			zone.set_shown(zone.global_position.z < GAP_VALLEY_Z)  # at the Gap: only the valley's far end
+		else:
+			zone.set_shown(seen >= 1 and seen <= 2)  # the valley's
 
 
 func _process(delta: float) -> void:
@@ -282,6 +327,8 @@ func _on_bumped(strength: float) -> void:
 
 
 func _on_entered_thermal(zone: Thermal) -> void:
+	if zone.look == Thermal.Look.LAKE:
+		return  # flying out over the water is silent; the sink ticks tell you
 	var tune := plane.tuning
 	var player := _downdraft if zone.sinks else _chime
 	player.pitch_scale = zone.chime_pitch
@@ -477,6 +524,7 @@ func _setup_audio() -> void:
 	_whoosh = _player("res://audio/whoosh.wav", tune.whoosh_volume_db)
 	_vario_beep = _player("res://audio/vario.wav", tune.vario_db_quiet)
 	_sigh = _player("res://audio/sigh.wav", tune.lift_lost_db)
+	_sink_tick = _player("res://audio/sink_tick.wav", tune.sink_tick_db_quiet)
 	vario = Vario.new(tune)
 	_near_query.shape = SphereShape3D.new()
 	_near_query.collision_mask = PaperPlane.WORLD_LAYER

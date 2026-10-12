@@ -104,6 +104,10 @@ func _fly(run_seed: int) -> Dictionary:
 				note.call("gull joins  (%.1f away)" % game.gull.global_position.distance_to(p))
 			elif game.gull.state == Gull.State.LEAVING:
 				note.call("gull leaves")
+		var ticking: bool = game._sink_wait > 0.0
+		if ticking != bool(state.get("ticking", false)):
+			state["ticking"] = ticking
+			note.call("sink ticks %s  (y %.1f)" % ["on" if ticking else "off", p.y])
 		if game.sighs > int(state.get("sighs", 0)):
 			state["sighs"] = game.sighs
 			note.call("lift lost (sigh) in %s at y %.1f" % [game.vario.zone.name, p.y])
