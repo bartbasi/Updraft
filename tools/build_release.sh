@@ -16,7 +16,7 @@ if [ ! -f "$KEYS/updraft-release.keystore" ] || [ ! -f "$PASSWORD_FILE" ]; then
 fi
 export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$KEYS/updraft-release.keystore"
 export GODOT_ANDROID_KEYSTORE_RELEASE_USER=updraft
-GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$(sed -n 's/^password: //p' "$PASSWORD_FILE" | tr -d '')"
+GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$(sed -n 's/^password: //p' "$PASSWORD_FILE" | tr -d '\r')"
 if [ -z "$GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD" ]; then
 	echo "No 'password: ' line in $PASSWORD_FILE." >&2
 	exit 1
