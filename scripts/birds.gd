@@ -19,19 +19,25 @@ const BOB := 0.3
 const BOB_PERIOD := 3.0
 
 ## One entry per bird: {"centre": Vector3, "radius": float, "phase": float} circles;
-## a radius of 0 hovers in place, facing into the breeze (+X).
+## a radius of 0 hovers in place, facing into the breeze (+X). A circling bird also has
+## "zone", the thermal it follows as the air drifts.
 var flock: Array[Dictionary] = []
 var _time := 0.0
 
 
 ## Three birds circling over each thermal and three hovering over the ridge.
-func setup(thermals: Array, hover_spots: Array[Vector3]) -> void:
+## `zones` are the thermals' nodes, in the same order as `thermals` (or empty: no drift).
+func setup(thermals: Array, hover_spots: Array[Vector3], zones: Array[Thermal] = []) -> void:
 	flock.clear()
-	for t: Dictionary in thermals:
+	for k in thermals.size():
+		var t: Dictionary = thermals[k]
 		var at: Vector2 = t["at"]
 		for i in 3:
 			var y := float(t["top"]) - BELOW_TOP + (i - 1) * 1.5
-			flock.append({"centre": Vector3(at.x, y, at.y), "radius": float(t["radius"]) * CIRCLE_FRACTION, "phase": TAU * i / 3.0})
+			var bird := {"centre": Vector3(at.x, y, at.y), "radius": float(t["radius"]) * CIRCLE_FRACTION, "phase": TAU * i / 3.0}
+			if k < zones.size():
+				bird["zone"] = zones[k]
+			flock.append(bird)
 	for i in hover_spots.size():
 		flock.append({"centre": hover_spots[i], "radius": 0.0, "phase": i * 1.3})
 	var mm := MultiMesh.new()
@@ -60,6 +66,9 @@ func bird_transform(i: int, t: float) -> Transform3D:
 	if radius <= 0.0:
 		var bob := sin(TAU * t / BOB_PERIOD + phase) * BOB
 		return Transform3D(Basis.looking_at(Vector3.RIGHT).scaled(Vector3.ONE * HOVER_SCALE), centre + Vector3(0.0, bob, 0.0))  # nose into the breeze
+	var zone: Thermal = b.get("zone")
+	if is_instance_valid(zone):
+		centre += zone.drift_offset
 	var a := phase + t * CIRCLE_SPEED
 	var at := centre + Vector3(cos(a), 0.0, sin(a)) * radius
 	# Flying round the circle, nose along it, banked into the turn.

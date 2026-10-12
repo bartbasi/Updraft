@@ -320,13 +320,14 @@ func _build() -> void:
 	_add_box_zone("StairDowndraft", DOWNDRAFT_ORIGIN, DOWNDRAFT_SIZE, Thermal.Look.DOWNDRAFT, DOWNDRAFT_STRENGTH, 1.0)
 	_add_thermal("RadiatorHeat", RADIATOR_THERMAL, 3.6, 7.6, Thermal.Look.WARM_AIR, 1.0, Vector3.ZERO)
 	_add_thermal("KettleSteam", KETTLE_THERMAL, 3.4, KETTLE_STEAM_HEIGHT, Thermal.Look.STEAM, 1.26, KETTLE_SPOUT_TIP - KETTLE_THERMAL)
+	var outdoor_zones: Array[Thermal] = []
 	for t: Dictionary in OUTDOOR_THERMALS:
 		var at: Vector2 = t["at"]
 		var ground := ground_height(at.x, at.y)
 		var base := Vector3(at.x, ground, at.y)
 		var smoke: bool = t["name"] == BONFIRE_SMOKE["name"]
 		var source := Vector3(BONFIRE.x, terrain_height(BONFIRE.x, BONFIRE.y) + 0.6, BONFIRE.y) - base if smoke else Vector3.ZERO
-		_add_thermal(t["name"], base, t["radius"], float(t["top"]) - ground, Thermal.Look.STEAM if smoke else Thermal.Look.WARM_AIR, t["pitch"], source, t["strength"], true)
+		outdoor_zones.append(_add_thermal(t["name"], base, t["radius"], float(t["top"]) - ground, Thermal.Look.STEAM if smoke else Thermal.Look.WARM_AIR, t["pitch"], source, t["strength"], true))
 	_add_box_zone("RidgeLift", RIDGE_LIFT, RIDGE_LIFT_SIZE, Thermal.Look.RIDGE, RIDGE_LIFT_STRENGTH, 0.85, Vector3.DOWN, 0.0, true)
 	var birds := Birds.new()
 	birds.name = "Birds"
@@ -334,8 +335,13 @@ func _build() -> void:
 	var hover: Array[Vector3] = []
 	for b in RIDGE_BIRDS:
 		hover.append(Vector3(b.x, crest + RIDGE_BIRDS_ABOVE_CREST, b.z))
-	birds.setup(OUTDOOR_THERMALS, hover)
+	birds.setup(OUTDOOR_THERMALS, hover, outdoor_zones)
 	add_child(birds)
+	# A cumulus over each thermal, its base just above the top of the rising air.
+	var clouds := Clouds.new()
+	clouds.name = "Clouds"
+	clouds.setup(OUTDOOR_THERMALS, outdoor_zones, CLOUD_ABOVE_TOP)
+	add_child(clouds)
 
 
 func _add_mesh(mesh_name: String) -> void:
@@ -353,7 +359,7 @@ func _add_mesh(mesh_name: String) -> void:
 		_body.add_child(cs)
 
 
-func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: float, look: Thermal.Look, pitch: float, source: Vector3, strength := 1.0, outdoors := false) -> void:
+func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: float, look: Thermal.Look, pitch: float, source: Vector3, strength := 1.0, outdoors := false) -> Thermal:
 	var t := Thermal.new()
 	t.strength_scale = strength
 	t.outdoors = outdoors
@@ -365,6 +371,7 @@ func _add_thermal(thermal_name: String, at: Vector3, radius: float, height: floa
 	t.source_offset = source
 	t.position = at
 	add_child(t)
+	return t
 
 
 ## Everything is set before add_child, because the zone builds its visuals in _ready.
@@ -756,17 +763,6 @@ func _build_outside() -> void:
 	for spot in tree_spots():
 		_tree(spot, trng)
 
-	# A cumulus over each thermal, its base just above the top of the rising air.
-	var crng := RandomNumberGenerator.new()
-	crng.seed = 3
-	for t: Dictionary in OUTDOOR_THERMALS:
-		var at: Vector2 = t["at"]
-		var r := float(t["radius"])
-		var base_y := float(t["top"]) + CLOUD_ABOVE_TOP
-		for i in 4:
-			var size := r * crng.randf_range(0.6, 0.8)
-			var off := Vector3(crng.randf_range(-0.5, 0.5) * r, 0.0, crng.randf_range(-0.5, 0.5) * r)
-			builder.sphere(Vector3(at.x, base_y + size * 0.55, at.y) + off, size, Color("fdfbf8"), Vector3(1.4, 0.55, 1.0), 10, 5)
 	_build_windsock()
 	_build_kite()
 	# Wind-bent grass up the ridge face: pale tufts leaning with the breeze, all along the lift.

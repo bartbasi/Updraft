@@ -54,6 +54,10 @@ const SMOKE_FADE_FAR := 10.0
 const VISIBLE_RANGE := 150.0
 const VISIBLE_FADE := 20.0
 
+## How far this air has drifted with the breeze from where it started (world units). Its cloud
+## and circling birds follow it.
+var drift_offset := Vector3.ZERO
+
 var _wisps: CPUParticles3D
 
 var sinks: bool:

@@ -579,3 +579,39 @@ func test_outdoor_routes_fly_the_chain_the_ridge_and_the_picnic() -> void:
 			"picnic":
 				check(game.scoring.landing.get("id", "") == "picnic", "picnic: lands on the blanket")
 		await cleanup()
+
+
+## A cumulus of four puffs over each thermal, in one draw call; when a thermal's air drifts,
+## its cloud and its circling birds move with it by the same amount, and nothing else moves.
+func test_clouds_and_birds_follow_their_thermal() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	await physics_frames(2)
+	var course := game.get_node("Course") as Course
+	var clouds := course.get_node("Clouds") as Clouds
+	var birds := course.get_node("Birds") as Birds
+	check(clouds.multimesh.instance_count == Course.OUTDOOR_THERMALS.size() * Clouds.PUFFS, "four puffs per thermal")
+	for i in clouds.puffs.size():
+		var t: Dictionary = Course.OUTDOOR_THERMALS[i / Clouds.PUFFS]
+		var at := clouds.puff_transform(i).origin
+		check((t["at"] as Vector2).distance_to(Vector2(at.x, at.z)) < float(t["radius"]) * 0.75, "puff %d over %s" % [i, t["name"]])
+		check(at.y > float(t["top"]) + Course.CLOUD_ABOVE_TOP, "puff %d above the top of %s" % [i, t["name"]])
+	var barn := course.get_node(String(Course.BARN_ROOF["name"])) as Thermal
+	var k := Course.OUTDOOR_THERMALS.find(Course.BARN_ROOF)
+	var puffs_before := []
+	for i in clouds.puffs.size():
+		puffs_before.append(clouds.puff_transform(i).origin)
+	var birds_before := []
+	for i in birds.flock.size():
+		birds_before.append(birds.bird_transform(i, 2.0).origin)
+	var shift := Vector3(-3.0, 0.0, 0.0)
+	barn.drift_offset = shift
+	for f in 2:  # process_frame fires before the nodes' _process
+		await tree.process_frame
+	for i in clouds.puffs.size():
+		var want: Vector3 = puffs_before[i] + (shift if i / Clouds.PUFFS == k else Vector3.ZERO)
+		check(clouds.puff_transform(i).origin.is_equal_approx(want), "puff %d %s" % [i, "moves with the barn's air" if i / Clouds.PUFFS == k else "stays put"])
+	# (The headless test renderer keeps no MultiMesh data, so check the redraw by what it drew from.)
+	check(clouds._offsets[k] == shift, "the clouds redrew with the barn's drift")
+	for i in birds.flock.size():
+		var want: Vector3 = birds_before[i] + (shift if i / 3 == k else Vector3.ZERO)
+		check(birds.bird_transform(i, 2.0).origin.is_equal_approx(want), "bird %d %s" % [i, "moves with the barn's air" if i / 3 == k else "stays put"])
