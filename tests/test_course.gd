@@ -373,6 +373,8 @@ func test_ridge_lifts_a_plane_flying_along_it() -> void:
 	check(ridge_entered[0], "the plane flies into the ridge's rising air")
 	check(float(y_at.get("-220", 0.0)) >= 29.0, "it climbs to y 29 or more by z -220 (%.1f)" % float(y_at.get("-220", 0.0)))
 	check(plane.touches == touches and not plane.is_ended(), "without touching the hillside")
+	var ridge_run: Array = (game.scoring.moments as Array).filter(func(m: Scoring.Moment) -> bool: return m.id == &"ridge_run")
+	check(ridge_run.size() == 1 and (ridge_run[0] as Scoring.Moment).award > 0, "and earns the Ridge run style points")
 	var space := (game as Node3D).get_world_3d().direct_space_state
 	var barn_ground := Course.terrain_height(Course.BARN.x, Course.BARN.y)
 	var ray := PhysicsRayQueryParameters3D.create(Vector3(Course.BARN.x, barn_ground + 2.5, Course.BARN.y + 12.0), Vector3(Course.BARN.x, barn_ground + 2.5, Course.BARN.y))

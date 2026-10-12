@@ -7,8 +7,9 @@ extends RefCounted
 ## moments: each has an optimal path and a corridor around it. A moment is graded on the
 ## plane's average distance from the path, measured along the whole path: any stretch the
 ## plane skipped counts as far off. Close to the path earns more, the award falls smoothly
-## to zero at the corridor edge, and each moment pays at most once per run. Point values,
-## corridor sizes and the grading curve are in Tuning.
+## to zero at the corridor edge, and each moment pays at most once per run. Outdoors, time in
+## the air pays too (up to a cap), and coming to rest on a landing spot pays a bonus. Point
+## values, corridor sizes and the grading curve are in Tuning.
 
 signal style_awarded(moment_id: StringName, title: String, points: int, quality: float)
 
@@ -31,6 +32,11 @@ class Moment:
 var tuning: Tuning
 var moments: Array[Moment] = []
 var style_points := 0
+## Seconds in the air outdoors (counted up to Tuning.airtime_max_seconds).
+var airtime := 0.0
+## The landing spot the run ended on ({} if none) and its bonus.
+var landing := {}
+var landing_points := 0
 var _spine := PackedVector3Array()
 var _spine_lengths := PackedFloat32Array()
 var _spine_segment := 0
@@ -71,8 +77,34 @@ func distance_points() -> int:
 	return roundi(distance_meters() * tuning.points_per_meter)
 
 
+## Whole seconds in the air outdoors, as paid and shown.
+func airtime_seconds() -> int:
+	return floori(minf(airtime, tuning.airtime_max_seconds) + 0.0001)
+
+
+func airtime_points() -> int:
+	return roundi(airtime_seconds() * tuning.airtime_points_per_second)
+
+
 func total() -> int:
-	return distance_points() + style_points
+	return distance_points() + style_points + airtime_points() + landing_points
+
+
+## Counts `delta` seconds in the air outdoors.
+func add_airtime(delta: float) -> void:
+	airtime = minf(airtime + delta, tuning.airtime_max_seconds)
+
+
+## The run came to rest at `pos` (not a crash): a landing bonus if it is on a landing spot.
+## Pays at most once.
+func land(pos: Vector3, spots: Array) -> void:
+	if not landing.is_empty():
+		return
+	for spot: Dictionary in spots:
+		if (spot["area"] as Rect2).has_point(Vector2(pos.x, pos.z)):
+			landing = spot
+			landing_points = int(tuning.landing_bonus.get(spot["id"], 0))
+			return
 
 
 ## 1 on the optimal path, falling smoothly to 0 at the corridor edge. `offset` is the

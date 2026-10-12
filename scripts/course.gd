@@ -209,6 +209,18 @@ static func style_moment_defs() -> Array:
 			Vector3(0.5, 5.2, -58), Vector3(2.5, 5.5, -65), Vector3(3, 7.0, -69), Vector3(3, 9.0, -72), Vector3(2, 10.0, -76)])},
 		{"id": &"window", "title": "Out the window", "path": PackedVector3Array([
 			Vector3(1, 9.0, -79), Vector3(0.3, 8.0, -84), Vector3(0, 7.5, -88.5), Vector3(0, 7.2, -93)])},
+		{"id": &"ridge_run", "title": "Ridge run", "path": PackedVector3Array([
+			Vector3(-33, 20.0, -160), Vector3(-37, 26.0, -188), Vector3(-37, 30.5, -212)])},  # ends where the routes turn off
+	]
+
+
+## Where a run can end with a landing bonus (points in Tuning.landing_bonus): the area seen
+## from above (x, z) where the plane may come to rest, which includes room for its slide.
+static func landing_spots() -> Array:
+	var slide := 2.0
+	return [
+		{"id": "lavender", "title": "Lavender landing!", "area": Rect2(LAVENDER_X.x, LAVENDER_Z.y, LAVENDER_X.y - LAVENDER_X.x, LAVENDER_Z.x - LAVENDER_Z.y)},
+		{"id": "picnic", "title": "Picnic landing!", "area": Rect2(PICNIC_X.x - slide, PICNIC_Z.y - slide, PICNIC_X.y - PICNIC_X.x + slide * 2.0, PICNIC_Z.x - PICNIC_Z.y + slide * 2.0)},
 	]
 
 

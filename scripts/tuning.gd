@@ -270,4 +270,15 @@ extends Resource
 	"lamp": {"points": 150, "radius": 1.5},
 	"kettle": {"points": 100, "radius": 2.5},
 	"window": {"points": 150, "radius": 2.0},
+	"ridge_run": {"points": 120, "radius": 4.0},
+}
+## Outdoors, points for every second in the air, up to `airtime_max_seconds` (so circling
+## forever doesn't pay forever).
+@export var airtime_points_per_second := 5.0
+@export var airtime_max_seconds := 60.0
+## Coming to rest (not crashing) on a landing spot outdoors pays a bonus. Spots are in
+## Course.landing_spots().
+@export var landing_bonus := {
+	"lavender": 200,
+	"picnic": 400,
 }

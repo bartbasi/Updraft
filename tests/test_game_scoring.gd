@@ -72,7 +72,7 @@ func test_every_moment_is_tuned() -> void:
 	var t := Tuning.new()
 	for def in Course.style_moment_defs():
 		check(t.style_moments.has(String(def["id"])), "%s has points and a radius in Tuning" % def["id"])
-	check(Course.style_moment_defs().size() == 8, "all eight moments from the brief")
+	check(Course.style_moment_defs().size() == 9, "the eight moments from the brief, and the ridge run")
 
 
 func test_a_whole_run_scores_distance_and_style_and_distance_never_drops() -> void:
@@ -99,7 +99,6 @@ func test_a_whole_run_scores_distance_and_style_and_distance_never_drops() -> vo
 	check(not dropped, "distance never goes backward during a flight")
 	check(game.scoring.distance_meters() > 60.0, "the whole course is a long way (%.1f m)" % game.scoring.distance_meters())
 	check(awards.size() >= 4, "a good pilot earns style at several moments (%d)" % awards.size())
-	check(game.scoring.total() == game.scoring.distance_points() + game.scoring.style_points, "total = distance + style")
 	check(game.close_calls <= 1, "a clean line has (almost) no close calls: %d" % game.close_calls)
 	check(game.best_score == game.scoring.total(), "the run is the new best")
 	check(BestScore.load_best() == game.scoring.total(), "and it is saved")
@@ -397,3 +396,58 @@ func test_twenty_restarts_reset_everything() -> void:
 		await tree.process_frame
 	tree.unload_current_scene()
 	await tree.process_frame
+
+
+## Outdoors: time in the air pays, up to a cap, and coming to rest on a landing spot pays a
+## bonus once.
+func test_airtime_pays_up_to_its_cap_and_landing_spots_pay_once() -> void:
+	var t := Tuning.new()
+	var s := Scoring.new(t, PackedVector3Array([Vector3.ZERO, Vector3(0, 0, -1)]), [])
+	for i in 60 * 30:
+		s.add_airtime(1.0 / 60.0)
+	check(s.airtime_points() == roundi(30.0 * t.airtime_points_per_second), "30 s in the air pays %d (%d)" % [roundi(30.0 * t.airtime_points_per_second), s.airtime_points()])
+	for i in 60 * 120:
+		s.add_airtime(1.0 / 60.0)
+	check(s.airtime_points() == roundi(t.airtime_max_seconds * t.airtime_points_per_second), "but no more than the cap (%d)" % s.airtime_points())
+	var spots := Course.landing_spots()
+	s.land(Vector3(-5.0, 2.0, -180.0), spots)
+	check(s.landing_points == int(t.landing_bonus["lavender"]) and s.landing["id"] == "lavender", "resting in the lavender pays its bonus")
+	s.land(Vector3(-72.0, 25.0, -205.0), spots)
+	check(s.landing["id"] == "lavender", "and only once")
+	var p := Scoring.new(t, PackedVector3Array([Vector3.ZERO, Vector3(0, 0, -1)]), [])
+	p.land(Vector3((Course.PICNIC_X.x + Course.PICNIC_X.y) * 0.5, 25.0, Course.PICNIC_Z.y - 1.5), spots)
+	check(p.landing_points == int(t.landing_bonus["picnic"]), "sliding just off the blanket still counts for the picnic")
+	var none := Scoring.new(t, PackedVector3Array([Vector3.ZERO, Vector3(0, 0, -1)]), [])
+	none.land(Vector3(20.0, 2.0, -140.0), spots)
+	check(none.landing.is_empty() and none.landing_points == 0, "plain grass pays no bonus")
+
+
+## In the game: gliding down onto the lavender ends the run with its bonus on the card; a crash
+## there pays none.
+func test_landing_in_the_lavender_shows_on_the_card_and_a_crash_pays_nothing() -> void:
+	for crash in [false, true]:
+		var game: Node = add_node(MAIN.instantiate())
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		await physics_frames(2)
+		var y := Course.ground_height(-5.0, -168.0)
+		plane.launch(Vector3(-5.0, y + 1.2, -168.0), 0.0)
+		if crash:  # crumpled just above the lavender (the ground's slopes there are too gentle to crash on)
+			await physics_frames(20)
+			plane.model.crashed = true
+			plane.crashed.emit()
+		var frames := 0
+		while not plane.is_ended() and frames < 60 * 20:
+			await tree.physics_frame
+			frames += 1
+		await tree.create_timer(1.0).timeout
+		var label := "crash" if crash else "landing"
+		check(plane.model.crashed == crash, "%s: it %s" % [label, "crashes" if crash else "lands"])
+		if crash:
+			check(game.scoring.landing_points == 0, "a crash in the lavender pays no landing bonus")
+		else:
+			check(Course.in_lavender(plane.global_position), "came to rest in the lavender (%s)" % plane.global_position)
+			check(game.scoring.landing_points == int(plane.tuning.landing_bonus["lavender"]), "the lavender bonus is paid")
+			check(game._card_title.text == "Lavender landing!" and game._card_lines.text.contains("Lavender landing  +200"), "the card says so: %s / %s" % [game._card_title.text, game._card_lines.text])
+			check(game._card_lines.text.contains("Airtime"), "and shows the airtime")
+		await cleanup()

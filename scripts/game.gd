@@ -93,6 +93,8 @@ func _throw_when_ready(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not plane.held and not plane.is_ended():
 		scoring.update(plane.global_position)
+		if Course.is_outside(plane.global_position) and not plane.model.grounded:
+			scoring.add_airtime(delta)
 		_check_close_call(delta)
 		if vario.tick(delta, plane.air_here().y, plane.model.velocity.y, plane.model.stalled):
 			_vario_beep.pitch_scale = vario.pitch()
@@ -236,7 +238,15 @@ func _on_crashed() -> void:
 
 
 func _on_stopped() -> void:
-	_finish("You flew outside!" if reached_outside else "Touchdown", plane.tuning.card_delay_landed)
+	if _ended:
+		return
+	var p := plane.global_position
+	if p.y - Course.terrain_height(p.x, p.z) < 1.0:  # resting on the grass, not up in a tree
+		scoring.land(p, Course.landing_spots())
+	var title := "You flew outside!" if reached_outside else "Touchdown"
+	if not scoring.landing.is_empty():
+		title = scoring.landing["title"]
+	_finish(title, plane.tuning.card_delay_landed)
 
 
 func _finish(title: String, delay: float) -> void:
@@ -257,7 +267,17 @@ func _finish(title: String, delay: float) -> void:
 func _show_card(title: String, total: int, new_best: bool) -> void:
 	_card_title.text = title
 	var hit := scoring.moments.filter(func(m: Scoring.Moment) -> bool: return m.award > 0).size()
-	_card_lines.text = "Distance  %.0f m = %d\nStyle  %d   (%d of %d moments)\nTotal  %d\n%s  %d" % [scoring.distance_meters(), scoring.distance_points(), scoring.style_points, hit, scoring.moments.size(), total, "New best!" if new_best else "Best", best_score]
+	var lines := PackedStringArray([
+		"Distance  %.0f m = %d" % [scoring.distance_meters(), scoring.distance_points()],
+		"Style  %d   (%d of %d moments)" % [scoring.style_points, hit, scoring.moments.size()],
+	])
+	if scoring.airtime_points() > 0:
+		lines.append("Airtime  %d s = %d" % [scoring.airtime_seconds(), scoring.airtime_points()])
+	if scoring.landing_points > 0:
+		lines.append("%s  +%d" % [String(scoring.landing["title"]).trim_suffix("!"), scoring.landing_points])
+	lines.append("Total  %d" % total)
+	lines.append("%s  %d" % ["New best!" if new_best else "Best", best_score])
+	_card_lines.text = "\n".join(lines)
 	_card.visible = true
 	_card.modulate.a = 0.0
 	create_tween().tween_property(_card, "modulate:a", 1.0, 0.25)
