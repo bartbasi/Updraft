@@ -93,7 +93,36 @@ const STREAM_X := Vector2(-28.0, 60.0)
 const LAVENDER_X := Vector2(-14.0, 4.0)
 const LAVENDER_Z := Vector2(-166.0, -196.0)
 ## A plane anywhere outside this box has left the world: the run ends as a landing.
-const WORLD_BOUNDS := AABB(Vector3(-123.0, -10.0, -339.0), Vector3(246.0, 400.0, 500.0))
+const WORLD_BOUNDS := AABB(Vector3(-123.0, -10.0, -525.0), Vector3(246.0, 400.0, 686.0))
+
+# Past the valley (docs/phase4-plan.md, part B): the Downs, a line of high hills along the old
+# head wall, with one wide notch, the Gap; through it, a bowl with a lake, an island, a beach
+# and a bluff.
+## The Downs' crest line: the valley's ground up to here, the bowl's beyond.
+const CREST_Z := -339.0
+## The Gap: its centre line (x), the half-width of its flat floor, and the slope of its walls.
+const GAP_X := 6.0
+const GAP_HALF := 14.0
+const GAP_WALL := 1.1
+## Where the Gap is cut (z, from the valley side to the lake side).
+const GAP_CUT_Z := Vector2(-285.0, -400.0)
+## The Gap's highest point: its z and height.
+const SADDLE := Vector2(-334.0, 13.0)
+## The far side of the Downs falls to the bowl over this distance.
+const DOWNS_FALL := 35.0
+## The lake's water surface, centre (x, z) and radii (x, z).
+const LAKE_Y := -1.0
+const LAKE_CENTRE := Vector2(0.0, -420.0)
+const LAKE_RADII := Vector2(40.0, 30.0)
+const ISLAND := Vector2(-6.0, -424.0)
+const ISLAND_RADIUS := 8.0
+## The west bluff: where its face starts and ends (x), and its height.
+const BLUFF_FACE_X := Vector2(-44.0, -84.0)
+const BLUFF_HEIGHT := 24.0
+## The chalk pit at the foot of the Downs, under the valley's last thermal (x, z).
+const CHALK_PIT := Vector2(-14.0, -290.0)
+## The bowl's grass is a second grid on the same lattice as the valley's, out to here (z).
+const BOWL_END_Z := -528.0
 ## The hills are drawn, and collide, as a grid of triangles this size, starting here (x, z).
 const TERRAIN_STEP := 6.0
 const TERRAIN_ORIGIN := Vector2(-126.0, -30.0)
@@ -254,10 +283,19 @@ static func section_at(pos: Vector3) -> String:
 	return "upstairs"
 
 
-## The hills: a gently rising valley floor with soft rolls, the ridge and its plateau on the
-## left, slopes on the right, a head wall at the far end and banks beside the house, so every
-## edge of the world is high ground.
+## The hills: the valley (see _valley()), and beyond the Downs' crest the bowl with its lake
+## (see _bowl()), with the Gap cut through the Downs between them. Every edge of the world is
+## high ground.
 static func ground_height(x: float, z: float) -> float:
+	var h := _valley(x, z) if z > CREST_Z else _bowl(x, z)
+	if z < GAP_CUT_Z.x and z > GAP_CUT_Z.y:
+		h = minf(h, _gap_floor(z) + GAP_WALL * maxf(0.0, absf(x - GAP_X) - GAP_HALF))
+	return h
+
+
+## The valley: a gently rising floor with soft rolls, the ridge and its plateau on the left,
+## slopes on the right, a head wall at the far end (the Downs) and banks beside the house.
+static func _valley(x: float, z: float, with_rolls := true) -> float:
 	var d := maxf(0.0, FAR_Z - WALL - z)  # distance out from the window wall
 	var h := -1.2 + VALLEY_RISE * d
 	h += 0.015 * pow(maxf(0.0, d - 190.0), 2.0)  # head wall
@@ -265,8 +303,48 @@ static func ground_height(x: float, z: float) -> float:
 	h += RIDGE_HEIGHT * smoothstep(-RIDGE_FACE_X.x, -RIDGE_FACE_X.y, -x)  # the ridge and its plateau
 	h += 0.012 * pow(maxf(0.0, -x - 84.0), 2.0)  # behind the plateau, up to the edge
 	h += 0.04 * pow(maxf(0.0, z + 64.0), 2.0) * smoothstep(12.0, 20.0, absf(x))  # banks beside the house
-	var rolls := (1.4 * sin(x * 0.09 + z * 0.045) + 1.0 * sin(x * 0.05 - z * 0.08 + 1.3)) * clampf(d / 25.0, 0.0, 1.0)
-	return h + 0.6 * rolls
+	if not with_rolls:
+		return h
+	return h + _rolls(x, z) * clampf(d / 25.0, 0.0, 1.0)
+
+
+## The grass's soft rolls.
+static func _rolls(x: float, z: float) -> float:
+	return 0.6 * (1.4 * sin(x * 0.09 + z * 0.045) + 1.0 * sin(x * 0.05 - z * 0.08 + 1.3))
+
+
+## The floor of the Gap: up from the valley to the saddle, then down a short valley to the shore.
+static func _gap_floor(z: float) -> float:
+	if z >= SADDLE.x:
+		return lerpf(_valley(GAP_X, -290.0, false), SADDLE.y, smoothstep(290.0, -SADDLE.x, -z))
+	return lerpf(SADDLE.y, LAKE_Y - 0.15, smoothstep(-SADDLE.x, 385.0, -z))  # down to the lake's bed
+
+
+## How far out into the lake a point is: under 1 inside the ellipse.
+static func lake_reach(x: float, z: float) -> float:
+	return (Vector2(x - LAKE_CENTRE.x, z - LAKE_CENTRE.y) / LAKE_RADII).length()
+
+
+## The bowl beyond the Downs: their far side falling away, dunes past the beach on the right, the
+## bluff and its plateau on the left, the far rim, the lake (a flat bed just under the water) and
+## the island.
+static func _bowl(x: float, z: float) -> float:
+	var e := CREST_Z - z  # distance beyond the crest
+	var f := smoothstep(0.0, DOWNS_FALL, e)
+	var q := lake_reach(x, z)
+	var h := _valley(x, CREST_Z) * (1.0 - f)  # the Downs, falling away (meets the valley at the crest)
+	h += 0.012 * pow(maxf(0.0, x - 58.0), 2.0) * f  # dunes and slopes beyond the beach
+	h += BLUFF_HEIGHT * smoothstep(-BLUFF_FACE_X.x, -BLUFF_FACE_X.y, -x) * smoothstep(0.0, 30.0, e)  # the bluff and its plateau
+	h += 0.03 * pow(maxf(0.0, -x - 96.0), 2.0) * smoothstep(0.0, 30.0, e)  # up to the west edge
+	h += 0.02 * pow(maxf(0.0, e - 120.0), 2.0)  # the far rim
+	h += _rolls(x, z) * f * smoothstep(1.0, 1.5, q) * (1.0 - smoothstep(40.0, 58.0, x))  # no rolls on the lake, shore or beach
+	if q > 1.15:  # no ponds beyond the shore: the ground there stays above the water
+		h = lerpf(h, maxf(h, LAKE_Y + 0.3), smoothstep(1.15, 1.35, q))
+	var bed := LAKE_Y - 0.15
+	if h > bed:
+		h = bed + (h - bed) * smoothstep(0.85, 1.15, q)
+	var island := Vector2(x, z).distance_to(ISLAND)
+	return maxf(h, LAKE_Y + 1.2 - 3.0 * smoothstep(ISLAND_RADIUS - 2.0, ISLAND_RADIUS + 2.0, island))
 
 
 
@@ -314,6 +392,11 @@ func _build() -> void:
 	builder = Art.Builder.new()
 	_build_outside()
 	_add_mesh("Outside")
+
+	# Its own mesh, so it is culled when looking back toward the house.
+	builder = Art.Builder.new()
+	_build_bowl()
+	_add_mesh("Bowl")
 
 	_add_box_zone("Sunbeam", SUNBEAM_ORIGIN, SUNBEAM_SIZE, Thermal.Look.SUNBEAM, SUNBEAM_STRENGTH, 1.12, SUNBEAM_SUN)
 	_add_box_zone("Skylight", SKYLIGHT_ORIGIN, SKYLIGHT_SIZE, Thermal.Look.SUNBEAM, SKYLIGHT_STRENGTH, 1.19, Vector3.DOWN, UP_CEILING - SKYLIGHT_ORIGIN.y)
@@ -761,7 +844,8 @@ func _build_outside() -> void:
 	var trng := RandomNumberGenerator.new()
 	trng.seed = 21
 	for spot in tree_spots():
-		_tree(spot, trng)
+		if not gap_tree(spot):
+			_tree(spot, trng)
 
 	_build_windsock()
 	_build_kite()
@@ -777,8 +861,8 @@ func _build_outside() -> void:
 			builder.triangle(foot + Vector3(0.0, 0.0, -0.25 * s), tip, foot + Vector3(0.0, 0.0, 0.25 * s), Color("d4e6b5"))
 
 	# Far hills and clouds (no collision), softened by the fog.
-	var hills := [[-220.0, -380.0, 90.0, Color("a9c9a4")], [-60.0, -430.0, 120.0, Color("b5cfb0")], [120.0, -400.0, 100.0, Color("a7c4b8")],
-		[260.0, -360.0, 80.0, Color("b9d3c2")], [10.0, -520.0, 160.0, Color("bcd2dc")], [-330.0, -300.0, 70.0, Color("b3cdb6")]]
+	var hills := [[-220.0, -620.0, 90.0, Color("a9c9a4")], [-60.0, -700.0, 130.0, Color("b5cfb0")], [120.0, -660.0, 110.0, Color("a7c4b8")],
+		[260.0, -580.0, 80.0, Color("b9d3c2")], [10.0, -780.0, 170.0, Color("bcd2dc")], [-330.0, -540.0, 70.0, Color("b3cdb6")]]
 	for h in hills:
 		builder.sphere(Vector3(h[0], -12.0, h[1]), h[2], h[3], Vector3(1.6, 0.42, 1.0), 14, 7)
 	for c in [Vector3(-80, 70, -320), Vector3(40, 85, -420), Vector3(170, 65, -300), Vector3(-200, 90, -450)]:
@@ -816,10 +900,83 @@ func _ground_quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, color: Color) 
 	builder.triangle(corners[1], corners[2], corners[3], color)
 
 
+# --- The bowl beyond the Gap --------------------------------------------------------
+
+func _build_bowl() -> void:
+	# The grass: the valley's grid carried on. Squares wholly under the water aren't drawn (its
+	# surface covers them) but are still solid: the lake's flat bed.
+	var step := TERRAIN_STEP
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6
+	var z_start := TERRAIN_ORIGIN.y - 52 * step
+	for ix in 42:
+		for iz in int((z_start - BOWL_END_Z) / step):
+			var xa := TERRAIN_ORIGIN.x + ix * step
+			var xb := xa + step
+			var za := z_start - iz * step
+			var zb := za - step
+			var p00 := Vector3(xa, ground_height(xa, za), za)
+			var p10 := Vector3(xb, ground_height(xb, za), za)
+			var p01 := Vector3(xa, ground_height(xa, zb), zb)
+			var p11 := Vector3(xb, ground_height(xb, zb), zb)
+			if maxf(maxf(p00.y, p10.y), maxf(p01.y, p11.y)) < LAKE_Y:
+				# Every corner inside the lake's ellipse: the water sheet (a 32-gon at 1.05 times its
+				# radii, which holds the whole ellipse) covers the square.
+				if maxf(maxf(lake_reach(xa, za), lake_reach(xb, za)), maxf(lake_reach(xa, zb), lake_reach(xb, zb))) < 1.0:
+					builder.faces.append_array([p00, p01, p10, p10, p01, p11])
+					continue
+				# Low ground just outside the water sheet (where the Gap's stream meets the lake):
+				# an inlet of water, level with the lake.
+				var inlet := Color("a9cfe0")
+				builder.triangle(Vector3(xa, LAKE_Y, za), Vector3(xa, LAKE_Y, zb), Vector3(xb, LAKE_Y, za), inlet)
+				builder.triangle(Vector3(xb, LAKE_Y, za), Vector3(xa, LAKE_Y, zb), Vector3(xb, LAKE_Y, zb), inlet)
+				builder.faces.append_array([p00, p01, p10, p10, p01, p11])
+				continue
+			builder.triangle(p00, p01, p10, _shore_or_grass(p00, p01, p10, rng), true)
+			builder.triangle(p10, p01, p11, _shore_or_grass(p10, p01, p11, rng), true)
+	_build_lake()
+
+
+## Pale sand where the grass meets the water, so the shore follows the real waterline.
+func _shore_or_grass(a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator) -> Color:
+	var grass := _grass(rng)
+	if minf(a.y, minf(b.y, c.y)) < LAKE_Y + 0.1 and maxf(a.y, maxf(b.y, c.y)) > LAKE_Y:  # it crosses the waterline
+		return Color("efe2c6") if rng.randf() < 0.5 else Color("e6d6b4")
+	return grass
+
+
+## The lake: a flat sheet of water a little wider than the shoreline (looks only: the bed under it
+## is what's solid) and lighter ripple stripes running with the breeze.
+func _build_lake() -> void:
+	var segments := 32
+	var radii := LAKE_RADII * 1.05
+	var centre := Vector3(LAKE_CENTRE.x, LAKE_Y, LAKE_CENTRE.y)
+	for i in segments:
+		var a0 := TAU * i / segments
+		var a1 := TAU * (i + 1) / segments
+		builder.triangle(centre, centre + Vector3(cos(a0) * radii.x, 0.0, sin(a0) * radii.y), centre + Vector3(cos(a1) * radii.x, 0.0, sin(a1) * radii.y), Color("a9cfe0"))
+	for k in 6:
+		var z := LAKE_CENTRE.y - LAKE_RADII.y * 0.75 + k * LAKE_RADII.y * 0.3
+		var half := LAKE_RADII.x * sqrt(maxf(0.0, 1.0 - pow((z - LAKE_CENTRE.y) / LAKE_RADII.y, 2.0))) * 0.7
+		var x0 := LAKE_CENTRE.x - half + (k % 2) * 4.0
+		var x1 := LAKE_CENTRE.x + half - ((k + 1) % 2) * 4.0
+		var y := LAKE_Y + PAINT_LIFT
+		builder.triangle(Vector3(x0, y, z + 0.3), Vector3(x0, y, z - 0.3), Vector3(x1, y, z + 0.3), Color("c4e0ec"))
+		builder.triangle(Vector3(x1, y, z + 0.3), Vector3(x0, y, z - 0.3), Vector3(x1, y, z - 0.3), Color("c4e0ec"))
+
+
 func _grass(rng: RandomNumberGenerator) -> Color:
 	if rng.randf() < 0.025:
 		return FLOWERS[rng.randi() % FLOWERS.size()]
 	return GRASS[rng.randi() % GRASS.size()]
+
+
+## Trees that stood on the old head wall where the Gap now goes, or by the chalk pit: left out.
+## (Trees are still placed by the old rules, then these are dropped, so the rest stay put.)
+static func gap_tree(spot: Vector3) -> bool:
+	if spot.z < GAP_CUT_Z.x and absf(spot.x - GAP_X) < GAP_HALF + 12.0:
+		return true
+	return Vector2(spot.x, spot.z).distance_to(CHALK_PIT) < 10.0 * 1.5 + 4.0
 
 
 ## Where the trees stand (bases on the ground), the same every time.

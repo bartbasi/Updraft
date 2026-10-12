@@ -162,3 +162,16 @@ for the phone test"). From the build:
 - **Cloud thinning (A3), one rule added:** a cloud thins only while the plane is climbing in lift
   (the beeps are on) near its top, so gliding high over a thermal after topping out in another
   doesn't thin it.
+- **The ground past the valley (B1), measured against the plan:**
+  - The Gap's floor now ends on the lake bed (-1.15, the plan had -1.5) and the cut runs to z -400,
+    where the bowl is already flat bed, so there is no step where the cut ends. The channel is
+    0.3 u higher at z -370 (1.8, plan 1.5).
+  - Ground beyond the lake's edge (q > 1.15) is kept above the water, so the bowl's rolls make
+    no stray ponds; the only water outside the lake's sheet is the inlet at the Gap's stream mouth.
+  - Sand is painted on the grass triangles that cross the waterline, not as a ring (a ring
+    missed the real, jagged shoreline).
+  - Bowl trees (orchard and pines) come with the landmarks in step 8.
+  - **For the owner:** the plan says the Downs are 45 or higher beyond 30 u of the Gap; the
+    lowest crossing there is 31.7 at x -25, on the Gap's left shoulder (the crest at x -24 is
+    30.2). From the ridge top (33) a pilot could skim over the shoulder instead of through the
+    Gap. It lands in the same bowl, so it does no harm; raising the shoulder would stop it.

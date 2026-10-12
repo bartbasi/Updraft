@@ -225,13 +225,14 @@ func test_ground_has_the_planned_shape() -> void:
 		var d := maxf(0.0, Course.FAR_Z - Course.WALL - z)
 		return 0.6 * (1.4 * sin(x * 0.09 + z * 0.045) + 1.0 * sin(x * 0.05 - z * 0.08 + 1.3)) * clampf(d / 25.0, 0.0, 1.0)
 	var table := [[0.0, -95.0, -1.0], [-2.0, -118.0, -0.3], [0.0, -150.0, 0.6], [-5.0, -182.0, 1.6], [-12.0, -215.0, 2.6],
-		[34.0, -268.0, 4.4], [0.0, -320.0, 30.9], [-38.0, -200.0, 6.9], [-46.0, -200.0, 13.1], [-56.0, -200.0, 20.7], [-75.0, -200.0, 24.1]]
+		[34.0, -268.0, 4.4], [-38.0, -200.0, 6.9], [-46.0, -200.0, 13.1], [-56.0, -200.0, 20.7], [-75.0, -200.0, 24.1]]
 	for row: Array in table:
 		var h := Course.ground_height(row[0], row[1]) - float(rolls.call(row[0], row[1]))
 		check(absf(h - float(row[2])) <= 0.15, "ground at (%.0f, %.0f) is %.2f, planned %.1f" % [row[0], row[1], h, row[2]])
-	# Every edge of the world is high ground.
+	# Every edge of the world is high ground, except the Gap through the Downs (Phase 4).
 	for x in range(-120, 121, 12):
-		check(Course.ground_height(x, -336.0) > 40.0, "the head wall is high at x %d" % x)
+		if absf(x - Course.GAP_X) > Course.GAP_HALF + 26.0:
+			check(Course.ground_height(x, -336.0) > 40.0, "the head wall is high at x %d" % x)
 	for z in range(-40, -331, -10):
 		var low := minf(Course.ground_height(-126.0, z), Course.ground_height(126.0, z))
 		check(low > 38.0, "both sides are high at z %d (%.1f)" % [z, low])
@@ -844,3 +845,93 @@ func test_a_gull_keeps_off_the_hillside_on_a_low_pass() -> void:
 		check(lowest >= tune.gull_min_ground - 0.05, "%s: never nearer the grass than %.1f (%.2f)" % [tag, tune.gull_min_ground, lowest])
 		check(nearest >= Gull.NEAREST - 0.05, "%s: never nearer the plane than %.1f (%.2f)" % [tag, Gull.NEAREST, nearest])
 		await cleanup()
+
+
+## The valley's ground before the Gap was cut (Phase 3), to check the valley didn't move.
+static func _phase3_ground(x: float, z: float) -> float:
+	var d := maxf(0.0, Course.FAR_Z - Course.WALL - z)
+	var h := -1.2 + Course.VALLEY_RISE * d
+	h += 0.015 * pow(maxf(0.0, d - 190.0), 2.0)
+	h += 0.006 * pow(maxf(0.0, x - 28.0), 2.0)
+	h += Course.RIDGE_HEIGHT * smoothstep(-Course.RIDGE_FACE_X.x, -Course.RIDGE_FACE_X.y, -x)
+	h += 0.012 * pow(maxf(0.0, -x - 84.0), 2.0)
+	h += 0.04 * pow(maxf(0.0, z + 64.0), 2.0) * smoothstep(12.0, 20.0, absf(x))
+	var rolls := (1.4 * sin(x * 0.09 + z * 0.045) + 1.0 * sin(x * 0.05 - z * 0.08 + 1.3)) * clampf(d / 25.0, 0.0, 1.0)
+	return h + 0.6 * rolls
+
+
+func test_the_valley_is_unchanged_up_to_the_gap() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	var worst := 0.0
+	for i in 200:
+		var x := rng.randf_range(-126.0, 126.0)
+		var z := rng.randf_range(-284.9, -30.0)
+		worst = maxf(worst, absf(Course.ground_height(x, z) - _phase3_ground(x, z)))
+	check(worst < 0.0001, "valley heights unchanged at 200 points (worst %.5f)" % worst)
+
+
+## The Gap, the bowl and the lake have the shape the plan measured (smooth curve, ±0.2; the plan's
+## table leaves out the bowl's soft rolls, so they are taken off first). The Gap's floor now ends on
+## the lake's bed (-1.15, the plan had -1.4 at the shore) so the cut meets the bowl without a step.
+func test_the_gap_and_the_bowl_have_their_planned_heights() -> void:
+	var table := [
+		[6.0, -300.0, 7.5, "Gap floor"], [6.0, -320.0, 11.5, "Gap floor"], [6.0, -334.0, 13.0, "the saddle"],
+		[-16.0, -334.0, 21.8, "Gap wall, left"], [26.0, -334.0, 19.6, "Gap wall, right"],
+		[6.0, -352.0, 8.9, "Gap floor, lake side"], [6.0, -370.0, 1.8, "Gap floor, lake side (plan 1.5; the floor now ends on the bed)"], [6.0, -385.0, -1.15, "the shore (the lake bed)"],
+		[-14.0, -290.0, 5.2, "the chalk pit"], [20.0, -420.0, -1.15, "lake bed"], [-6.0, -424.0, 0.2, "island top"],
+		[50.0, -420.0, 0.0, "the beach"],
+	]
+	for row in table:
+		var slack := 0.3 if row[3] == "the beach" else 0.2
+		check_between(Course.ground_height(row[0], row[1]), row[2] - slack, row[2] + slack, "%s (%d, %d)" % [row[3], row[0], row[1]])
+	var rolling := [[-48.0, -420.0, 0.7, "bluff foot"], [-60.0, -420.0, 8.4, "bluff face"], [-72.0, -420.0, 18.8, "bluff face"],
+		[-84.0, -420.0, 24.0, "bluff plateau"], [0.0, -500.0, 33.6, "far rim"], [0.0, -525.0, 87.0, "far edge"]]
+	for row in rolling:
+		var x: float = row[0]
+		var z: float = row[1]
+		var f := smoothstep(0.0, Course.DOWNS_FALL, Course.CREST_Z - z)
+		var rolls := Course._rolls(x, z) * f * smoothstep(1.0, 1.5, Course.lake_reach(x, z)) * (1.0 - smoothstep(40.0, 58.0, x))
+		check_between(Course.ground_height(x, z) - rolls, row[2] - 0.2, row[2] + 0.2, "%s (%d, %d), less the rolls" % [row[3], x, z])
+	# No step where the Gap's cut meets the valley or the lake's bed.
+	for cut_z in [Course.GAP_CUT_Z.x, Course.GAP_CUT_Z.y]:
+		for x in range(-40, 51, 2):
+			var step := absf(Course.ground_height(x, cut_z + 0.01) - Course.ground_height(x, cut_z - 0.01))
+			check(step < 0.02, "no step at the cut's end z %d, x %d (%.3f)" % [cut_z, x, step])
+	# Away from the lake and the Gap's channel, the bowl's ground is above the water: no stray ponds.
+	for x in range(-120, 121, 3):
+		for z in range(-345, -525, -3):
+			if Course.lake_reach(x, z) > 1.35 and not (absf(x - Course.GAP_X) < Course.GAP_HALF + 4.0 and z > -400.0):
+				if Course.ground_height(x, z) < Course.LAKE_Y + 0.25:
+					check(false, "dry ground at (%d, %d) is %.2f" % [x, z, Course.ground_height(x, z)])
+	for x in [-123.0, 123.0]:
+		check(Course.ground_height(x, -420.0) >= 45.0, "the bowl's side at x %d is high ground" % x)
+	for x in range(-100, 101, 10):
+		if absf(x - Course.GAP_X) > Course.GAP_HALF + 16.0:
+			check(Course.ground_height(x, Course.CREST_Z) >= 30.0, "the Downs at x %d are high (%.1f)" % [x, Course.ground_height(x, Course.CREST_Z)])
+
+
+## Hands off from the saddle: the plane glides down the far side, over the lake, and comes to rest
+## by the far rim, without crashing; and nothing can fly out past the far edge.
+func test_a_hands_off_glide_through_the_gap_lands_by_the_far_rim() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	await physics_frames(2)
+	var plane := game.get_node("Plane") as PaperPlane
+	plane.launch(Vector3(Course.GAP_X, 22.5, Course.SADDLE.x), 0.0)
+	var crashed := [false]
+	plane.crashed.connect(func() -> void: crashed[0] = true)
+	var frames := 0
+	while not plane.is_ended() and frames < 40 * 60:
+		await tree.physics_frame
+		frames += 1
+	print("        from the saddle: rest at z %.1f after %.1f s" % [plane.global_position.z, plane.flight_time])
+	check(not crashed[0], "no crash")
+	check_between(plane.global_position.z, -484.0, -468.0, "rests at z")  # the plan said -468..-480; it rests at -479.5, and the orchard starts at -488
+	check_between(plane.flight_time, 20.0, 27.0, "after (s)")
+	plane.launch(Vector3(0.0, 120.0, -515.0), 0.0)
+	frames = 0
+	while not plane.is_ended() and frames < 10 * 60:
+		await tree.physics_frame
+		frames += 1
+	check(plane.is_ended() and not plane.model.grounded, "past the far edge, the run ends in the air")
+	check_between(plane.global_position.z, -527.0, -524.0, "where it ends (z)")
