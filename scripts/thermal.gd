@@ -54,9 +54,13 @@ const SMOKE_FADE_FAR := 10.0
 const VISIBLE_RANGE := 150.0
 const VISIBLE_FADE := 20.0
 
-## How far this air has drifted with the breeze from where it started (world units). Its cloud
-## and circling birds follow it.
+## How far this air has drifted with the breeze from where it started (world units; added to the
+## local position, which is the same because the Course sits at the world origin). Its cloud and
+## circling birds follow it.
 var drift_offset := Vector3.ZERO
+## Where this zone started, before any drift.
+var home := Vector3.ZERO
+var _drift_started := false
 
 var _wisps: CPUParticles3D
 
@@ -100,6 +104,27 @@ static func along_light_to_floor(local: Vector3, sun: Vector3) -> Vector3:
 	return Vector3(local.x + down.x * t, local.y, local.z + down.z * t)
 
 
+## Whether this zone drifts with the breeze: outdoor columns do (not the ridge, nothing indoors).
+func drifts() -> bool:
+	return outdoors and shape == Shape.CYLINDER and not sinks
+
+
+## One physics tick of drift: nothing until the plane first comes within the wake distance
+## (plan view), then downwind (-X) at a steady speed up to the cap. Its air, column and mote
+## emitter move with the node; motes already in the air stay where they are.
+func drift(delta: float, plane_at: Vector3, tuning: Tuning) -> void:
+	if not _drift_started:
+		var gap := Vector2(plane_at.x - global_position.x, plane_at.z - global_position.z).length()
+		if gap > radius * tuning.thermal_drift_wake:
+			return
+		_drift_started = true
+	var limit := radius * tuning.thermal_drift_max
+	if drift_offset.x <= -limit:
+		return  # drifted as far as it goes
+	drift_offset.x = maxf(drift_offset.x - tuning.thermal_drift_speed * delta, -limit)
+	position = home + drift_offset
+
+
 ## World height where this zone's air stops.
 func top() -> float:
 	return global_position.y + (height if shape == Shape.CYLINDER else size.y)
@@ -125,6 +150,7 @@ func vertical_air_speed(world_pos: Vector3, tuning: Tuning) -> float:
 
 func _ready() -> void:
 	add_to_group("thermals")
+	home = position
 	if look == Look.SUNBEAM and shape != Shape.BOX:
 		push_warning("%s: a sunbeam must be a box zone; using a box" % name)
 		shape = Shape.BOX

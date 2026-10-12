@@ -150,3 +150,12 @@ for the phone test"). From the build:
 - **Measured:** the four skilled routes sigh 0 times and land and score as before; 10 novice
   flights sighed 5 times in all, each a side exit from the hay field at y 16-18 (the plan
   expected 1-4 per novice; most novices pass through too briefly to have beeped 1.5 s).
+- **Drift (A1), measured weaker than the plan's sim:** real climbs are quick (BarnHeat from y 5
+  to 2 below its top in about 8 s), so the air slides only about 2 units during a climb. A pilot
+  who re-centres gets there in 8.2 s and one who circles the old spot in 9.5 s (14% slower, not
+  the plan's 20%); neither hears a sigh. The four routes still land where they did (chain
+  118.8 s, was 114.5 s). For fun review 4: drift is a gentle nudge as tuned. If it should teach
+  re-centring, try a faster drift (`thermal_drift_speed` 0.5) rather than a bigger cap.
+  **Open for the owner and fun review 4:** drift does not separate the two pilots by sighs (0 and
+  0; the plan's sim had 4 and 1), so as tuned it does not yet teach re-centring.
+- **Drift resets each run** because "Fly again" reloads the scene, which builds new thermals.

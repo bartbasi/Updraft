@@ -227,6 +227,13 @@ extends Resource
 @export_range(0.0, 1.0) var lift_lost_air_drop := 0.5
 @export var lift_lost_cooldown := 4.0
 @export var lift_lost_db := -15.0
+## Outdoor thermals drift downwind (toward -X) at `thermal_drift_speed` (units/s), taking their
+## cloud and birds along, up to `thermal_drift_max` times their radius. Each one starts the first
+## time the plane comes within `thermal_drift_wake` radii of it, so it is always where its cloud
+## said when you arrive; circling pilots then re-centre on the beeps.
+@export var thermal_drift_speed := 0.25
+@export_range(0.0, 1.0) var thermal_drift_max := 0.5
+@export var thermal_drift_wake := 1.5
 
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass

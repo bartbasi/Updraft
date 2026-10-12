@@ -25,6 +25,9 @@ var rng := RandomNumberGenerator.new()
 ## circles it at `radius` until it has climbed (`up`) or come down to height `to_y`, or for
 ## `max_time` seconds at most, then flies on along the line. Lines that go out of the window get the outdoor circles (route("lavender")).
 var orbits: Array[Dictionary] = []
+## A circle with a "zone" (a thermal's name) follows that thermal as it drifts, the way a pilot
+## re-centres on the beeps; a naive pilot keeps circling where the thermal first was.
+var naive_orbits := false
 
 var _orbit := 0  ## The next circle to fly.
 var _orbiting := false
@@ -142,7 +145,7 @@ static func route(route_name: String) -> Dictionary:
 
 ## Circle up a thermal to a little under its top.
 static func _climb(thermal: Dictionary) -> Dictionary:
-	return {"centre": thermal["at"], "radius": 6.0, "to_y": float(thermal["top"]) - 2.0, "up": true, "max_time": 25.0}
+	return {"centre": thermal["at"], "zone": thermal["name"], "radius": 6.0, "to_y": float(thermal["top"]) - 2.0, "up": true, "max_time": 25.0}
 
 
 ## A first-time player who reacts really late, so some of them turn only after the door.
@@ -168,12 +171,17 @@ static func novice(p_line: PackedVector3Array, p_seed: int) -> Autopilot:
 
 ## While circling, a point a little way round the circle (turning right), a little above (or
 ## below) the plane. Starts and ends the circles.
-func _orbit_aim(p: Vector3) -> Vector3:
+func _orbit_aim(plane: PaperPlane) -> Vector3:
+	var p := plane.global_position
 	_orbit_time += 1.0 / 60.0
 	if _orbit >= orbits.size():
 		return p
 	var o := orbits[_orbit]
 	var centre: Vector2 = o["centre"]
+	if o.has("zone") and not naive_orbits:
+		var zone := _find_zone(plane, o["zone"])
+		if zone != null:
+			centre = Vector2(zone.global_position.x, zone.global_position.z)
 	var radius: float = o["radius"]
 	var to_y: float = o["to_y"]
 	var off := Vector2(p.x, p.z) - centre
@@ -195,6 +203,13 @@ func _orbit_aim(p: Vector3) -> Vector3:
 	return Vector3(at.x, p.y + (1.5 if up else -1.0), at.y)
 
 
+func _find_zone(plane: PaperPlane, zone_name: String) -> Thermal:
+	for node in plane.get_tree().get_nodes_in_group("thermals"):
+		if node.name == zone_name:
+			return node
+	return null
+
+
 ## The point `s` units along the line (clamped to its ends).
 func point_at(s: float) -> Vector3:
 	var total := lengths[lengths.size() - 1]
@@ -208,7 +223,7 @@ func point_at(s: float) -> Vector3:
 
 func fly(plane: PaperPlane) -> Vector2:
 	var p := plane.global_position
-	var aim := _orbit_aim(p)
+	var aim := _orbit_aim(plane)
 	if not _orbiting:
 		# The first time, search the whole line (the pilot may start anywhere); then only nearby.
 		var hit := Scoring.project(line, lengths, p) if _segment < 0 else Scoring.project(line, lengths, p, maxi(_segment - 1, 0), mini(_segment + 2, line.size() - 2))
