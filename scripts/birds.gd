@@ -7,6 +7,8 @@ extends MultiMeshInstance3D
 
 const COLOR := Color("6f6478")
 const WINGSPAN := 1.6
+## Hovering birds over the ridge are drawn this much bigger, so they read from far away.
+const HOVER_SCALE := 1.5
 ## Circling birds: this fraction of the thermal's radius out, this many units below its top
 ## (each a little higher or lower), turning at this rate (radians/second).
 const CIRCLE_FRACTION := 0.5
@@ -38,6 +40,8 @@ func setup(thermals: Array, hover_spots: Array[Vector3]) -> void:
 	mm.instance_count = flock.size()
 	multimesh = mm
 	material_override = Art.material(true)
+	# Moved every frame in _process (not by physics), so physics interpolation stays out of it.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_place(0.0)
 
@@ -55,7 +59,7 @@ func bird_transform(i: int, t: float) -> Transform3D:
 	var phase: float = b["phase"]
 	if radius <= 0.0:
 		var bob := sin(TAU * t / BOB_PERIOD + phase) * BOB
-		return Transform3D(Basis.looking_at(Vector3.RIGHT), centre + Vector3(0.0, bob, 0.0))  # nose into the breeze
+		return Transform3D(Basis.looking_at(Vector3.RIGHT).scaled(Vector3.ONE * HOVER_SCALE), centre + Vector3(0.0, bob, 0.0))  # nose into the breeze
 	var a := phase + t * CIRCLE_SPEED
 	var at := centre + Vector3(cos(a), 0.0, sin(a)) * radius
 	# Flying round the circle, nose along it, banked into the turn.

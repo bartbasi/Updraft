@@ -94,13 +94,20 @@ func _wanted_fov() -> float:
 	return _t().camera_fov_outside if Course.is_outside(target.global_position) else _t().camera_fov
 
 
+## The balloon outdoors gets a higher camera (in the house the ceilings are too low for it).
+func _balloon_outside(p: Vector3) -> bool:
+	return target.balloon and Course.is_outside(p)
+
+
 func _resting_spot(p: Vector3) -> Vector3:
 	var lift := maxf(target.model.velocity.y, 0.0) * _t().camera_lift_lead
-	return p - target.model.forward_flat() * _t().camera_distance + Vector3.UP * (_t().camera_height + lift)
+	var height := _t().camera_height_balloon if _balloon_outside(p) else _t().camera_height
+	return p - target.model.forward_flat() * _t().camera_distance + Vector3.UP * (height + lift)
 
 
 func _look_point(p: Vector3) -> Vector3:
-	return p + target.model.forward_flat() * _t().camera_look_ahead + Vector3.UP * _t().camera_look_above
+	var above := _t().camera_look_above_balloon if _balloon_outside(p) else _t().camera_look_above
+	return p + target.model.forward_flat() * _t().camera_look_ahead + Vector3.UP * above
 
 
 ## Moves `spot` toward the plane if a wall is between them.

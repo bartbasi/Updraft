@@ -127,6 +127,10 @@ extends Resource
 @export var camera_fov_ease := 1.5
 ## The camera aims this far above the plane's path ahead (units).
 @export var camera_look_above := 0.3
+## Flying the balloon outdoors (it is bigger from behind than the plane), the camera sits higher and
+## aims higher, so the balloon sits below the horizon and doesn't hide what it flies toward.
+@export var camera_height_balloon := 1.6
+@export var camera_look_above_balloon := 0.7
 ## Opening shot: seconds to ease from the kid's eye into the chase position.
 @export var camera_intro_duration := 0.65
 ## Camera shake (units) on a bump and on a crash, dying away at `shake_fade` units per second.
@@ -181,6 +185,14 @@ extends Resource
 ## `ridge_swell_fade` seconds.
 @export var ridge_swell_db := 3.0
 @export var ridge_swell_fade := 1.0
+## Flying back into the same air within `chime_repeat_window` seconds (once a lap while
+## circling) chimes this much quieter (decibels), so the lap's rhythm doesn't nag.
+@export var chime_repeat_db := -4.0
+@export var chime_repeat_window := 12.0
+## The first time outdoors that the plane flies into rising air below `circle_hint_below` (y),
+## a hint says to keep circling, for `circle_hint_seconds`.
+@export var circle_hint_below := 18.0
+@export var circle_hint_seconds := 2.5
 ## The wind never gets louder than this (decibels), even with a swell on top of a fast dive.
 ## (wind.wav peaks at -4.4 dB full scale, so at +2 the loudest wind still peaks below -2.)
 @export var wind_max_db := 2.0

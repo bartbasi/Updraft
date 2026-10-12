@@ -451,3 +451,49 @@ func test_landing_in_the_lavender_shows_on_the_card_and_a_crash_pays_nothing() -
 			check(game._card_title.text == "Lavender landing!" and game._card_lines.text.contains("Lavender landing  +200"), "the card says so: %s / %s" % [game._card_title.text, game._card_lines.text])
 			check(game._card_lines.text.contains("Airtime"), "and shows the airtime")
 		await cleanup()
+
+
+## Fun review 3, item 2: the first time outdoors that the plane flies into rising air low down,
+## a hint says to keep circling; flying back into the same air a lap later chimes quieter.
+func test_low_in_the_first_outdoor_thermal_a_hint_says_keep_circling() -> void:
+	var game: Node = add_node(MAIN.instantiate())
+	var plane := game.get_node("Plane") as PaperPlane
+	var turning := [false]  # once past the middle of the field, it keeps circling
+	plane.autopilot = func(p: PaperPlane) -> Vector2:
+		turning[0] = turning[0] or p.global_position.z < -114.0
+		return Vector2(0.0, -0.6) if turning[0] else Vector2.ZERO
+	await physics_frames(2)
+	plane.launch(Vector3(3.6, 7.0, Course.FAR_Z - 1.5), 0.0)
+	var volumes := []
+	var chime := game._chime as AudioStreamPlayer
+	plane.entered_thermal.connect(func(z: Thermal) -> void:
+		if z.name == "HayHeat":
+			volumes.append(chime.volume_db), CONNECT_DEFERRED)
+	var frames := 0
+	while frames < 60 * 25 and not plane.is_ended():
+		await tree.physics_frame
+		frames += 1
+		if frames == 60 * 5:
+			check(game.circle_hint_shown and game._hint.text == "Keep circling to climb" and game._hint.modulate.a > 0.5, "the hint shows on entering the hay field's warm air low")
+	check(volumes.size() >= 2, "the plane flies back into the warm air on its laps (%d entries)" % volumes.size())
+	if volumes.size() >= 2:
+		check(is_equal_approx(volumes[0], plane.tuning.chime_volume_db), "the first chime is full (%.1f dB)" % volumes[0])
+		check(is_equal_approx(volumes[1], plane.tuning.chime_volume_db + plane.tuning.chime_repeat_db), "a lap later it is quieter (%.1f dB)" % volumes[1])
+	check(game._hint.modulate.a < 0.05, "and the hint has faded")
+
+
+## ...but not for a plane already high in the warm air, nor on the ridge (which you fly along,
+## not round).
+func test_no_circling_hint_high_up_or_on_the_ridge() -> void:
+	for start in [Vector3(0.0, 19.5, -112.0), Vector3(-37.0, 12.0, -150.0)]:
+		var game: Node = add_node(MAIN.instantiate())
+		var plane := game.get_node("Plane") as PaperPlane
+		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		await physics_frames(2)
+		plane.launch(start, 0.0)
+		var entered := []
+		plane.entered_thermal.connect(func(z: Thermal) -> void: entered.append(String(z.name)))
+		await physics_frames(60 * 4)
+		check(not entered.is_empty(), "from %s the plane flies into rising air (%s)" % [start, entered])
+		check(not game.circle_hint_shown, "from %s: no circling hint" % start)
+		await cleanup()

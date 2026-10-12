@@ -46,14 +46,14 @@ const RIDGE_HEIGHT := 22.0
 const HAY_FIELD := {"name": "HayHeat", "at": Vector2(-2.0, -118.0), "radius": 12.0, "top": 24.0, "strength": 0.9, "pitch": 0.9}
 const BARN_ROOF := {"name": "BarnHeat", "at": Vector2(30.0, -165.0), "radius": 10.0, "top": 27.0, "strength": 0.8, "pitch": 0.95}
 const PLOUGHED_FIELD := {"name": "FieldHeat", "at": Vector2(-12.0, -215.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.0}
-const BONFIRE_SMOKE := {"name": "BonfireSmoke", "at": Vector2(34.0, -268.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.05}
+const BONFIRE_SMOKE := {"name": "BonfireSmoke", "at": Vector2(30.0, -258.0), "radius": 10.0, "top": 29.0, "strength": 0.8, "pitch": 1.05}
 const OUTDOOR_THERMALS := [HAY_FIELD, BARN_ROOF, PLOUGHED_FIELD, BONFIRE_SMOKE]
 ## The barn (centre x, z): solid walls and a pitched roof of dark slate that warms in the sun.
 const BARN := Vector2(35.0, -163.0)
 const BARN_SIZE := Vector3(10.0, 5.0, 7.0)  ## Width (x), wall height, depth (z).
 const BARN_RIDGE := 8.5  ## Roof ridge height above the ground.
 ## The leaf bonfire whose smoke is the last thermal (not solid).
-const BONFIRE := Vector2(36.0, -268.0)
+const BONFIRE := Vector2(32.0, -258.0)
 ## Rising air along the left ridge, where the breeze blows up the hillside: a box standing on
 ## y 0 (x, z centre), its size, and its strength (scales Tuning.thermal_strength).
 const RIDGE_LIFT := Vector3(-38.0, 0.0, -195.0)
@@ -69,12 +69,15 @@ const PICNIC_CLEARANCE := 16.0
 ## a puffy cloud whose flat base sits this far above each thermal's top,
 const CLOUD_ABOVE_TOP := 4.0
 ## birds hanging on the breeze over the ridge,
-const RIDGE_BIRDS: Array[Vector3] = [Vector3(-40.0, 0.0, -170.0), Vector3(-40.0, 0.0, -200.0), Vector3(-40.0, 0.0, -230.0)]
+const RIDGE_BIRDS: Array[Vector3] = [Vector3(-40.0, 0.0, -150.0), Vector3(-41.0, 0.0, -168.0), Vector3(-39.0, 0.0, -186.0),
+	Vector3(-40.0, 0.0, -204.0), Vector3(-41.0, 0.0, -222.0), Vector3(-39.0, 0.0, -240.0)]
 const RIDGE_BIRDS_ABOVE_CREST := 3.0
 ## a windsock by the garden fence, pointing the way the breeze blows (-X),
 const WINDSOCK := Vector2(14.0, -103.0)
-## and a kite flying over the picnic.
-const KITE := Vector3(-82.0, 34.0, -205.0)
+## and a big kite flying over the ridge from the picnic, seen from the hay field's top.
+const KITE := Vector3(-62.0, 36.0, -190.0)
+const KITE_SIZE := 6.0  ## Top to bottom.
+const KITE_COLOR := Color("e8604c")
 ## Round hay bales on the hay field (x, z): solid, lying on their sides, out at the sides of the
 ## field so a plane coming down the middle of the valley never meets one.
 const HAY_BALES := [Vector2(-11.0, -110.0), Vector2(8.0, -109.0), Vector2(-10.5, -127.0), Vector2(8.5, -126.0), Vector2(-14.5, -119.0)]
@@ -770,10 +773,10 @@ func _build_outside() -> void:
 	var grng := RandomNumberGenerator.new()
 	grng.seed = 8
 	for i in 260:
-		var gx := grng.randf_range(-48.0, -30.0)
+		var gx := grng.randf_range(-52.0, -28.0)
 		var gz := grng.randf_range(RIDGE_LIFT.z - RIDGE_LIFT_SIZE.z * 0.5, RIDGE_LIFT.z + RIDGE_LIFT_SIZE.z * 0.5)
 		var foot := Vector3(gx, terrain_height(gx, gz), gz)
-		var tip := foot + Vector3(-0.9, 1.1, grng.randf_range(-0.2, 0.2))
+		var tip := foot + Vector3(-1.35, 1.65, grng.randf_range(-0.3, 0.3))
 		for s in [-1.0, 1.0]:
 			builder.triangle(foot + Vector3(0.0, 0.0, -0.25 * s), tip, foot + Vector3(0.0, 0.0, 0.25 * s), Color("d4e6b5"))
 
@@ -911,19 +914,21 @@ func _build_windsock() -> void:
 		builder.cylinder(mouth + blow * Vector3(0.0, 0.7 * i, 0.0), radii[i], radii[i + 1], 0.7, Color("f19e8f") if i % 2 == 0 else TRIM, 8, blow)
 
 
-## A diamond kite high over the plateau, with a ribbon tail and its string down to the picnic.
+## A big diamond kite high over the ridge, with a long ribbon tail and its string down to the
+## picnic, turned to face the valley.
 func _build_kite() -> void:
-	var tilt := Basis(Vector3.RIGHT, -0.5) * Basis(Vector3.UP, 0.4)
-	var top := KITE + tilt * Vector3(0.0, 1.4, 0.0)
-	var bottom := KITE + tilt * Vector3(0.0, -1.6, 0.0)
-	var left := KITE + tilt * Vector3(-1.1, 0.4, 0.0)
-	var right := KITE + tilt * Vector3(1.1, 0.4, 0.0)
-	for c in [[top, left, right, Color("f19e8f")], [left, bottom, right, Color("f6c66f")]]:
+	var tilt := Basis(Vector3.UP, -0.9) * Basis(Vector3.RIGHT, -0.4)
+	var k := KITE_SIZE / 3.0
+	var top := KITE + tilt * Vector3(0.0, 1.4 * k, 0.0)
+	var bottom := KITE + tilt * Vector3(0.0, -1.6 * k, 0.0)
+	var left := KITE + tilt * Vector3(-1.1 * k, 0.4 * k, 0.0)
+	var right := KITE + tilt * Vector3(1.1 * k, 0.4 * k, 0.0)
+	for c in [[top, left, right, KITE_COLOR], [left, bottom, right, Color("f6c66f")]]:
 		builder.triangle(c[0], c[1], c[2], c[3])
 		builder.triangle(c[0], c[2], c[1], c[3])
-	for i in 6:  # the tail's bows
-		var at := bottom + Vector3(0.25 * i, -0.8 * (i + 1), 0.1 * sin(i))
-		builder.box(at, Vector3(0.35, 0.12, 0.05), Color("b9a6dc"))
+	for i in 8:  # the tail's bows, 10 units of ribbon
+		var at := bottom + Vector3(0.4 * i, -1.25 * (i + 1), 0.2 * sin(i))
+		builder.box(at, Vector3(0.7, 0.25, 0.08), Color("b9a6dc"))
 	var hold := Vector3((PICNIC_X.x + PICNIC_X.y) * 0.5, ground_height((PICNIC_X.x + PICNIC_X.y) * 0.5, (PICNIC_Z.x + PICNIC_Z.y) * 0.5) + 0.3, (PICNIC_Z.x + PICNIC_Z.y) * 0.5)
 	var span := KITE - hold
 	builder.box(hold + span * 0.5, Vector3(0.04, span.length(), 0.04), TRIM, Basis(Quaternion(Vector3.UP, span.normalized())))

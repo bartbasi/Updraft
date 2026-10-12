@@ -94,6 +94,9 @@ func _fly(run_seed: int) -> Dictionary:
 			(state["sections"] as Dictionary)[section] = plane.flight_time
 			note.call("enter %s  (y %.1f, %.1f u/s)" % [section, plane.global_position.y, plane.model.velocity.length()])
 		var p := plane.global_position
+		if game.vario.on != bool(state.get("vario", false)):
+			state["vario"] = game.vario.on
+			note.call("vario %s  (y %.1f)" % ["on" if game.vario.on else "off", p.y])
 		if game.close_calls > int(state.get("close_calls", 0)):
 			state["close_calls"] = game.close_calls
 			note.call("close call at %s  (%.1f u/s)" % [_v(p), plane.model.velocity.length()])

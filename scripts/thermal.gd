@@ -126,7 +126,7 @@ func _ready() -> void:
 		Look.WARM_AIR:
 			_build_column(Color(1.0, 0.74, 0.52, 0.45 if outdoors else 0.6), 1.0)
 		Look.STEAM:
-			_build_column(Color("e2ddd8", 0.4) if outdoors else Color(0.93, 0.97, 1.0, 0.45), 1.0)
+			_build_column(Color("d6d0cb", 0.4) if outdoors else Color(0.93, 0.97, 1.0, 0.45), 1.0)
 		Look.SUNBEAM:
 			_build_sunbeam()
 		Look.DOWNDRAFT:
@@ -262,7 +262,7 @@ func _build_wisps() -> void:
 			# Soft steam puffs from the source that spread as they rise; outdoors, slow smoke
 			# that rises the whole column and leans with the breeze.
 			p.amount = 40 if outdoors else 56
-			p.lifetime = 8.0 if outdoors else 3.6
+			p.lifetime = 9.0 if outdoors else 3.6
 			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 			p.emission_sphere_radius = 0.3
 			p.position = source_offset
@@ -277,17 +277,17 @@ func _build_wisps() -> void:
 				p.gravity = SMOKE_DRIFT + Vector3(0.0, 0.05, 0.0)
 				p.damping_min = 0.0  # so the smoke rises the whole column
 				p.damping_max = 0.0
-			quad.size = Vector2(2.0, 2.0) if outdoors else Vector2(1.3, 1.3)
+			quad.size = Vector2(3.2, 3.2) if outdoors else Vector2(1.3, 1.3)
 			p.scale_amount_min = 0.6
 			p.scale_amount_max = 1.1
 			var grow := Curve.new()
 			grow.add_point(Vector2(0.0, 0.35))
 			grow.add_point(Vector2(1.0, 1.6 if outdoors else 2.2))
 			p.scale_amount_curve = grow
-			var puff := Color("e2ddd8") if outdoors else Color(1, 1, 1)
+			var puff := Color("d6d0cb") if outdoors else Color(1, 1, 1)
 			fade.set_color(0, Color(puff, 0.0))
 			fade.set_color(1, Color(puff, 0.0))
-			fade.add_point(0.15, Color(puff, 0.7 if outdoors else 0.6))
+			fade.add_point(0.15, Color(puff, 0.8 if outdoors else 0.6))
 			fade.add_point(0.6, Color(puff.lerp(Color(0.97, 0.98, 1.0), 0.5), 0.35))
 		Look.DOWNDRAFT:
 			# Pale, cool wisps drifting down from the top of the zone, fading out before
@@ -323,7 +323,7 @@ func _build_wisps() -> void:
 			p.initial_velocity_min = 2.0
 			p.initial_velocity_max = 3.0
 			p.gravity = Vector3.ZERO
-			quad.size = Vector2(0.3, 0.3)
+			quad.size = Vector2(0.5, 0.5)
 			p.scale_amount_min = 0.7
 			p.scale_amount_max = 1.2
 			fade.set_color(0, Color("fbf7f0", 0.0))

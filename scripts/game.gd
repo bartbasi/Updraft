@@ -45,6 +45,10 @@ var _card_lines: Label
 var _fly_again: Button
 var _swap_look: Button
 var _hint: Label
+var _hint_tween: Tween
+## Has the "keep circling" hint been shown this run?
+var circle_hint_shown := false
+var _last_entry := {}  ## Air zone -> flight time the plane last flew into it.
 var _hud: Label
 var _popup: Label
 var _popup_tween: Tween
@@ -205,9 +209,18 @@ func _on_bumped(strength: float) -> void:
 
 
 func _on_entered_thermal(zone: Thermal) -> void:
+	var tune := plane.tuning
 	var player := _downdraft if zone.sinks else _chime
 	player.pitch_scale = zone.chime_pitch
+	# Back into the same air soon after (a lap of a circle): a quieter chime.
+	var again := _last_entry.has(zone) and plane.flight_time - float(_last_entry[zone]) < tune.chime_repeat_window
+	_last_entry[zone] = plane.flight_time
+	var base := tune.downdraft_volume_db if zone.sinks else tune.chime_volume_db
+	player.volume_db = base + (tune.chime_repeat_db if again else 0.0)
 	player.play()
+	if zone.outdoors and not zone.sinks and zone.look != Thermal.Look.RIDGE and not circle_hint_shown and plane.global_position.y < tune.circle_hint_below:
+		circle_hint_shown = true
+		show_hint("Keep circling to climb", tune.circle_hint_seconds)
 	if zone.look == Thermal.Look.RIDGE:
 		swell(plane.tuning.ridge_swell_db, plane.tuning.ridge_swell_fade)  # the breeze up the hillside
 
@@ -399,11 +412,10 @@ func _setup_ui() -> void:
 	_hint.add_theme_font_size_override("font_size", 30)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH  # longer hints stay centred
 	_hint.position.y -= 90.0
 	_ui.add_child(_hint)
-	var fade := create_tween()
-	fade.tween_interval(2.5)
-	fade.tween_property(_hint, "modulate:a", 0.0, 1.0)
+	show_hint(_hint.text, 2.5)
 
 	_hud = Label.new()
 	_hud.add_theme_font_size_override("font_size", 22)
@@ -470,6 +482,17 @@ func _setup_ui() -> void:
 	_swap_look.add_theme_font_size_override("font_size", 26)
 	_swap_look.pressed.connect(_on_swap_look)
 	box.add_child(_swap_look)
+
+
+## Shows a hint low in the middle of the screen for `seconds`, then fades it out.
+func show_hint(text: String, seconds: float) -> void:
+	_hint.text = text
+	_hint.modulate.a = 1.0
+	if _hint_tween:
+		_hint_tween.kill()
+	_hint_tween = create_tween()
+	_hint_tween.tween_interval(seconds)
+	_hint_tween.tween_property(_hint, "modulate:a", 0.0, 1.0)
 
 
 func _on_fps_tapped(event: InputEvent) -> void:
