@@ -3,7 +3,8 @@ extends SceneTree
 ##   godot --headless --fixed-fps 60 --path . -s res://tools/flight_log.gd -- [options]
 ## Options:
 ##   --pilot=skilled|novice|handsoff   who flies (default skilled)
-##   --route=lavender|chain|ridge|picnic  where a skilled pilot goes outdoors (default lavender)
+##   --route=lavender|chain|ridge|picnic|gap|lake|bluff  where a skilled pilot goes outdoors
+##                                     (default lavender)
 ##   --runs=N                          number of flights (default 1; novices vary by seed)
 ##   --seed=S                          first random seed (default 1)
 ##   --quiet                           only the summary, no per-flight timeline
@@ -11,7 +12,8 @@ extends SceneTree
 ## landmarks passed outdoors, the crash or landing, and any stretch of more than 5 s with none of
 ## those happening ("dead air").
 
-const MAX_SECONDS := 150.0
+const MAX_SECONDS := 240.0
+const ROUTES := ["lavender", "chain", "ridge", "picnic", "gap", "lake", "bluff"]
 const DEAD_AIR := 5.0
 
 var _pilot_kind := "skilled"
@@ -27,8 +29,8 @@ func _initialize() -> void:
 			_pilot_kind = arg.trim_prefix("--pilot=")
 		elif arg.begins_with("--route="):
 			_route = arg.trim_prefix("--route=")
-			if not _route in ["lavender", "chain", "ridge", "picnic"]:
-				push_error("Unknown --route=%s (lavender, chain, ridge or picnic)" % _route)
+			if not _route in ROUTES:
+				push_error("Unknown --route=%s (%s)" % [_route, ", ".join(ROUTES)])
 				quit(1)
 				return
 		elif arg.begins_with("--runs="):
@@ -120,6 +122,24 @@ func _fly(run_seed: int) -> Dictionary:
 		if not state.has("barn") and p.z < Course.BARN.y and Vector2(p.x, p.z).distance_to(Course.BARN) < 20.0:
 			state["barn"] = true
 			note.call("passes the barn  (%.1f away, %.1f above the grass)" % [Vector2(p.x, p.z).distance_to(Course.BARN), p.y - Course.terrain_height(p.x, p.z)])
+		if not state.has("wall") and p.z < CourseFar.WALL_Z:
+			state["wall"] = true
+			note.call("crosses the wall  (%.1f above the grass)" % [p.y - Course.terrain_height(p.x, p.z)])
+		if not state.has("gap") and p.z < Course.SADDLE.x and absf(p.x - Course.GAP_X) < 30.0:
+			state["gap"] = true
+			note.call("crests the Gap  (y %.1f, %.1f above the saddle)" % [p.y, p.y - Course.SADDLE.y])
+		if not state.has("lake") and Course.lake_reach(p.x, p.z) < 1.0:
+			state["lake"] = true
+			note.call("over the lake  (y %.1f)" % p.y)
+		if not state.has("island") and Vector2(p.x, p.z).distance_to(Course.ISLAND) < Course.ISLAND_RADIUS:
+			state["island"] = true
+			note.call("passes the island  (%.1f above it)" % [p.y - Course.terrain_height(p.x, p.z)])
+		var clouds: Clouds = game._clouds
+		for k in (clouds.thinning.size() if clouds != null else 0):
+			var key := "thin_%d" % k
+			if not state.has(key) and clouds.thinning[k] >= 0.0:
+				state[key] = true
+				note.call("cloud thins: %s" % Course.OUTDOOR_THERMALS[k]["name"])
 		if not state.has("stream") and p.z < Course.STREAM_Z:
 			state["stream"] = true
 			note.call("passes over the stream  (%.1f above the grass)" % [p.y - Course.terrain_height(p.x, p.z)])

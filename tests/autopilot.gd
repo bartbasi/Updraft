@@ -116,12 +116,29 @@ static func downstairs_line(route_name := "lavender") -> PackedVector3Array:
 ##   "chain":    the whole chain of thermals (barn, ploughed field, bonfire), then home to the lavender.
 ##   "ridge":    along the ridge, over the ploughed field, then home to the lavender.
 ##   "picnic":   along the ridge, then over the crest to land on the picnic blanket.
+##   "gap":      along the ridge to its end, through the chalk pit's warm air, through the Gap, and
+##               circle down onto the island.
+##   "lake":     the barn and the ploughed field, a climb in the chalk pit's air, through the Gap,
+##               a climb over the beach's warm sand, then down onto the island.
+##   "bluff":    the ridge, the chalk, the Gap, then along the bluff and across the lake to the beach.
 static func route(route_name: String) -> Dictionary:
 	var hay := _climb(Course.HAY_FIELD)
 	var lavender := Vector2((Course.LAVENDER_X.x + Course.LAVENDER_X.y) * 0.5, (Course.LAVENDER_Z.x + Course.LAVENDER_Z.y) * 0.5)
 	var land := {"centre": lavender, "radius": 7.0, "to_y": Course.ground_height(lavender.x, lavender.y) + 0.5, "up": false, "max_time": 40.0}
 	var home := PackedVector3Array([Vector3(-5.0, 4.0, -181.0), Vector3(-5.0, 1.0, -195.0)])
 	var along_ridge := PackedVector3Array([Vector3(-20.0, 19.0, -140.0), Vector3(-35.0, 21.0, -160.0), Vector3(-37.0, 27.0, -190.0), Vector3(-37.0, 30.5, -212.0)])
+	# Past the valley: on along the ridge to its end, through the chalk pit's air to the Gap, down
+	# the Gap's style path, and on down the channel toward the water.
+	var to_ridge_end := PackedVector3Array([Vector3(-37.0, 31.0, -235.0), Vector3(-34.0, 30.0, -252.0)])
+	var chalk: Vector2 = Course.CHALK_HEAT["at"]
+	var through_chalk := PackedVector3Array([Vector3(chalk.x + 2.0, 26.0, chalk.y + 6.0), Vector3(chalk.x + 6.0, 24.0, chalk.y - 8.0)])
+	var gap_path: PackedVector3Array = _style_paths()["gap"]
+	var island := Vector3(Course.ISLAND.x, Course.ground_height(Course.ISLAND.x, Course.ISLAND.y), Course.ISLAND.y)
+	# Circle down over the island if high, then aim just into its grass, as onto the picnic
+	# blanket, so it sets down firmly on the near shore instead of sliding off the far one.
+	var onto_island := PackedVector3Array([island + Vector3(3.0, 1.2, 9.0), island + Vector3(1.0, -0.5, 2.0), island + Vector3(-6.0, -1.0, -6.0)])
+	var island_circle := {"centre": Course.ISLAND, "radius": 5.0, "to_y": island.y + 2.2, "up": false, "max_time": 40.0}
+	var sand: Vector2 = Course.SAND_HEAT["at"]
 	match route_name:
 		"chain":
 			return {"line": PackedVector3Array([
@@ -140,6 +157,32 @@ static func route(route_name: String) -> Dictionary:
 			var over_crest := PackedVector3Array([Vector3(-42.0, 30.5, -222.0), Vector3(-52.0, 29.5, -222.0), Vector3(-60.0, 28.0, -212.0)])  # a rounded turn
 			return {"line": along_ridge + over_crest + PackedVector3Array([picnic + Vector3(0.0, -0.5, 0.0), picnic + Vector3(-15.0, -1.0, 0.0)]),
 				"orbits": [hay, {"centre": Vector2(picnic.x, picnic.z), "radius": 6.0, "to_y": picnic.y + 2.5, "up": false, "max_time": 30.0}]}
+		"gap":
+			return {"line": along_ridge + to_ridge_end + through_chalk + gap_path + PackedVector3Array([Vector3(2.0, 9.0, -385.0), island + Vector3(4.0, 5.0, 22.0)]) + onto_island,
+				"orbits": [hay, island_circle]}
+		"lake":
+			return {"line": PackedVector3Array([
+				Vector3(14.0, 20.0, -145.0), Vector3(30.0, 22.0, -160.0),  # to the barn
+				Vector3(12.0, 25.0, -195.0), Vector3(-8.0, 24.0, -210.0),  # to the ploughed field
+				Vector3(-12.0, 25.0, -250.0), Vector3(chalk.x, 24.0, chalk.y + 8.0)]) + gap_path  # to the chalk pit, then the Gap
+				# Down the channel and east past the warm sand (circling up it on the way), then curving
+				# south and west across the water to the island: no turn sharper than a right angle,
+				# which the line would drop (see _join()). Over the island it circles down, then lands.
+				+ PackedVector3Array([Vector3(8.0, 10.0, -380.0), Vector3(sand.x - 6.0, 11.0, sand.y + 2.0), Vector3(sand.x - 6.0, 20.0, sand.y - 18.0),
+					Vector3(34.0, 22.0, -420.0), Vector3(14.0, 20.0, -416.0), island + Vector3(6.0, 12.0, 10.0)])
+				+ onto_island.slice(1),
+				"orbits": [hay, _climb(Course.BARN_ROOF), _climb(Course.PLOUGHED_FIELD), _climb(Course.CHALK_HEAT), _climb(Course.SAND_HEAT), island_circle]}
+		"bluff":
+			var beach := Vector3(50.0, Course.ground_height(50.0, -430.0), -430.0)
+			return {"line": along_ridge + to_ridge_end + through_chalk + gap_path + PackedVector3Array([
+				Vector3(0.0, 11.0, -378.0), Vector3(-30.0, 12.0, -380.0), Vector3(-56.0, 14.0, -392.0),  # down the channel and west to the bluff
+				Vector3(-58.0, 30.0, -430.0), Vector3(-56.0, 32.0, -462.0),  # up the bluff on its breeze
+				Vector3(-30.0, 26.0, -462.0), Vector3(10.0, 18.0, -450.0), Vector3(36.0, 10.0, -452.0),  # across the far end of the lake
+				# Round onto the beach from its south end, along the strip and clear of the huts, aiming
+				# just into the sand as onto the picnic blanket. The line turns gently all the way
+				# (_join() drops any point that turns back more than a right angle).
+				Vector3(46.0, 4.0, -448.0), beach + Vector3(0.0, -0.5, -10.0), beach + Vector3(0.0, -1.0, 4.0)]),
+				"orbits": [hay, {"centre": Vector2(beach.x, beach.z), "radius": 6.0, "to_y": beach.y + 3.0, "up": false, "max_time": 40.0}]}
 	return {"line": PackedVector3Array([Vector3(-3.0, 17.0, -150.0)]) + home, "orbits": [hay, land]}
 
 

@@ -1088,3 +1088,25 @@ func test_the_landmarks_past_the_valley() -> void:
 	print("        bowl trees: %d" % planted)
 	check_between(planted, 18, 34, "bowl trees planted")
 	check(not CourseFar.bowl_tree_allowed(Course.GAP_X, -370.0) and not CourseFar.bowl_tree_allowed(0.0, -420.0) and not CourseFar.bowl_tree_allowed(-60.0, -420.0), "none in the Gap's channel, the lake or the bluff's lift")
+
+
+## Test pilots fly the routes past the valley (docs/phase4-plan.md, B6 and D) from the living
+## room: along the ridge and through the Gap onto the island; up the barn, the ploughed field, the
+## chalk pit and the beach's warm sand onto the island; and through the Gap, up the bluff and across to the beach.
+## Each crosses the Gap low enough to earn its moment, and none crashes.
+func test_routes_past_the_valley_land_where_they_aim() -> void:
+	for route in [["gap", "island"], ["lake", "island"], ["bluff", "beach"]]:
+		var pilot := Autopilot.new(Autopilot.downstairs_line(route[0]))
+		pilot.orbits.assign(Autopilot.route(route[0])["orbits"])
+		var game := _start_downstairs(pilot.fly)
+		var plane := game.get_node("Plane") as PaperPlane
+		var frames := 0
+		while not plane.is_ended() and frames < 200 * 60:
+			await tree.physics_frame
+			frames += 1
+		var gap: Array = (game.scoring.moments as Array).filter(func(m: Scoring.Moment) -> bool: return m.id == &"gap")
+		print("        %s: ended at %.1f s, %s, total %d" % [route[0], plane.flight_time, game.scoring.landing.get("title", "no landing spot"), game.scoring.total()])
+		check(not plane.model.crashed and plane.is_ended(), "%s: lands, no crash (at %s)" % [route[0], plane.global_position])
+		check(game.crossed_gap and (gap[0] as Scoring.Moment).award > 0, "%s: through the Gap, earning its moment" % route[0])
+		check(game.scoring.landing.get("id", "") == route[1], "%s: lands on the %s" % [route[0], route[1]])
+		await cleanup()
