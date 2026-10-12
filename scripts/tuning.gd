@@ -185,6 +185,23 @@ extends Resource
 ## (wind.wav peaks at -4.4 dB full scale, so at +2 the loudest wind still peaks below -2.)
 @export var wind_max_db := 2.0
 
+@export_group("Variometer")
+## "You're in lift": soft beeps while the plane climbs in rising air at least `vario_air_min`
+## (units/s) and is itself climbing at `vario_climb_min` or more; they stop once the climb drops
+## below `vario_climb_stop`. From `vario_climb_min` up to `vario_climb_full` the beeps come
+## faster (seconds between them), higher (pitch) and louder (decibels). Keep
+## `vario_climb_stop` below `vario_climb_min`.
+@export var vario_air_min := 0.4
+@export var vario_climb_min := 0.3
+@export var vario_climb_stop := 0.1
+@export var vario_climb_full := 3.5
+@export_range(0.1, 2.0) var vario_interval_slow := 0.45
+@export_range(0.1, 2.0) var vario_interval_fast := 0.15
+@export_range(0.1, 4.0) var vario_pitch_low := 1.0
+@export_range(0.1, 4.0) var vario_pitch_high := 1.7
+@export var vario_db_quiet := -14.0
+@export var vario_db_loud := -7.0
+
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass
 ## starts smaller and grows bigger, so it bounces more.

@@ -179,6 +179,11 @@ func _physics_process(delta: float) -> void:
 		stopped.emit()
 
 
+## The rising (or sinking) air at the plane as of this physics tick.
+func air_here() -> Vector3:
+	return _air
+
+
 ## Sum of the rising and sinking air at the plane. Emits entered_thermal when the plane
 ## flies into a thermal or a downdraft.
 func _wind_here() -> Vector3:

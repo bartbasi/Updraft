@@ -29,6 +29,9 @@ var _downdraft: AudioStreamPlayer
 var _style_good: AudioStreamPlayer
 var _style_perfect: AudioStreamPlayer
 var _whoosh: AudioStreamPlayer
+var _vario_beep: AudioStreamPlayer
+var vario: Vario
+var vario_beeps := 0  ## Beeps this flight.
 var _near_query := PhysicsShapeQueryParameters3D.new()  ## Reused each tick for close calls.
 var _close_call_wait := 0.0  ## Seconds until the next close call may sound.
 enum Pass { CLEAR, CLOSE, SPOILED }  ## Clear of everything; rushing close past something; touched it.
@@ -91,6 +94,11 @@ func _physics_process(delta: float) -> void:
 	if not plane.held and not plane.is_ended():
 		scoring.update(plane.global_position)
 		_check_close_call(delta)
+		if vario.tick(delta, plane.air_here().y, plane.model.velocity.y, plane.model.stalled):
+			_vario_beep.pitch_scale = vario.pitch()
+			_vario_beep.volume_db = vario.volume_db()
+			_vario_beep.play()
+			vario_beeps += 1
 
 
 ## Rushing past something without touching it: a soft whoosh and a swell of wind, once the
@@ -235,6 +243,7 @@ func _finish(title: String, delay: float) -> void:
 	if _ended:
 		return
 	_ended = true
+	_vario_beep.stop()
 	var total := scoring.total()
 	var new_best := total > best_score
 	if new_best:
@@ -334,6 +343,8 @@ func _setup_audio() -> void:
 	_style_good = _player("res://audio/style_good.wav", tune.style_good_volume_db)
 	_style_perfect = _player("res://audio/style_perfect.wav", tune.style_perfect_volume_db)
 	_whoosh = _player("res://audio/whoosh.wav", tune.whoosh_volume_db)
+	_vario_beep = _player("res://audio/vario.wav", tune.vario_db_quiet)
+	vario = Vario.new(tune)
 	_near_query.shape = SphereShape3D.new()
 	_near_query.collision_mask = PaperPlane.WORLD_LAYER
 	_near_query.exclude = [plane.get_rid()]

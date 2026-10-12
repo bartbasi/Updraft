@@ -190,6 +190,17 @@ def pop(rng):
     return out
 
 
+def vario():
+    """One soft variometer beep: a short sine with a little second harmonic."""
+    n = int(0.09 * RATE)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        env = min(1.0, t / 0.005) * math.exp(-t / 0.06)
+        out.append(env * (math.sin(2 * math.pi * 660 * t) + 0.15 * math.sin(2 * math.pi * 1320 * t)))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -202,6 +213,7 @@ def main():
     write_wav("style_perfect.wav", style_perfect(), peak=0.6)
     write_wav("whoosh.wav", whoosh(rng), peak=0.6)
     write_wav("pop.wav", pop(rng), peak=0.8)
+    write_wav("vario.wav", vario(), peak=0.6)
 
 
 if __name__ == "__main__":
