@@ -1,6 +1,7 @@
 class_name Gull
 extends Node3D
-## A gull that joins the player along the ridge, once a run: after a moment flying along the
+## A gull that joins the player along a ridge, once for each ridge's lift a run (the valley's
+## ridge and the bowl's bluff): after a moment flying along the
 ## ridge lift it hangs ahead, eases into a spot just off the wing on the hill side, soars there
 ## for a few seconds, then banks away over the crest. Looks and one call only: nothing collides,
 ## and it changes nothing about the flight or the score. Numbers are in Tuning ("Lift feel").
@@ -35,8 +36,10 @@ const ACROSS_RIDGE := 0.3
 
 var state := State.WAITING
 var plane: PaperPlane
-## The lift the gull rides (the ridge).
+## The ridge lifts a gull can join you in, and the one it is in now (or last was).
+var lifts: Array[Thermal] = []
 var lift: Thermal
+var _met := {}  ## The lifts where a gull has already joined you this run.
 var _along := 0.0  ## Seconds flying along the ridge lift so far.
 var _time := 0.0  ## Seconds in the current state.
 var _start := Vector3.ZERO  ## Where it hung on arrival.
@@ -47,9 +50,9 @@ var _wings: Array[MeshInstance3D] = []
 var _call: AudioStreamPlayer
 
 
-func setup(p_plane: PaperPlane, p_lift: Thermal) -> void:
+func setup(p_plane: PaperPlane, p_lifts: Array[Thermal]) -> void:
 	plane = p_plane
-	lift = p_lift
+	lifts = p_lifts
 	var body := MeshInstance3D.new()
 	body.mesh = _build_body()
 	add_child(body)
@@ -70,13 +73,17 @@ func setup(p_plane: PaperPlane, p_lift: Thermal) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if plane == null or lift == null or state == State.GONE:
+	if plane == null or lifts.is_empty() or state == State.GONE:
 		return
 	var tune := plane.tuning
 	_time += delta
 	match state:
 		State.WAITING:
-			_along = _along + delta if _flying_along_the_ridge() else 0.0
+			var along := _ridge_flown_along()
+			if along != lift:
+				lift = along
+				_along = 0.0
+			_along = _along + delta if lift != null else 0.0
 			if _along >= tune.gull_wait and not plane.is_ended():
 				_choose_side()
 				_start = plane.global_position + _forward() * ARRIVE_AHEAD + _hill_side() * _side * _spacing().x + Vector3.UP * ARRIVE_UP
@@ -86,6 +93,7 @@ func _physics_process(delta: float) -> void:
 				reset_physics_interpolation()
 				_call.volume_db = tune.gull_call_db
 				_call.play()
+				_met[lift] = true
 				joined.emit()
 		State.ARRIVING:
 			_choose_side()
@@ -115,9 +123,14 @@ func _physics_process(delta: float) -> void:
 			var beat := sin(TAU * LEAVE_BEATS * minf(_time / 1.2, 1.0)) * 0.6 if _time < 1.2 else 0.0
 			_flap(beat)
 			if _time >= LEAVE_SECONDS or global_position.distance_to(plane.global_position) > GONE_DISTANCE:
-				_set_state(State.GONE)
 				visible = false
-				set_physics_process(false)
+				if _met.size() < lifts.size():
+					_set_state(State.WAITING)  # another ridge still to meet one on
+					_along = 0.0
+					lift = null
+				else:
+					_set_state(State.GONE)
+					set_physics_process(false)
 
 
 ## The spot off the plane's wing it soars in, on the side _choose_side() picked: a little up and
@@ -146,13 +159,19 @@ func _spacing() -> Vector3:
 	return Vector3(tune.gull_side, tune.gull_up, tune.gull_ahead) * scale
 
 
-func _flying_along_the_ridge() -> bool:
-	if plane.held or plane.is_ended() or not lift.contains(plane.global_position):
-		return false
+## The ridge lift, not yet visited by a gull, that the plane is flying along now, or null.
+func _ridge_flown_along() -> Thermal:
+	if plane.held or plane.is_ended():
+		return null
 	var flat := Vector2(plane.model.velocity.x, plane.model.velocity.z)
 	if flat.length() < 0.5:
-		return false
-	return absf(flat.angle_to(Vector2(0.0, -1.0))) <= ALONG_RIDGE or absf(flat.angle_to(Vector2(0.0, 1.0))) <= ALONG_RIDGE
+		return null
+	if absf(flat.angle_to(Vector2(0.0, -1.0))) > ALONG_RIDGE and absf(flat.angle_to(Vector2(0.0, 1.0))) > ALONG_RIDGE:
+		return null
+	for l in lifts:
+		if not _met.has(l) and l.contains(plane.global_position):
+			return l
+	return null
 
 
 ## The plane's flat heading.
@@ -161,7 +180,7 @@ func _forward() -> Vector3:
 	return v.normalized() if v.length() > 0.1 else Vector3.FORWARD
 
 
-## Across the plane's heading, toward the hill (-X: the ridge rises that way). Flying nearly
+## Across the plane's heading, toward the hill (-X: the ridge and the bluff both rise that way). Flying nearly
 ## across the ridge, it keeps the last answer (remembered in `_hill`) rather than flipping from
 ## wing to wing.
 func _hill_side() -> Vector3:

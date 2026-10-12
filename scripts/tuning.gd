@@ -242,7 +242,7 @@ extends Resource
 ## cloud and birds along, up to `thermal_drift_max` times their radius. Each one starts the first
 ## time the plane comes within `thermal_drift_wake` radii of it, so it is always where its cloud
 ## said when you arrive; circling pilots then re-centre on the beeps.
-@export var thermal_drift_speed := 0.25
+@export var thermal_drift_speed := 0.5
 @export_range(0.0, 1.0) var thermal_drift_max := 0.5
 @export var thermal_drift_wake := 1.5
 ## Once the plane has climbed to within `cloud_thin_below_top` of a thermal's top (inside it),
@@ -253,12 +253,12 @@ extends Resource
 @export var cloud_thin_seconds := 8.0
 @export_range(0.1, 1.0) var cloud_thin_scale := 0.55
 @export_range(1.0, 3.0) var cloud_thin_spread := 1.3
-## A gull joins you on the ridge once a run, after `gull_wait` seconds flying along the ridge
+## A gull joins you on each ridge (the valley's and the bluff) once a run, after `gull_wait` seconds flying along its
 ## lift, and soars `gull_side` to the hill side, `gull_up` up and `gull_ahead` ahead of you
 ## (times `gull_balloon_scale` around the balloon) for `gull_stay` seconds, catching up at rate
 ## `gull_follow` (per second), never lower than `gull_min_ground` over the hillside. One call
 ## at `gull_call_db` as it arrives. Looks only.
-@export var gull_wait := 1.5
+@export_range(0.1, 10.0) var gull_wait := 1.5
 @export var gull_stay := 6.0
 @export var gull_side := 3.5
 @export var gull_up := 0.8

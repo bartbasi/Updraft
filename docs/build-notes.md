@@ -199,3 +199,8 @@ for the phone test"). From the build:
   saddle (where the gust blows), not only for one resting past the crest; the beach landing
   starts 2 u in from the waterline (x 42..58, as the plan's rectangle); a fast nose-dive into the
   lake is still a crash (crumple, no splash); only coming to rest on the water is a splashdown.
+- **Fun review 4 fixes:** drift 0.5 u/s; a gull for each ridge lift (the ridge and the bluff);
+  the far rim lowered (0.013); the windmill's sails turned to face half toward the valley; the
+  Gap style path ends at y 13.5; sink ticks quiet within 1 u of the ground or water. The drift
+  test's naive pilot hears exactly one sigh, right on its threshold: retuning drift or the sigh
+  may need that test's numbers revisited.

@@ -273,7 +273,7 @@ static func style_moment_defs() -> Array:
 		# Low over the saddle and diving into the bowl: arriving at 21-22 means diving about 4 units
 		# in the last 30, the outdoor answer to the stair dive. Gliding straight over high pays nothing.
 		{"id": &"gap", "title": "Through the Gap", "path": PackedVector3Array([
-			Vector3(6, 19.5, -318), Vector3(6, 17.5, -334), Vector3(6, 15.5, -350), Vector3(5, 12.0, -366)])},
+			Vector3(6, 19.5, -318), Vector3(6, 17.5, -334), Vector3(6, 15.5, -350), Vector3(5, 13.5, -366)])},
 	]
 
 
@@ -375,7 +375,7 @@ static func _bowl(x: float, z: float) -> float:
 	h += 0.012 * pow(maxf(0.0, x - 58.0), 2.0) * f  # dunes and slopes beyond the beach
 	h += BLUFF_HEIGHT * smoothstep(-BLUFF_FACE_X.x, -BLUFF_FACE_X.y, -x) * smoothstep(0.0, 30.0, e)  # the bluff and its plateau
 	h += 0.03 * pow(maxf(0.0, -x - 96.0), 2.0) * smoothstep(0.0, 30.0, e)  # up to the west edge
-	h += 0.02 * pow(maxf(0.0, e - 120.0), 2.0)  # the far rim
+	h += 0.013 * pow(maxf(0.0, e - 120.0), 2.0)  # the far rim (low enough that the bowl reads as open)
 	h += _rolls(x, z) * f * smoothstep(1.0, 1.5, q) * (1.0 - smoothstep(40.0, 58.0, x))  # no rolls on the lake, shore or beach
 	if q > 1.15:  # no ponds beyond the shore: the ground there stays above the water
 		h = lerpf(h, maxf(h, LAKE_Y + 0.3), smoothstep(1.15, 1.35, q))

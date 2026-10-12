@@ -650,7 +650,7 @@ func test_thermals_drift_downwind_once_reached() -> void:
 	var near := Vector3(barn.home.x + barn.radius * 1.4, 20.0, barn.home.z)
 	for i in 120:
 		barn.drift(1.0 / 60.0, near, tune)
-	check_between(start.x - barn.position.x, 0.25 * 2.0 - 0.02, 0.25 * 2.0 + 0.02, "drift after 2 s (units)")
+	check_between(start.x - barn.position.x, tune.thermal_drift_speed * 2.0 - 0.02, tune.thermal_drift_speed * 2.0 + 0.02, "drift after 2 s (units)")
 	check(is_equal_approx(barn.position.z, start.z) and is_equal_approx(barn.position.y, start.y), "only downwind")
 	for i in 60 * 60:
 		barn.drift(1.0 / 60.0, far * 10.0, tune)
@@ -663,10 +663,9 @@ func test_thermals_drift_downwind_once_reached() -> void:
 
 
 ## Circling the barn's warm air from low down while it drifts: a pilot who re-centres on it
-## reaches near the top within 12 s, faster than one who keeps circling where it first was, who
-## still climbs. (A climb takes about 8 s, so the air slides only about 2 units: a gentle nudge.
-## The plan asked for entry at y 18, 20% faster and sighs telling the pilots apart; from y 18 the
-## climb is a 3 s zoom and neither pilot sighs, so this checks the gentler effect; see build-notes.)
+## reaches near the top within 12 s and at least 20% faster than one who keeps circling where it
+## first was, who still climbs but hears the air slide away. (Entered at y 5, not the plan's 18:
+## from 18 the climb is a 3 s zoom.)
 func test_re_centring_climbs_a_drifting_thermal_faster() -> void:
 	var times := {}
 	var sighs := {}
@@ -701,8 +700,9 @@ func test_re_centring_climbs_a_drifting_thermal_faster() -> void:
 		await cleanup()
 	print("        drifting barn: re-centring top in %.1f s (%d sighs), naive %.1f s (%d sighs)" % [times[false], sighs[false], times[true], sighs[true]])
 	check(times[false] <= 12.0, "re-centring reaches near the top within 12 s (%.1f)" % times[false])
-	check(times[false] <= times[true] * 0.9, "at least 10%% faster than circling the old spot (%.1f vs %.1f s)" % [times[false], times[true]])
+	check(times[false] <= times[true] * 0.8, "at least 20%% faster than circling the old spot (%.1f vs %.1f s)" % [times[false], times[true]])
 	check(sighs[false] == 0, "re-centring never loses the lift (%d sighs)" % sighs[false])
+	check(sighs[true] >= 1, "circling the old spot, the pilot hears the air slide away (%d sighs)" % sighs[true])
 
 
 ## Climb to the top of the hay field's air and its cloud shrinks, frays and fades over 8 s;
@@ -843,8 +843,9 @@ func test_a_gull_keeps_off_the_hillside_on_a_low_pass() -> void:
 		plane.launch(Vector3(x, Course.terrain_height(x, z) + case[1], z), 0.0)
 		var lowest := INF
 		var nearest := INF
+		var came := false
 		var frames := 0
-		while gull.state != Gull.State.GONE and frames < 20 * 60:
+		while not (came and not gull.visible) and frames < 20 * 60:
 			await tree.physics_frame
 			frames += 1
 			# Hold the plane on its line: case[1] above the face, heading along the ridge.
@@ -853,11 +854,12 @@ func test_a_gull_keeps_off_the_hillside_on_a_low_pass() -> void:
 			plane.model.position = plane.global_position
 			plane.model.velocity = Vector3(0.0, 0.0, -6.0)
 			if gull.visible:
+				came = true
 				var g := gull.global_position
 				lowest = minf(lowest, g.y - Course.terrain_height(g.x, g.z))
 				nearest = minf(nearest, g.distance_to(plane.global_position))
 		var tag := "x %d, %.1f up" % [x, case[1]]
-		check(gull.state == Gull.State.GONE, "%s: the gull came and went" % tag)
+		check(came and not gull.visible, "%s: the gull came and went" % tag)
 		check(lowest >= tune.gull_min_ground - 0.05, "%s: never nearer the grass than %.1f (%.2f)" % [tag, tune.gull_min_ground, lowest])
 		check(nearest >= Gull.NEAREST - 0.05, "%s: never nearer the plane than %.1f (%.2f)" % [tag, Gull.NEAREST, nearest])
 		await cleanup()
@@ -902,7 +904,7 @@ func test_the_gap_and_the_bowl_have_their_planned_heights() -> void:
 		var slack := 0.3 if row[3] == "the beach" else 0.2
 		check_between(Course.ground_height(row[0], row[1]), row[2] - slack, row[2] + slack, "%s (%d, %d)" % [row[3], row[0], row[1]])
 	var rolling := [[-48.0, -420.0, 0.7, "bluff foot"], [-60.0, -420.0, 8.4, "bluff face"], [-72.0, -420.0, 18.8, "bluff face"],
-		[-84.0, -420.0, 24.0, "bluff plateau"], [0.0, -500.0, 33.6, "far rim"], [0.0, -525.0, 87.0, "far edge"]]
+		[-84.0, -420.0, 24.0, "bluff plateau"], [0.0, -500.0, 21.9, "far rim (lowered in fun review 4)"], [0.0, -525.0, 56.6, "far edge"]]
 	for row in rolling:
 		var x: float = row[0]
 		var z: float = row[1]
@@ -1034,6 +1036,16 @@ func test_sink_ticks_only_over_the_lake() -> void:
 	plane.launch(Course.DOWNDRAFT_ORIGIN + Vector3(0.0, Course.DOWNDRAFT_SIZE.y * 0.6, 3.0), PI * 0.5)
 	await physics_frames(60 * 2)
 	check(game.sink_ticks == over_lake, "none in the stair downdraft")
+	# Skimming the water while sliding to a stop: quiet; a little higher: ticking.
+	for case in [[0.5, false], [2.0, true]]:
+		var before: int = game.sink_ticks
+		plane.launch(Vector3(0.0, Course.LAKE_Y + case[0], -415.0), 0.0)
+		for f in 60 * 2:
+			await tree.physics_frame
+			plane.global_position = Vector3(0.0, Course.LAKE_Y + case[0], -415.0 - f * 0.1)
+			plane.model.position = plane.global_position
+			plane.model.velocity = Vector3(0.0, 0.0, -6.0)
+		check((game.sink_ticks > before) == case[1], "%.1f over the water: %s (%d ticks)" % [case[0], "ticks" if case[1] else "quiet", game.sink_ticks - before])
 
 
 ## The landmarks past the valley: the windmill's tower, the wall, the huts and the boathouse are
@@ -1071,6 +1083,7 @@ func test_the_landmarks_past_the_valley() -> void:
 	for f in 60 * 3:
 		await tree.process_frame
 	check(not sails.transform.is_equal_approx(sails_then), "the sails turn")
+	check((sails.transform.basis * Vector3.RIGHT).normalized().is_equal_approx(CourseFar.WINDMILL_FACING.normalized()), "facing half toward the valley")
 	check(boat.global_position.distance_to(boat_then) > 2.0, "the boat sails")
 	check(boat.global_basis.y.x < -0.1, "heeled away from the breeze (mast lean %.2f)" % boat.global_basis.y.x)
 	for k in 360:  # its whole circle, on open water and clear of the island
@@ -1095,11 +1108,13 @@ func test_the_landmarks_past_the_valley() -> void:
 ## chalk pit and the beach's warm sand onto the island; and through the Gap, up the bluff and across to the beach.
 ## Each crosses the Gap low enough to earn its moment, and none crashes.
 func test_routes_past_the_valley_land_where_they_aim() -> void:
-	for route in [["gap", "island"], ["lake", "island"], ["bluff", "beach"]]:
+	for route in [["gap", "island", 1], ["lake", "island", 0], ["bluff", "beach", 2]]:
 		var pilot := Autopilot.new(Autopilot.downstairs_line(route[0]))
 		pilot.orbits.assign(Autopilot.route(route[0])["orbits"])
 		var game := _start_downstairs(pilot.fly)
 		var plane := game.get_node("Plane") as PaperPlane
+		var gulls := [0]  # an array: a lambda captures an int by value
+		(game.gull as Gull).joined.connect(func() -> void: gulls[0] += 1)
 		var frames := 0
 		while not plane.is_ended() and frames < 200 * 60:
 			await tree.physics_frame
@@ -1109,4 +1124,5 @@ func test_routes_past_the_valley_land_where_they_aim() -> void:
 		check(not plane.model.crashed and plane.is_ended(), "%s: lands, no crash (at %s)" % [route[0], plane.global_position])
 		check(game.crossed_gap and (gap[0] as Scoring.Moment).award > 0, "%s: through the Gap, earning its moment" % route[0])
 		check(game.scoring.landing.get("id", "") == route[1], "%s: lands on the %s" % [route[0], route[1]])
+		check(gulls[0] == route[2], "%s: a gull joins on each ridge flown along (%d, expected %d)" % [route[0], gulls[0], route[2]])
 		await cleanup()

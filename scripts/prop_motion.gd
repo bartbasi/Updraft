@@ -6,6 +6,7 @@ extends MeshInstance3D
 
 var _centre := Vector3.ZERO
 var _axis := Vector3.RIGHT
+var _orient := Basis.IDENTITY  ## Turns the spinning mesh to face its way.
 var _rate := 0.0  ## Radians/second.
 var _radius := 0.0  ## 0 spins in place; more sails round a circle this big.
 var _heel := 0.0
@@ -18,9 +19,10 @@ func _init() -> void:
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 
 
-## Turns about `axis` through `at`, at `rate` radians/second.
-func spin(at: Vector3, axis: Vector3, rate: float) -> void:
+## Turns about its own `axis` through `at`, at `rate` radians/second, the whole turned by `orient`.
+func spin(at: Vector3, axis: Vector3, rate: float, orient := Basis.IDENTITY) -> void:
 	_centre = at
+	_orient = orient
 	_axis = axis.normalized()
 	_rate = rate
 	_radius = 0.0
@@ -45,7 +47,7 @@ func _process(delta: float) -> void:
 func _place() -> void:
 	var a := _rate * _time
 	if _radius <= 0.0:
-		transform = Transform3D(Basis(_axis, a), _centre)
+		transform = Transform3D(_orient * Basis(_axis, a), _centre)
 		return
 	# Anticlockwise from above: from +X toward -Z. The nose (-Z in the mesh) points along the way round.
 	var at := _centre + Vector3(cos(a), 0.0, -sin(a)) * _radius

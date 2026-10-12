@@ -1,12 +1,15 @@
-# Paper Plane
+# Updraft
 
-A short playable demo: fly a folded paper plane through a pastel house by tilting your phone.
+Fly a folded paper plane through a pastel house and out over the hills by tilting your phone.
 A kid throws it across a bedroom; bank out of the door, ride a sunbeam down a long gallery,
 dive the stairwell, then ride warm air from a radiator and steam from a kettle, dive under the
 dining-room lamp, burst out of the kitchen window, and explore the valley outside: circle up
 the warm air over a hay field, a barn, a ploughed field and a bonfire's smoke, soar the ridge,
-and come down in the lavender or on the picnic blanket. Soft beeps tell you when you're in lift.
-A well-flown run lasts one to two minutes. Prefer a red balloon? Pick it on the end card.
+and come down in the lavender or on the picnic blanket. Or climb the chalk pit's warm air at the
+valley's end and cross the Gap in the hills to a lake with an island, a beach and a windy bluff.
+Soft beeps tell you when you're in lift, a sigh when you've flown out of it; thermals drift with
+the breeze and their clouds thin once climbed, and a gull joins you on the ridges. A run lasts
+one to two and a half minutes. Prefer a red balloon? Pick it on the end card.
 
 ## Scoring
 
@@ -14,8 +17,10 @@ A well-flown run lasts one to two minutes. Prefer a red balloon? Pick it on the 
 - **Style** at 8 moments (the door turn, the sunbeam, the downdraft dive, the landing turn, the
   radiator, under the lamp, the kettle steam, out of the window): the closer you stay to the
   best line through each, the more points; a gold "Perfect!" for a really close pass.
-- **Outdoors:** 5 points a second in the air (up to a minute); landing on the lavender +200, on
-  the picnic blanket up on the plateau +400 (not if you crash), and a ninth moment, the Ridge run.
+- **Outdoors:** 5 points a second in the air (up to 90 s); landing on the lavender +200, on the
+  picnic blanket up on the plateau +400, on the beach +250 or on the island +500 (not if you
+  crash; coming down in the lake is a "Splashdown!", no bonus), and two more moments, the Ridge
+  run and Through the Gap.
 - **End card:** distance, style, airtime, landing, total and your best, which is kept on the phone.
 
 Built with Godot 4.7.2 (GDScript, Mobile renderer), Android first. Every model, texture,

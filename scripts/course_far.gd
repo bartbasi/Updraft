@@ -12,6 +12,9 @@ const WINDMILL := Vector2(36.0, -336.0)
 const WINDMILL_TOWER := 10.0  ## Tower height; the sails' hub is at 9.
 const WINDMILL_SAIL := 5.0  ## Sail length from the hub.
 const WINDMILL_TURN := 0.5  ## Radians/second.
+## The way the sails face (seen from above): turned from +Z 35 degrees toward +X, so they show
+## their face to the valley rather than their edge.
+const WINDMILL_FACING := Vector3(0.574, 0.0, 0.819)
 const WALL_Z := -252.0
 const WALL_X := Vector2(-28.0, 22.0)
 const WALL_HEIGHT := 1.2
@@ -59,7 +62,8 @@ static func build_bowl(c: Course) -> void:
 
 
 ## A white tapered tower with a red cap on the Gap's right shoulder; its four lattice sails face
-## the breeze (+X) and turn slowly, high above any flight line. The tower is solid; the sails aren't.
+## half toward the valley and turn slowly, high above any flight line. The tower is solid; the
+## sails aren't.
 static func _windmill(c: Course) -> void:
 	# It stands on the Gap's steep side: its foot goes down to the lowest grass under it.
 	var foot := Vector3(WINDMILL.x, _floor_under(WINDMILL, Vector3(4.0, 0.0, 4.0)) - 0.3, WINDMILL.y)
@@ -67,8 +71,10 @@ static func _windmill(c: Course) -> void:
 	c.cylinder(foot, 2.0, 1.4, tower, Course.TRIM, true, 12)
 	foot.y += tower - WINDMILL_TOWER - 0.5  # the cap and sails sit as high as on level ground
 	c.builder.sphere(foot + Vector3(0.0, WINDMILL_TOWER + 0.5, 0.0), 1.6, Color("b5524a"), Vector3(1.0, 0.7, 1.0), 10, 4)
-	var hub := foot + Vector3(1.9, 9.5, 0.0)
-	c.builder.box(hub - Vector3(0.35, 0.0, 0.0), Vector3(1.9, 0.5, 0.5), Color("7a6a5e"))  # the axle, out to the sails
+	# The sails are built facing +X, then turned to face WINDMILL_FACING.
+	var face := Basis(Vector3.UP, atan2(-WINDMILL_FACING.z, WINDMILL_FACING.x))
+	var hub := foot + Vector3(0.0, 9.5, 0.0) + WINDMILL_FACING * 1.9
+	c.builder.box(hub - WINDMILL_FACING * 0.35, Vector3(1.9, 0.5, 0.5), Color("7a6a5e"), face)  # the axle, out to the sails
 	var sails := Art.Builder.new()
 	var lattice := Color("7a6a5e")
 	for k in 4:
@@ -82,7 +88,7 @@ static func _windmill(c: Course) -> void:
 	var mover := PropMotion.new()
 	mover.name = "WindmillSails"
 	mover.mesh = sails.commit()
-	mover.spin(hub + Vector3(0.6, 0.0, 0.0), Vector3.RIGHT, WINDMILL_TURN)
+	mover.spin(hub + WINDMILL_FACING * 0.6, Vector3.RIGHT, WINDMILL_TURN, face)
 	c.add_child(mover)
 
 

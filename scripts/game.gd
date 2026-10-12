@@ -42,7 +42,7 @@ var sighs := 0  ## "Lift lost" sighs this flight.
 var _last_sigh := -INF  ## Flight time of the last sigh.
 var _drifting: Array[Thermal] = []  ## The outdoor columns, which drift with the breeze.
 var _clouds: Clouds
-## The ridge's gull (looks only).
+## The gull that joins you on each ridge (looks only).
 var gull: Gull
 var _near_query := PhysicsShapeQueryParameters3D.new()  ## Reused each tick for close calls.
 var _close_call_wait := 0.0  ## Seconds until the next close call may sound.
@@ -99,7 +99,8 @@ func _ready() -> void:
 	gull = Gull.new()
 	gull.name = "Gull"
 	add_child(gull)
-	gull.setup(plane, course.get_node("RidgeLift"))
+	var ridges: Array[Thermal] = [course.get_node("RidgeLift"), course.get_node("BluffLift")]
+	gull.setup(plane, ridges)
 	_clouds = course.get_node_or_null("Clouds")
 	if _clouds != null:
 		_clouds.tuning = plane.tuning
@@ -157,7 +158,9 @@ func _tick_in_sink(delta: float) -> void:
 	var tune := plane.tuning
 	var air := plane.air_here().y
 	_sink_wait -= delta  # keeps counting down out of the sink too, so re-entering can't tick at once
-	if air > tune.sink_tick_air or plane.model.grounded or not Course.is_outside(plane.global_position):
+	var at := plane.global_position
+	var low := at.y - maxf(Course.terrain_height(at.x, at.z), Course.LAKE_Y) < 1.0  # sliding to a stop: quiet
+	if air > tune.sink_tick_air or plane.model.grounded or low or not Course.is_outside(at):
 		return
 	if _sink_wait > 0.0:
 		return
