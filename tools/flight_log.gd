@@ -3,6 +3,7 @@ extends SceneTree
 ##   godot --headless --fixed-fps 60 --path . -s res://tools/flight_log.gd -- [options]
 ## Options:
 ##   --pilot=skilled|novice|handsoff   who flies (default skilled)
+##   --route=lavender|chain|ridge|picnic  where a skilled pilot goes outdoors (default lavender)
 ##   --runs=N                          number of flights (default 1; novices vary by seed)
 ##   --seed=S                          first random seed (default 1)
 ##   --quiet                           only the summary, no per-flight timeline
@@ -14,6 +15,7 @@ const MAX_SECONDS := 150.0
 const DEAD_AIR := 5.0
 
 var _pilot_kind := "skilled"
+var _route := "lavender"
 var _runs := 1
 var _seed := 1
 var _quiet := false
@@ -23,6 +25,12 @@ func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--pilot="):
 			_pilot_kind = arg.trim_prefix("--pilot=")
+		elif arg.begins_with("--route="):
+			_route = arg.trim_prefix("--route=")
+			if not _route in ["lavender", "chain", "ridge", "picnic"]:
+				push_error("Unknown --route=%s (lavender, chain, ridge or picnic)" % _route)
+				quit(1)
+				return
 		elif arg.begins_with("--runs="):
 			_runs = maxi(1, int(arg.trim_prefix("--runs=")))
 		elif arg.begins_with("--seed="):
@@ -55,7 +63,7 @@ func _fly(run_seed: int) -> Dictionary:
 		"handsoff":
 			pass
 		_:
-			pilot = Autopilot.new(Autopilot.course_line(), run_seed)
+			pilot = Autopilot.touring(_route, run_seed)
 	plane.autopilot = pilot.fly if pilot else func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
 
 	var log := []
@@ -92,9 +100,16 @@ func _fly(run_seed: int) -> Dictionary:
 		if not state.has("lavender") and Course.in_lavender(p):
 			state["lavender"] = true
 			note.call("over the lavender field  (%.1f above the grass)" % [p.y - Course.terrain_height(p.x, p.z)])
+		if not state.has("barn") and p.z < Course.BARN.y and Vector2(p.x, p.z).distance_to(Course.BARN) < 20.0:
+			state["barn"] = true
+			note.call("passes the barn  (%.1f away, %.1f above the grass)" % [Vector2(p.x, p.z).distance_to(Course.BARN), p.y - Course.terrain_height(p.x, p.z)])
 		if not state.has("stream") and p.z < Course.STREAM_Z:
 			state["stream"] = true
 			note.call("passes over the stream  (%.1f above the grass)" % [p.y - Course.terrain_height(p.x, p.z)])
+	if not game.scoring.landing.is_empty():
+		note.call("comes to rest: %s" % game.scoring.landing["title"])
+	if state.has("sections") and (state["sections"] as Dictionary).has("outside"):
+		log.append("        outside for %.1f s, airtime %d s" % [plane.flight_time - float(state["sections"]["outside"]), game.scoring.airtime_seconds()])
 	var end_gap := plane.flight_time - float(state["last_event"])
 	state["dead_air"] = maxf(float(state["dead_air"]), end_gap)
 	var result := {

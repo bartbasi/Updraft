@@ -63,6 +63,8 @@ const RIDGE_LIFT_STRENGTH := 0.4
 ## landing spot.
 const PICNIC_X := Vector2(-75.0, -69.0)
 const PICNIC_Z := Vector2(-202.5, -207.5)
+## No trees this close to the blanket (plan view), so a full-bank circle down onto it is clear.
+const PICNIC_CLEARANCE := 16.0
 ## Signs of rising air you can see from far away (looks only, nothing collides):
 ## a puffy cloud whose flat base sits this far above each thermal's top,
 const CLOUD_ABOVE_TOP := 4.0
@@ -851,10 +853,12 @@ static func tree_allowed(x: float, z: float) -> bool:
 	for t: Dictionary in OUTDOOR_THERMALS:
 		if Vector2(x, z).distance_to(t["at"]) < float(t["radius"]) + TREE_CLEARANCE:
 			return false
-	var picnic := Vector2((PICNIC_X.x + PICNIC_X.y) * 0.5, (PICNIC_Z.x + PICNIC_Z.y) * 0.5)
-	for spot in [BARN, BONFIRE, picnic]:
+	for spot in [BARN, BONFIRE]:
 		if Vector2(x, z).distance_to(spot) < 8.0:
 			return false
+	# Room to circle down onto the picnic blanket.
+	if Vector2(x, z).distance_to(Vector2((PICNIC_X.x + PICNIC_X.y) * 0.5, (PICNIC_Z.x + PICNIC_Z.y) * 0.5)) < PICNIC_CLEARANCE:
+		return false
 	if x > RIDGE_FACE_X.y and x < RIDGE_FACE_X.x + 2.0 and z < -120.0 and z > -270.0:
 		return false
 	return true

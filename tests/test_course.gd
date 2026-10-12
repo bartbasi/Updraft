@@ -289,10 +289,13 @@ func test_trees_keep_clear_and_the_valley_is_open() -> void:
 	check(not Course.tree_allowed(-2.0, -133.5), "nor just past its edge")
 	check(not Course.tree_allowed(-40.0, -200.0), "nor on the ridge face")
 	check(Course.tree_allowed(80.0, -200.0), "but on the right-hand slopes, yes")
+	var blanket := Vector2((Course.PICNIC_X.x + Course.PICNIC_X.y) * 0.5, (Course.PICNIC_Z.x + Course.PICNIC_Z.y) * 0.5)
+	check(Course.PICNIC_CLEARANCE >= 14.0 and not Course.tree_allowed(blanket.x - 14.0, blanket.y), "no tree within a circle down onto the picnic")
 	var spots := Course.tree_spots()
 	check(spots.size() == 40, "40 trees (%d)" % spots.size())
 	for t in spots:
 		check(Course.tree_allowed(t.x, t.z), "tree at %s is allowed" % t)
+		check(Vector2(t.x, t.z).distance_to(blanket) >= Course.PICNIC_CLEARANCE, "tree at %s is clear of the picnic" % t)
 		check(t.x >= 45.0 or t.x <= -72.0 or t.z <= -295.0, "tree at %s is on a slope, the plateau or the head wall" % t)
 	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
 	await physics_frames(2)
@@ -535,3 +538,44 @@ func test_birds_mark_the_lift_and_cues_are_not_solid() -> void:
 	for i in range(Course.OUTDOOR_THERMALS.size() * 3, birds.multimesh.instance_count):
 		var at := birds.bird_transform(i, 1.0).origin
 		check(at.x > ridge_x.x and at.x < ridge_x.y, "ridge bird %d hangs over the ridge's rising air (x %.0f)" % [i, at.x])
+
+
+## Test pilots fly each outdoor route from the living room (docs/outside-plan.md, section 7):
+## the whole chain of thermals (arriving well above the ground at each, and landing a good
+## while after the window), the ridge, and over the crest onto the picnic blanket.
+func test_outdoor_routes_fly_the_chain_the_ridge_and_the_picnic() -> void:
+	for route in ["chain", "ridge", "picnic"]:
+		var pilot := Autopilot.new(Autopilot.downstairs_line(route))
+		pilot.orbits.assign(Autopilot.route(route)["orbits"])
+		var game := _start_downstairs(pilot.fly)
+		var plane := game.get_node("Plane") as PaperPlane
+		var arrivals := {}
+		plane.entered_thermal.connect(func(z: Thermal) -> void:
+			if z.outdoors and not arrivals.has(String(z.name)):
+				var p := plane.global_position
+				arrivals[String(z.name)] = p.y - Course.terrain_height(p.x, p.z))
+		var out_at := -1.0
+		var frames := 0
+		while not plane.is_ended() and frames < 150 * 60:
+			await tree.physics_frame
+			frames += 1
+			if out_at < 0.0 and game.reached_outside:
+				out_at = plane.flight_time
+		check(out_at >= 0.0, "%s: flies out of the window" % route)
+		var outside := plane.flight_time - out_at
+		print("        %s: %.1f s outside, arrivals %s, %s" % [route, outside, arrivals, game.scoring.landing.get("title", "no landing spot")])
+		check(not plane.model.crashed and plane.is_ended(), "%s: lands, no crash (at %s)" % [route, plane.global_position])
+		match route:
+			"chain":
+				for name in ["BarnHeat", "FieldHeat", "BonfireSmoke"]:
+					check(float(arrivals.get(name, 0.0)) >= 12.0, "chain: arrives at %s at least 12 above the ground (%.1f)" % [name, float(arrivals.get(name, 0.0))])
+				check(outside >= 55.0, "chain: lands at least 55 s after the window (%.1f)" % outside)
+				check(game.scoring.landing.get("id", "") == "lavender", "chain: and comes home to the lavender")
+			"ridge":
+				check(arrivals.has("RidgeLift"), "ridge: flies in the ridge's rising air")
+				var ridge_run: Array = (game.scoring.moments as Array).filter(func(m: Scoring.Moment) -> bool: return m.id == &"ridge_run")
+				check((ridge_run[0] as Scoring.Moment).award > 0, "ridge: and soars along it (the Ridge run style points)")
+				check(game.scoring.landing.get("id", "") == "lavender", "ridge: and comes home to the lavender")
+			"picnic":
+				check(game.scoring.landing.get("id", "") == "picnic", "picnic: lands on the blanket")
+		await cleanup()

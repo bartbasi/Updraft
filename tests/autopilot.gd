@@ -23,7 +23,7 @@ var pitch_gain := 0.3
 var rng := RandomNumberGenerator.new()
 ## Circles to fly on the way, in order: on coming within 1.3 radii of `centre` (x, z), the pilot
 ## circles it at `radius` until it has climbed (`up`) or come down to height `to_y`, or for
-## `max_time` seconds at most, then flies on along the line. Lines that go out of the window get the outdoor circles (outside_orbits()).
+## `max_time` seconds at most, then flies on along the line. Lines that go out of the window get the outdoor circles (route("lavender")).
 var orbits: Array[Dictionary] = []
 
 var _orbit := 0  ## The next circle to fly.
@@ -40,16 +40,23 @@ func _init(p_line: PackedVector3Array, p_seed := 1) -> void:
 	lengths = Scoring.arc_lengths(line)
 	rng.seed = p_seed
 	if line[line.size() - 1].z < Course.FAR_Z:
-		orbits = outside_orbits()
+		orbits.assign(route("lavender")["orbits"])
+
+
+## A pilot who flies the whole course and then the outdoor route `route_name` (see route()).
+static func touring(route_name: String, p_seed := 1) -> Autopilot:
+	var pilot := Autopilot.new(course_line(route_name), p_seed)
+	pilot.orbits.assign(route(route_name)["orbits"])
+	return pilot
 
 
 ## A good line from the throw in the bedroom to the hills: the course's own optimal paths
 ## through the opening, joined by the gallery, then the downstairs line.
-static func course_line() -> PackedVector3Array:
+static func course_line(route_name := "lavender") -> PackedVector3Array:
 	var paths := _style_paths()
 	var gallery := PackedVector3Array([Vector3(60.0, 23.0, 41.0), Vector3(45.0, 22.5, 40.0), Vector3(30.0, 21.5, 41.0)])  # through the skylight
 	var line := PackedVector3Array([Course.START])
-	for part in [paths["bedroom_turn"], paths["sunbeam"], gallery, paths["stair_downdraft"], paths["landing_turn"], downstairs_line()]:
+	for part in [paths["bedroom_turn"], paths["sunbeam"], gallery, paths["stair_downdraft"], paths["landing_turn"], downstairs_line(route_name)]:
 		line = _join(line, part)
 	return line
 
@@ -85,8 +92,9 @@ static func _join(line: PackedVector3Array, part: PackedVector3Array) -> PackedV
 	return out
 
 
-## A good line through the downstairs part, from Course.LIVING_ROOM_ENTRY.
-static func downstairs_line() -> PackedVector3Array:
+## A good line through the downstairs part, from Course.LIVING_ROOM_ENTRY, then outdoors
+## along `route_name`.
+static func downstairs_line(route_name := "lavender") -> PackedVector3Array:
 	return PackedVector3Array([
 		Course.LIVING_ROOM_ENTRY,
 		Vector3(-4.5, 6.8, -18.0), Vector3(-5.0, 10.0, -25.0),  # through the radiator heat
@@ -96,19 +104,45 @@ static func downstairs_line() -> PackedVector3Array:
 		Vector3(1.0, 8.0, -80.0), Vector3(0.0, 7.5, -88.0),  # out of the window
 		Vector3(-0.5, 7.0, -100.0),  # over the fence into the hay field's warm air
 		Vector3(-1.0, 9.0, -112.0),
-		Vector3(-3.0, 17.0, -150.0),  # (after circling up the hay-field thermal) glide down the valley
-		Vector3(-5.0, 4.0, -181.0),  # to the lavender field
-		Vector3(-5.0, 1.0, -195.0),
-	])
+	]) + route(route_name)["line"]
 
 
-## Outdoors: circle up the hay-field thermal, then circle down onto the lavender field.
-static func outside_orbits() -> Array[Dictionary]:
+## Outdoor routes, each a line to follow from the hay field on and the circles to fly on the
+## way (see `orbits`); every route starts by circling up the hay-field thermal.
+##   "lavender": glide down the valley and circle down onto the lavender.
+##   "chain":    the whole chain of thermals (barn, ploughed field, bonfire), then home to the lavender.
+##   "ridge":    along the ridge, over the ploughed field, then home to the lavender.
+##   "picnic":   along the ridge, then over the crest to land on the picnic blanket.
+static func route(route_name: String) -> Dictionary:
+	var hay := _climb(Course.HAY_FIELD)
 	var lavender := Vector2((Course.LAVENDER_X.x + Course.LAVENDER_X.y) * 0.5, (Course.LAVENDER_Z.x + Course.LAVENDER_Z.y) * 0.5)
-	return [
-		{"centre": Course.HAY_FIELD["at"], "radius": 6.0, "to_y": float(Course.HAY_FIELD["top"]) - 2.0, "up": true, "max_time": 20.0},
-		{"centre": lavender, "radius": 7.0, "to_y": Course.ground_height(lavender.x, lavender.y) + 0.5, "up": false, "max_time": 40.0},
-	]
+	var land := {"centre": lavender, "radius": 7.0, "to_y": Course.ground_height(lavender.x, lavender.y) + 0.5, "up": false, "max_time": 40.0}
+	var home := PackedVector3Array([Vector3(-5.0, 4.0, -181.0), Vector3(-5.0, 1.0, -195.0)])
+	var along_ridge := PackedVector3Array([Vector3(-20.0, 19.0, -140.0), Vector3(-35.0, 21.0, -160.0), Vector3(-37.0, 27.0, -190.0), Vector3(-37.0, 30.5, -212.0)])
+	match route_name:
+		"chain":
+			return {"line": PackedVector3Array([
+				Vector3(14.0, 20.0, -145.0), Vector3(30.0, 22.0, -160.0),  # to the barn
+				Vector3(12.0, 25.0, -195.0), Vector3(-8.0, 24.0, -210.0),  # to the ploughed field
+				Vector3(10.0, 26.0, -240.0), Vector3(30.0, 24.0, -262.0),  # to the bonfire
+				Vector3(42.0, 23.0, -252.0), Vector3(25.0, 18.0, -215.0), Vector3(0.0, 12.0, -195.0)]) + home,  # round and home
+				"orbits": [hay, _climb(Course.BARN_ROOF), _climb(Course.PLOUGHED_FIELD), _climb(Course.BONFIRE_SMOKE), land]}
+		"ridge":
+			return {"line": along_ridge + PackedVector3Array([Vector3(-20.0, 27.0, -215.0), Vector3(-8.0, 20.0, -200.0)]) + home,
+				"orbits": [hay, _climb(Course.PLOUGHED_FIELD), land]}
+		"picnic":
+			var picnic := Vector3((Course.PICNIC_X.x + Course.PICNIC_X.y) * 0.5, 0.0, (Course.PICNIC_Z.x + Course.PICNIC_Z.y) * 0.5)
+			picnic.y = Course.ground_height(picnic.x, picnic.z)
+			# Over the crest, circle down over the blanket, then glide in onto it.
+			var over_crest := PackedVector3Array([Vector3(-42.0, 30.5, -222.0), Vector3(-52.0, 29.5, -222.0), Vector3(-60.0, 28.0, -212.0)])  # a rounded turn
+			return {"line": along_ridge + over_crest + PackedVector3Array([picnic + Vector3(0.0, -0.5, 0.0), picnic + Vector3(-15.0, -1.0, 0.0)]),
+				"orbits": [hay, {"centre": Vector2(picnic.x, picnic.z), "radius": 6.0, "to_y": picnic.y + 2.5, "up": false, "max_time": 30.0}]}
+	return {"line": PackedVector3Array([Vector3(-3.0, 17.0, -150.0)]) + home, "orbits": [hay, land]}
+
+
+## Circle up a thermal to a little under its top.
+static func _climb(thermal: Dictionary) -> Dictionary:
+	return {"centre": thermal["at"], "radius": 6.0, "to_y": float(thermal["top"]) - 2.0, "up": true, "max_time": 25.0}
 
 
 ## A first-time player who reacts really late, so some of them turn only after the door.

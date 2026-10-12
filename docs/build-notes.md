@@ -122,4 +122,5 @@ for the phone test"). From the build:
 | Outdoor motes | clamp(r² × 1.2, 110, 170), 1 in 4 a seed or leaf | clamp(r² × 0.8, 80, 120), all motes | Phone frame budget (code review). |
 | Bonfire smoke | Puffs live 8 s | 40 puffs, 8 s, fading out 4-10 u from the camera | Phone frame budget: big see-through puffs close to the camera are costly (code review). |
 | Air-zone visuals | Not covered | Indoor zones are drawn only while the camera is in the house, outdoor zones from the kitchen on, and outdoor ones not beyond 150 u | Phone frame budget (code review). The air itself always works. |
-| Plan step 3 test (tour pilot, ≥ 12 above the ground at each thermal, lands ≥ 55 s after the window) | Step 3 | Step 8, with the new pilots | The test pilot learns the full chain in step 8. Until then, a circling test per thermal plus glide arithmetic stand in for it. |
+| Trees near the picnic | None within 8 u of the blanket | None within 16 u (`PICNIC_CLEARANCE`) | A full-bank circle down onto the blanket (radius about 5.6) passed through tree crowns 8 u out. |
+| Plan step 3 test (tour pilot, ≥ 12 above the ground at each thermal, lands ≥ 55 s after the window) | Step 3 | Step 8, with the new pilots | Done in step 8: `test_outdoor_routes_fly_the_chain_the_ridge_and_the_picnic`. |
