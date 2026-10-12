@@ -500,3 +500,36 @@ func test_only_air_zones_in_sight_are_drawn() -> void:
 			var t := zone as Thermal
 			var want: bool = where[2] if t.outdoors else where[3]
 			check(t.visible == want and t._wisps.emitting == want, "%s: %s is %s" % [where[0], t.name, "shown" if want else "hidden"])
+
+
+## Signs of rising air outdoors: three birds circle just under the top of each thermal (inside
+## it, so they mark it), three hang over the ridge, and none of the cues is solid.
+func test_birds_mark_the_lift_and_cues_are_not_solid() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	await physics_frames(2)
+	var birds := (game.get_node("Course") as Course).get_node("Birds") as Birds
+	check(birds.multimesh.instance_count == Course.OUTDOOR_THERMALS.size() * 3 + Course.RIDGE_BIRDS.size(), "3 birds per thermal and the ridge's birds")
+	for i in Course.OUTDOOR_THERMALS.size() * 3:
+		var t: Dictionary = Course.OUTDOOR_THERMALS[i / 3]
+		for time in [0.0, 3.3, 11.0]:
+			var at := birds.bird_transform(i, time).origin
+			check((t["at"] as Vector2).distance_to(Vector2(at.x, at.z)) < float(t["radius"]) * 0.6, "bird %d circles inside %s" % [i, t["name"]])
+			check_between(at.y, float(t["top"]) - 6.0, float(t["top"]), "bird %d's height under the top of %s" % [i, t["name"]])
+	var space := (game as Node3D).get_world_3d().direct_space_state
+	# Rays straight through each cue (rays meet the merged trimesh; point queries would not).
+	var sock := Vector3(Course.WINDSOCK.x - 1.0, Course.terrain_height(Course.WINDSOCK.x, Course.WINDSOCK.y) + 4.8, Course.WINDSOCK.y)
+	var picnic := Vector3((Course.PICNIC_X.x + Course.PICNIC_X.y) * 0.5, 0.0, (Course.PICNIC_Z.x + Course.PICNIC_Z.y) * 0.5)
+	picnic.y = Course.ground_height(picnic.x, picnic.z) + 0.3
+	var hay: Vector2 = Course.HAY_FIELD["at"]
+	var cloud := Vector3(hay.x, float(Course.HAY_FIELD["top"]) + Course.CLOUD_ABOVE_TOP + 3.0, hay.y)
+	for p in [sock, Course.KITE, (Course.KITE + picnic) * 0.5, cloud]:
+		var ray := PhysicsRayQueryParameters3D.create(p + Vector3(0.0, 0.0, 6.0), p + Vector3(0.0, 0.0, -6.0))
+		ray.collision_mask = PaperPlane.WORLD_LAYER
+		check(space.intersect_ray(ray).is_empty(), "nothing solid at %s (windsock, kite, its string, a cloud)" % p)
+	var down := PhysicsRayQueryParameters3D.create(sock, sock + Vector3.DOWN * 10.0)
+	down.collision_mask = PaperPlane.WORLD_LAYER
+	check(not space.intersect_ray(down).is_empty(), "(and the same rays do meet the merged grass mesh)")
+	var ridge_x := Vector2(Course.RIDGE_LIFT.x - Course.RIDGE_LIFT_SIZE.x * 0.5, Course.RIDGE_LIFT.x + Course.RIDGE_LIFT_SIZE.x * 0.5)
+	for i in range(Course.OUTDOOR_THERMALS.size() * 3, birds.multimesh.instance_count):
+		var at := birds.bird_transform(i, 1.0).origin
+		check(at.x > ridge_x.x and at.x < ridge_x.y, "ridge bird %d hangs over the ridge's rising air (x %.0f)" % [i, at.x])

@@ -123,7 +123,7 @@ extends Resource
 @export_range(40.0, 110.0) var camera_fov := 70.0
 ## Outdoors the view widens to this field of view (degrees), easing over `camera_fov_ease`
 ## seconds: the world opens up after the window.
-@export_range(40.0, 110.0) var camera_fov_outside := 76.0
+@export_range(40.0, 110.0) var camera_fov_outside := 80.0
 @export var camera_fov_ease := 1.5
 ## The camera aims this far above the plane's path ahead (units).
 @export var camera_look_above := 0.3
