@@ -124,3 +124,15 @@ for the phone test"). From the build:
 | Air-zone visuals | Not covered | Indoor zones are drawn only while the camera is in the house, outdoor zones from the kitchen on, and outdoor ones not beyond 150 u | Phone frame budget (code review). The air itself always works. |
 | Trees near the picnic | None within 8 u of the blanket | None within 16 u (`PICNIC_CLEARANCE`) | A full-bank circle down onto the blanket (radius about 5.6) passed through tree crowns 8 u out. |
 | Plan step 3 test (tour pilot, ≥ 12 above the ground at each thermal, lands ≥ 55 s after the window) | Step 3 | Step 8, with the new pilots | Done in step 8: `test_outdoor_routes_fly_the_chain_the_ridge_and_the_picnic`. |
+
+## Phase 3: check on the phone
+
+- **Balloon:** "Fly the balloon" on the end card. Does it feel better to fly than the plane? Is the string calm in flight (no jitter or whipping)? Does a crash pop it? Is the bigger plane (1.3x, `look_scale`) the right size?
+- **Finding lift outside:** fly straight out of the window. Does the hay field's warm air carry you up? Do the clouds and circling birds tell you where the next lift is?
+- **Staying in lift:** does "Keep circling to climb" appear on your first low entry, and do the beeps help you stay in the warm air? If circling still loses the lift, the fallback is hay-field radius 12 -> 14 (fun review 3, item 7).
+- **Ridge:** from the hay field's top, can you see the kite and the hovering birds on the left hillside? Does flying along it carry you up?
+- **Frame rate, 60 fps pass bar:**
+  - circling inside the bonfire smoke (fallbacks: puff size 3.2 -> 2.6, or the scale curve's end 1.6 -> 1.2);
+  - the top of the hay field, the barn's top, along the ridge, and the kitchen looking out of the window;
+  - first cut if slow: outdoor motes to clamp(r² × 0.8, 50, 80), then ridge seeds 160 -> 100.
+- **Landing bonuses:** the lavender (+200) and the picnic blanket on the plateau (+400, the hard one).

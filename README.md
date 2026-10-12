@@ -3,8 +3,10 @@
 A short playable demo: fly a folded paper plane through a pastel house by tilting your phone.
 A kid throws it across a bedroom; bank out of the door, ride a sunbeam down a long gallery,
 dive the stairwell, then ride warm air from a radiator and steam from a kettle, dive under the
-dining-room lamp, burst out of the kitchen window, catch the warm air over a hay field and come
-down in the lavender. A well-flown run lasts about a minute.
+dining-room lamp, burst out of the kitchen window, and explore the valley outside: circle up
+the warm air over a hay field, a barn, a ploughed field and a bonfire's smoke, soar the ridge,
+and come down in the lavender or on the picnic blanket. Soft beeps tell you when you're in lift.
+A well-flown run lasts one to two minutes. Prefer a red balloon? Pick it on the end card.
 
 ## Scoring
 
@@ -12,7 +14,9 @@ down in the lavender. A well-flown run lasts about a minute.
 - **Style** at 8 moments (the door turn, the sunbeam, the downdraft dive, the landing turn, the
   radiator, under the lamp, the kettle steam, out of the window): the closer you stay to the
   best line through each, the more points; a gold "Perfect!" for a really close pass.
-- **End card:** distance, style, total and your best, which is kept on the phone.
+- **Outdoors:** 5 points a second in the air (up to a minute); landing on the lavender +200, on
+  the picnic blanket up on the plateau +400 (not if you crash), and a ninth moment, the Ridge run.
+- **End card:** distance, style, airtime, landing, total and your best, which is kept on the phone.
 
 Built with Godot 4.7.2 (GDScript, Mobile renderer), Android first. Every model, texture,
 shader and sound is made in code in this repo; there are no third-party assets.
@@ -57,6 +61,8 @@ C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --path . -s res://tools/cap
 
 # A readable log of test-pilot flights: thermals, bumps, style points, close calls, dead air
 C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tools/flight_log.gd -- --pilot=novice --runs=10
+# ...or a skilled pilot on an outdoor route: lavender, chain, ridge or picnic
+C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tools/flight_log.gd -- --route=chain
 
 # Rebuild the sound effects (Python 3, standard library only)
 python tools/gen_sounds.py
