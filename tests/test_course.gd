@@ -687,3 +687,64 @@ func test_re_centring_climbs_a_drifting_thermal_faster() -> void:
 	check(times[false] <= 12.0, "re-centring reaches near the top within 12 s (%.1f)" % times[false])
 	check(times[false] <= times[true] * 0.9, "at least 10%% faster than circling the old spot (%.1f vs %.1f s)" % [times[false], times[true]])
 	check(sighs[false] == 0, "re-centring never loses the lift (%d sighs)" % sighs[false])
+
+
+## Climb to the top of the hay field's air and its cloud shrinks, frays and fades over 8 s;
+## the other clouds stay full, and the hay field's lift is just as strong as before.
+func test_a_climbed_thermals_cloud_thins() -> void:
+	var game := _start(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
+	await physics_frames(2)
+	var plane := game.get_node("Plane") as PaperPlane
+	var tune := plane.tuning
+	var course := game.get_node("Course") as Course
+	var clouds := course.get_node("Clouds") as Clouds
+	var hay := course.get_node(String(Course.HAY_FIELD["name"])) as Thermal
+	var full := []
+	for i in clouds.puffs.size():
+		full.append(clouds.puff_transform(i))
+	var lift_before := hay.vertical_air_speed(hay.global_position + Vector3(0.0, 10.0, 0.0), tune)
+	var near_top := hay.global_position + Vector3(2.0, hay.top() - hay.global_position.y - 1.0, 0.0)
+	clouds.note_plane(hay.global_position + Vector3(hay.radius * 1.2, hay.top() - hay.global_position.y - 1.0, 0.0), true)
+	clouds.note_plane(hay.global_position + Vector3(0.0, hay.top() - hay.global_position.y - 4.0, 0.0), true)
+	clouds.note_plane(near_top, false)
+	check(clouds.thinning[0] < 0.0, "outside the column, not near the top, or gliding over: still a full cloud")
+	clouds.note_plane(near_top, true)
+	check(clouds.thinning[0] >= 0.0, "near the top inside it: thinning starts")
+	for f in int(tune.cloud_thin_seconds * 60.0) + 2:
+		await tree.process_frame
+	for i in clouds.puffs.size():
+		var k: int = clouds.puffs[i]["zone"]
+		var now := clouds.puff_transform(i)
+		var scale := now.basis.get_scale().x / (full[i] as Transform3D).basis.get_scale().x
+		if k == 0:
+			check(scale <= 0.6, "hay puff %d has shrunk (%.2f)" % [i, scale])
+			var middle := Vector3.ZERO
+			for j in Clouds.PUFFS:
+				middle += (full[j] as Transform3D).origin / Clouds.PUFFS
+			var was := Vector2(full[i].origin.x - middle.x, full[i].origin.z - middle.z).length()
+			var spread := Vector2(now.origin.x - middle.x, now.origin.z - middle.z).length()
+			check(spread >= was * (tune.cloud_thin_spread - 0.05), "and spread out (%.1f -> %.1f)" % [was, spread])
+			check(clouds.puff_color(i).is_equal_approx(Clouds.THIN_COLOR), "and faded toward the sky")
+		else:
+			check(now == full[i], "puff %d over another thermal is unchanged" % i)
+	check(is_equal_approx(hay.vertical_air_speed(hay.global_position + Vector3(0.0, 10.0, 0.0), tune), lift_before), "the lift is unchanged")
+
+
+## A whole touring flight up the chain: each cloud the pilot climbs to the top of thins.
+func test_the_chain_route_thins_each_cloud_it_tops() -> void:
+	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+	var plane := game.get_node("Plane") as PaperPlane
+	var pilot := Autopilot.touring("chain")
+	plane.autopilot = pilot.fly
+	var clouds := (game.get_node("Course") as Course).get_node("Clouds") as Clouds
+	var frames := 0
+	while not plane.is_ended() and frames < 150 * 60:
+		await tree.physics_frame
+		frames += 1
+	var thinned := []
+	for k in clouds.thinning.size():
+		if clouds.thinning[k] >= 0.0:
+			thinned.append(Course.OUTDOOR_THERMALS[k]["name"])
+	print("        chain route thinned: %s" % [thinned])
+	check(plane.is_ended(), "the flight finished")
+	check(thinned.size() == Course.OUTDOOR_THERMALS.size(), "every cloud the chain climbs thins (%s)" % [thinned])

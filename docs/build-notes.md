@@ -159,3 +159,6 @@ for the phone test"). From the build:
   **Open for the owner and fun review 4:** drift does not separate the two pilots by sighs (0 and
   0; the plan's sim had 4 and 1), so as tuned it does not yet teach re-centring.
 - **Drift resets each run** because "Fly again" reloads the scene, which builds new thermals.
+- **Cloud thinning (A3), one rule added:** a cloud thins only while the plane is climbing in lift
+  (the beeps are on) near its top, so gliding high over a thermal after topping out in another
+  doesn't thin it.

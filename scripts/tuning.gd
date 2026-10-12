@@ -234,6 +234,14 @@ extends Resource
 @export var thermal_drift_speed := 0.25
 @export_range(0.0, 1.0) var thermal_drift_max := 0.5
 @export var thermal_drift_wake := 1.5
+## Once the plane has climbed to within `cloud_thin_below_top` of a thermal's top (inside it),
+## that thermal's cloud thins over `cloud_thin_seconds`: its puffs shrink to `cloud_thin_scale`,
+## spread out to `cloud_thin_spread` times as far apart, and fade toward the sky. Looks only:
+## the lift is unchanged, so going back to an old thermal still works.
+@export var cloud_thin_below_top := 2.5
+@export var cloud_thin_seconds := 8.0
+@export_range(0.1, 1.0) var cloud_thin_scale := 0.55
+@export_range(1.0, 3.0) var cloud_thin_spread := 1.3
 
 @export_group("Pop-ups and end card")
 ## Style pop-up size (1 = normal text) as it pops in and once it has grown; a perfect pass

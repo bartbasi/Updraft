@@ -36,6 +36,7 @@ var vario_beeps := 0  ## Beeps this flight.
 var sighs := 0  ## "Lift lost" sighs this flight.
 var _last_sigh := -INF  ## Flight time of the last sigh.
 var _drifting: Array[Thermal] = []  ## The outdoor columns, which drift with the breeze.
+var _clouds: Clouds
 var _near_query := PhysicsShapeQueryParameters3D.new()  ## Reused each tick for close calls.
 var _close_call_wait := 0.0  ## Seconds until the next close call may sound.
 enum Pass { CLEAR, CLOSE, SPOILED }  ## Clear of everything; rushing close past something; touched it.
@@ -88,6 +89,9 @@ func _ready() -> void:
 	for node in get_tree().get_nodes_in_group("thermals"):
 		if (node as Thermal).drifts():
 			_drifting.append(node)
+	_clouds = course.get_node_or_null("Clouds")
+	if _clouds != null:
+		_clouds.tuning = plane.tuning
 	_setup_world()
 	_setup_post_fx()
 	_setup_audio()
@@ -121,6 +125,8 @@ func _physics_process(delta: float) -> void:
 		scoring.update(plane.global_position)
 		for zone in _drifting:
 			zone.drift(delta, plane.global_position, plane.tuning)
+		if _clouds != null:
+			_clouds.note_plane(plane.global_position, vario.on)
 		if Course.is_outside(plane.global_position) and not plane.model.grounded:
 			scoring.add_airtime(delta)
 		_check_close_call(delta)
