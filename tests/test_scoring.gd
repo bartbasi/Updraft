@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends TestCase
 ## Distance and style scoring, best-score saving, and air-zone shapes.
 

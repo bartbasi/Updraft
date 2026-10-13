@@ -1,3 +1,5 @@
+// Updraft. Copyright (C) 2026 Bart Basi.
+// Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 // Soft shaft of sunlight from a window down to a warm patch on the floor.
 // UV.y runs 0 at the floor to 1 toward the light.
 shader_type spatial;

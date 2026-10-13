@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends SceneTree
 ## Renders the launcher icons from the SVG layers in icons/ into PNGs for the Android export, and
 ## composes the full rounded icon (icon.svg, the editor's and older Androids' icon) from the same
@@ -29,7 +31,8 @@ func _initialize() -> void:
 
 ## icon.svg: the background and foreground layers on a rounded square.
 func _compose_full_icon() -> void:
-	var text := "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"128\" height=\"128\" viewBox=\"0 0 432 432\">\n"
+	var text := "<!-- Updraft. Copyright (C) 2026 Bart Basi. Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE. -->\n"
+	text += "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"128\" height=\"128\" viewBox=\"0 0 432 432\">\n"
 	text += "  <!-- Updraft: made by tools/make_icons.gd from icons/background.svg and icons/foreground.svg. -->\n"
 	text += "  <clipPath id=\"round\"><rect width=\"432\" height=\"432\" rx=\"96\"/></clipPath>\n"
 	text += "  <g clip-path=\"url(#round)\">\n"

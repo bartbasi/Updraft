@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name Gull
 extends Node3D
 ## A gull that joins the player along a ridge, once for each ridge's lift a run (the valley's

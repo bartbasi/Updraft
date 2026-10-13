@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends TestCase
 ## Drawing the plane bigger, and as a balloon: only the looks change, never the flight.
 

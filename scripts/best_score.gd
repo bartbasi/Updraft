@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name BestScore
 extends RefCounted
 ## The best total score, saved on the device as a tiny JSON file. Anything missing,

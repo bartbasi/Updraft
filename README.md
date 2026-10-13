@@ -11,6 +11,10 @@ Soft beeps tell you when you're in lift, a sigh when you've flown out of it; the
 the breeze and their clouds thin once climbed, and a gull joins you on the ridges. A run lasts
 one to two and a half minutes. Prefer the paper plane? Pick it on the end card.
 
+Updraft is free and open source: Copyright (C) 2026 Bart Basi, under the GNU GPL v3 with a few
+additional terms (see [License](#license)). Feedback is welcome at bartbasi@gmail.com, or with
+the Send feedback button under Settings > About.
+
 ## Scoring
 
 - **Distance** (top right, in metres): how far along the course you got. 10 points a metre.
@@ -33,6 +37,7 @@ shader and sound is made in code in this repo; there are no third-party assets.
 | Tilt the top edge away from you | Up / W | Nose down (dive, gain speed) |
 | Tilt the top edge toward you | Down / S | Nose up (climb, lose speed, then stall) |
 | Tilt left / right | Left / A, Right / D | Bank and turn |
+| Back | Escape | Step back out of About or Settings; otherwise (phone only) close the game |
 
 However you are holding the phone when the plane is thrown counts as "level".
 Tilt sensitivity is `sensitivity` in `scripts/tuning.gd`.
@@ -116,7 +121,8 @@ scripts/scoring.gd        distance and style points
 scripts/best_score.gd     the saved best score (validated on load)
 scripts/debug_overlay.gd  debug-build view of the style paths
 scripts/follow_camera.gd  smoothed chase camera
-scripts/game.gd           run flow, lighting, sound, end card
+scripts/game.gd           run flow, lighting, sound, end card, settings
+scripts/about_panel.gd    About, with the License and Credits pages and Send feedback
 scripts/art.gd            materials and the low-poly mesh builder
 shaders/                  watercolor screen pass, thermal shimmer
 audio/                    synthesized WAVs (from tools/gen_sounds.py)
@@ -125,3 +131,22 @@ tools/                    screenshots, flight log, sound generator, icons, relea
 docs/                     the brief, design plans and reviews, build notes, release guide
 docs/store/               Play store images (icon, feature graphic, screenshots)
 ```
+
+## License
+
+Copyright (C) 2026 Bart Basi.
+
+Updraft is free software: you can redistribute it and/or modify it under the terms of the
+[GNU General Public License, version 3](LICENSE), with the additional terms in [NOTICE](NOTICE)
+(allowed by the GPL's section 7). In short:
+
+- **Keep the credit.** Anything built from Updraft, in whole or in part, must keep the line
+  "Based on Updraft by Bart Basi" in its source (the NOTICE file) and, if it has a screen, in
+  its About, Credits or License screen.
+- **Mark your changes.** A modified version must say it has been changed and must not pass
+  itself off as the original Updraft or as made or endorsed by Bart Basi.
+- **Use your own name and icon.** The license gives no rights to the name "Updraft" or its icon.
+
+Every source file starts with a two-line notice pointing to LICENSE and NOTICE; please keep it.
+Updraft is built with the [Godot Engine](https://godotengine.org) (MIT license); the game's
+Credits screen shows Godot's notices and those of its third-party parts.

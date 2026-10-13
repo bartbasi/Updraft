@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name CourseFar
 extends RefCounted
 ## Builds the landmarks past the valley into a Course (docs/phase4-plan.md, part B3): the windmill

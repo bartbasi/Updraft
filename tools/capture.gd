@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends SceneTree
 ## Flies the course with the autopilot in a real window and saves screenshots along the way.
 ##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...] [--look=plane] [--route=ridge]

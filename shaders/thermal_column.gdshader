@@ -1,3 +1,5 @@
+// Updraft. Copyright (C) 2026 Bart Basi.
+// Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 // Soft, shimmering column of moving air drawn around a thermal or downdraft.
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;

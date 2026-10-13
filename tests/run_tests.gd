@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends SceneTree
 ## Headless test runner. From the project folder:
 ##   godot --headless --fixed-fps 60 -s res://tests/run_tests.gd
@@ -14,6 +16,7 @@ const SUITES := [
 	"res://tests/test_game_scoring.gd",
 	"res://tests/test_balloon.gd",
 	"res://tests/test_vario.gd",
+	"res://tests/test_about.gd",
 ]
 
 

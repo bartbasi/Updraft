@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name Vario
 extends RefCounted
 ## "You're in lift", like a glider pilot's variometer: soft beeps while the plane climbs in

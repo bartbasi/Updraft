@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name Art
 extends RefCounted
 ## Shared look: materials, a soft-dot texture, and a builder that packs low-poly,

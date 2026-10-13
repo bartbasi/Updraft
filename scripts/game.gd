@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends Node3D
 ## Runs one flight: sets up the look and sound, starts the plane in the air in the bedroom
 ## (seen from the kid who threw it), keeps score, and shows the end card with distance,
@@ -64,6 +66,8 @@ var _sensitivity: HSlider
 var _sensitivity_value: Label
 var _sound: CheckButton
 var _swap_pitch: CheckButton
+var _about_button: Button
+var _about: AboutPanel  ## Built the first time it is opened.
 ## The player's settings (PlayerSettings), as loaded and as changed on the settings panel.
 var settings := {}
 var _hint: Label
@@ -249,11 +253,10 @@ func _check_close_call(delta: float) -> void:
 				_pass = Pass.CLEAR
 
 
-## Debug builds only: F3 shows the style paths.
+## Escape steps back (see handle_back). Debug builds only: F3 shows the style paths.
 func _unhandled_input(event: InputEvent) -> void:
-	# Back (on Android) or Escape closes the settings.
-	if _settings_panel and _settings_panel.visible and event.is_action_pressed("ui_cancel"):
-		show_settings(false)
+	# Escape steps back like the phone's Back (see _notification), but never quits.
+	if event.is_action_pressed("ui_cancel") and handle_back():
 		get_viewport().set_input_as_handled()
 		return
 	var key := event as InputEventKey
@@ -511,10 +514,45 @@ func _on_setting_changed(_value: Variant = null) -> void:
 		push_warning("Could not save the settings; they last until the game closes.")
 
 
+## The phone's Back (button or gesture): steps back out of About's pages, then out of About,
+## then closes the settings; with none of them open, it closes the game, as Android's Back does
+## (project setting quit_on_go_back is off so this can step back first).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and not handle_back():
+		get_tree().quit()
+
+
+## Steps back one screen (About's page, About, or the settings) and returns true, or returns
+## false if none of them is open.
+func handle_back() -> bool:
+	if _about and _about.visible:
+		_about.go_back()
+		return true
+	if _settings_panel and _settings_panel.visible:
+		show_settings(false)
+		return true
+	return false
+
+
 func show_settings(on: bool) -> void:
 	_settings_panel.visible = on
 	_card.visible = not on
 	(_sensitivity if on else _settings_button).grab_focus()
+
+
+## About Updraft, over the settings; closing it goes back to the settings.
+func show_about() -> void:
+	if _about == null:
+		_about = AboutPanel.new()
+		_about.closed.connect(_on_about_closed)
+		_ui.add_child(_about)
+	_settings_panel.visible = false
+	_about.open()
+
+
+func _on_about_closed() -> void:
+	_settings_panel.visible = true
+	_about_button.grab_focus()
 
 
 # --- Setup -----------------------------------------------------------------------
@@ -707,7 +745,8 @@ func _setup_ui() -> void:
 	_build_settings_panel()
 
 
-## Settings: tilt sensitivity, sound, and swapping climb and dive. Changes save at once.
+## Settings: tilt sensitivity, sound, and swapping climb and dive. Changes save at once. Also
+## the way to About.
 func _build_settings_panel() -> void:
 	_settings_panel = CenterContainer.new()
 	_settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -757,13 +796,22 @@ func _build_settings_panel() -> void:
 		check.add_theme_font_size_override("font_size", 28)
 		box.add_child(check)
 
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_about_button = Button.new()
+	_about_button.text = "About"
+	_about_button.custom_minimum_size = Vector2(200, 80)
+	_about_button.add_theme_font_size_override("font_size", 32)
+	_about_button.pressed.connect(show_about)
+	row.add_child(_about_button)
 	var done := Button.new()
 	done.text = "Done"
 	done.custom_minimum_size = Vector2(340, 80)
 	done.add_theme_font_size_override("font_size", 32)
-	done.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	done.pressed.connect(show_settings.bind(false))
-	box.add_child(done)
+	row.add_child(done)
+	box.add_child(row)
 
 	_sensitivity.set_value_no_signal(settings["sensitivity"])
 	_sound.set_pressed_no_signal(settings["sound"])

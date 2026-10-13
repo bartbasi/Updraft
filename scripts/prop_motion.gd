@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name PropMotion
 extends MeshInstance3D
 ## A moving bit of scenery: turned about an axis (windmill sails) or carried round a circle

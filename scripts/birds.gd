@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name Birds
 extends MultiMeshInstance3D
 ## Birds riding the air outdoors, all in one draw call: over each thermal a few circle slowly

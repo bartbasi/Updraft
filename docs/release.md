@@ -138,20 +138,17 @@ The screenshots were taken from the test pilot's flight with `tools/capture.gd` 
 > • Tilt to fly: one to two minutes a flight
 > • A balloon and a paper plane, with the same physics
 > • No ads, no in-app purchases, no internet, no account
+> • Free and open source (GNU GPL v3): github.com/bartbasi/Updraft
 > • Adjustable tilt sensitivity, sound on or off, swap climb and dive
 
 **Category**: Game > Casual. **Tags**: flying, relaxing, simulation (pick from Play's list).
-**Contact email**: required, and shown publicly. Use one you don't mind being public.
+**Contact email**: required, and shown publicly: `bartbasi@gmail.com` (the same address as the
+game's Send feedback button).
 
 ### App content (Policy > App content)
 
-- **Privacy policy**: Play asks for a URL. Host this text somewhere public, for example a
-  public GitHub gist or a GitHub Pages page:
-
-  > **Updraft privacy policy.** Updraft does not collect, store remotely, or share any personal
-  > data. It has no ads, analytics, accounts or internet access, and asks for no permissions.
-  > It keeps your best score and settings in two small files on your phone only; uninstalling the
-  > app deletes them. Contact: <your email>.
+- **Privacy policy**: Play asks for a URL. The policy is [docs/privacy.md](privacy.md); with the
+  repo public, use https://github.com/bartbasi/Updraft/blob/main/docs/privacy.md
 
 - **Ads**: No.
 - **App access**: all functionality is available without special access.
@@ -164,7 +161,8 @@ The screenshots were taken from the test pilot's flight with `tools/capture.gd` 
   review.
 - **Data safety**: "Does your app collect or share any of the required user data types?" **No.**
   Data is encrypted in transit: not applicable (nothing is sent). No account creation. The
-  result shows as "No data collected, no data shared".
+  result shows as "No data collected, no data shared". (Send feedback only opens the player's
+  own email app with a draft; the app itself sends nothing, so this answer stays No.)
 - **Government app**, **financial features**, **health**, **news**: No.
 
 ### Countries

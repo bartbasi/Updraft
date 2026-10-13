@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name FlightModel
 extends RefCounted
 ## Paper-glider flight physics, kept free of nodes so it can be tested headless.

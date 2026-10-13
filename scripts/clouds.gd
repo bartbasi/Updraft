@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name Clouds
 extends MultiMeshInstance3D
 ## The cumulus over each outdoor thermal, all in one draw call: a few opaque puffs whose flat

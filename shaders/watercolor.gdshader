@@ -1,3 +1,5 @@
+// Updraft. Copyright (C) 2026 Bart Basi.
+// Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 // Full-screen pass: soft watercolour look on paper.
 // Slight pigment wobble, darker edges where colours meet, paper grain and a gentle vignette.
 shader_type canvas_item;
@@ -11,10 +13,18 @@ uniform float grain = 0.075;
 uniform vec3 paper_tint = vec3(1.0, 0.985, 0.95);
 uniform float vignette = 0.25;
 
+// A random value in [0, 1) for a whole-number grid point (0 to 65535 on each axis, which the
+// screen's coordinates never pass): the point packed into one number, then Chris Wellons'
+// public-domain "lowbias32" integer hash (two multiplies, cheap on phone GPUs).
 float hash(vec2 p) {
-	p = fract(p * vec2(123.34, 456.21));
-	p += dot(p, p + 45.32);
-	return fract(p.x * p.y);
+	uvec2 q = uvec2(ivec2(p));
+	uint x = q.x | (q.y << 16u);
+	x ^= x >> 16u;
+	x *= 2146121005u;  // 0x7feb352d
+	x ^= x >> 15u;
+	x *= 2221713035u;  // 0x846ca68b
+	x ^= x >> 16u;
+	return float(x >> 8u) * (1.0 / 16777216.0);
 }
 
 float noise(vec2 p) {

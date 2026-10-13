@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name FollowCamera
 extends Camera3D
 ## Chase camera behind and a little above the plane. Smoothed so it never jerks, and

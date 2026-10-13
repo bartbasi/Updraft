@@ -1,3 +1,5 @@
+# Updraft. Copyright (C) 2026 Bart Basi.
+# Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 """Synthesizes the game's sound effects as 16-bit mono WAV files in audio/.
 
 Run from the project folder:  python tools/gen_sounds.py
