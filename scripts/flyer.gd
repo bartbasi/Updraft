@@ -11,6 +11,7 @@ signal bumped(strength: float)
 signal crashed
 signal stopped
 signal entered_thermal(thermal: Thermal)
+signal snagged
 
 const RADIUS := 0.3
 const WORLD_LAYER := 1
@@ -44,6 +45,8 @@ var autopilot := Callable()
 ## Horizontal distance flown, in world units.
 var distance := 0.0
 var touches := 0  ## Every contact with the house or the hills so far: bounce, slide or crash.
+## The surface last touched (its normal), for telling a landing from a graze.
+var last_normal := Vector3.UP
 var flight_time := 0.0
 ## The input used this physics tick: x = pitch, y = roll.
 var input := Vector2.ZERO
@@ -51,6 +54,11 @@ var input := Vector2.ZERO
 var held := false
 ## The world: a plane that leaves this box comes to a stop (the game sets the course's bounds).
 var bounds := AABB(Vector3(-1e6, -40.0, -1e6), Vector3(2e6, 2e6, 2e6))
+## Horizontal air moving the flyer along on top of its own flight (Endless's tailwind, u/s),
+## fading out within `air_drift_ground_fade` of the ground. The flight model never sees it: only
+## where the flyer goes changes. Zero in the Course.
+var air_drift := Vector3.ZERO
+var air_drift_ground_fade := 4.0
 ## Where the phone's gravity reading comes from (tests replace this).
 var read_gravity := func() -> Vector3: return Controls.read_gravity()
 
@@ -154,12 +162,15 @@ func _physics_process(delta: float) -> void:
 	model.grounded = false
 	var start := global_position
 	var motion := model.velocity * delta
+	if air_drift != Vector3.ZERO:
+		motion += air_drift * drift_weight() * delta
 	for i in 4:
 		var hit := move_and_collide(motion)
 		if hit == null:
 			break
 		touches += 1
 		var normal := hit.get_normal()
+		last_normal = normal
 		var into := -model.velocity.dot(normal)
 		var contact := model.resolve_contact(normal, delta)
 		if contact == FlightModel.Contact.CRASH:
@@ -181,6 +192,25 @@ func _physics_process(delta: float) -> void:
 	_update_visuals(delta)
 	if model.stopped:
 		stopped.emit()
+
+
+## How much of the air's drift carries the flyer: none on the ground, all of it from
+## `air_drift_ground_fade` up (by the shadow's ground; all of it if no ground is in reach).
+func drift_weight() -> float:
+	if _ground_y == -INF:
+		return 1.0
+	return smoothstep(0.0, maxf(air_drift_ground_fade, 0.01), global_position.y - _ground_y)
+
+
+## Caught on something that gives (a kite's ring, a wire, washing): keeps `keep` of its speed,
+## wobbles, and never crashes.
+func snag(keep: float) -> void:
+	if model.is_ended():
+		return
+	model.velocity *= keep
+	_wobble = 0.8
+	touches += 1
+	snagged.emit()
 
 
 ## The rising (or sinking) air at the plane as of this physics tick.

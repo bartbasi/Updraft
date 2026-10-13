@@ -9,7 +9,8 @@ extends Node3D
 ## origin and turning with the node). A sunbeam's box leans along `sun_direction`, so the
 ## lift is exactly where the light is.
 
-enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT, RIDGE, LAKE }
+## STREET (Endless): a long band of lift under a line of clouds, shown by warm motes only.
+enum Look { WARM_AIR, STEAM, SUNBEAM, DOWNDRAFT, RIDGE, LAKE, STREET }
 enum Shape { CYLINDER, BOX }
 ## Motes and puffs fade out when closer to the camera than WISP_FADE_FAR, and are gone by
 ## WISP_FADE_NEAR, so flying through warm air never hides the plane.
@@ -52,6 +53,8 @@ const SHAFT_SHADER := preload("res://shaders/light_shaft.gdshader")
 
 ## The breeze outdoors blows toward -X: smoke drifts this way (units/s^2).
 const SMOKE_DRIFT := Vector3(-0.12, 0.0, 0.0)
+## Which way this zone's outdoor smoke leans (Endless's wind blows toward -Z).
+var smoke_drift := SMOKE_DRIFT
 ## Big outdoor smoke puffs fade out closer to the camera than this, and are gone by the near
 ## distance, so circling in the smoke never fills the screen.
 const SMOKE_FADE_NEAR := 4.0
@@ -68,6 +71,13 @@ var drift_offset := Vector3.ZERO
 ## Where this zone started, before any drift.
 var home := Vector3.ZERO
 var _drift_started := false
+## Endless: this thermal drifts with the wind once reached (see drift_with_wind()), and after
+## drifting `life` units its lift fades away.
+var drifts_with_wind := false
+var life := INF
+var _drifted := 0.0
+var _fade := 1.0  ## 1 while the lift is whole, down to 0 once it has faded.
+var _fade_time := 0.0
 
 var _wisps: CPUParticles3D
 
@@ -132,6 +142,31 @@ func drift(delta: float, plane_at: Vector3, tuning: Tuning) -> void:
 	position = home + drift_offset
 
 
+## Endless, one physics tick: nothing until the plane first comes within the wake distance (plan
+## view), then the air (and its cloud, birds and stars) moves with the wind toward -Z. Once it has
+## drifted `life` units, its lift fades to nothing over Tuning.endless_thermal_fade seconds.
+func drift_with_wind(delta: float, plane_at: Vector3, wind: float, tuning: Tuning) -> void:
+	if not _drift_started:
+		var gap := Vector2(plane_at.x - global_position.x, plane_at.z - global_position.z).length()
+		if gap > radius * tuning.thermal_drift_wake:
+			return
+		_drift_started = true
+	var step := wind * delta
+	drift_offset.z -= step
+	position = home + drift_offset
+	_drifted += step
+	if _drifted >= life and _fade > 0.0:
+		_fade_time += delta
+		_fade = 1.0 - smoothstep(0.0, maxf(tuning.endless_thermal_fade, 0.01), _fade_time)
+		if _fade <= 0.0 and _wisps:
+			_wisps.emitting = false
+
+
+## True once this air has started to fade (Endless).
+func fading() -> bool:
+	return _fade < 1.0
+
+
 ## Whether a world position is inside this zone's shape. A sunbeam counts as its upright box, not
 ## the leaning light, so don't use this for sunbeams.
 func contains(world_pos: Vector3) -> bool:
@@ -148,7 +183,7 @@ func top() -> float:
 
 ## Strongest vertical air speed in this zone (always positive).
 func peak_speed(tuning: Tuning) -> float:
-	return (tuning.downdraft_strength if sinks else tuning.thermal_strength) * strength_scale
+	return (tuning.downdraft_strength if sinks else tuning.thermal_strength) * strength_scale * _fade
 
 
 ## Vertical air speed at a world position: positive rises, negative sinks.
@@ -186,6 +221,8 @@ func _ready() -> void:
 			pass  # no column: a wall of shimmer 140 units long would read as glass; seeds show it
 		Look.LAKE:
 			return  # weak sinking air over open water: the water is its look, and the ticks its sound
+		Look.STREET:
+			pass  # no column (it would read as a long glass box): its motes and clouds show it
 	_build_wisps()
 
 
@@ -290,11 +327,11 @@ func _build_wisps() -> void:
 	p.local_coords = false
 	var fade := Gradient.new()
 	match look:
-		Look.WARM_AIR, Look.SUNBEAM:
+		Look.WARM_AIR, Look.SUNBEAM, Look.STREET:
 			# Drifting dust motes across the whole zone; in a sunbeam they rise along the light.
 			var sunny := look == Look.SUNBEAM
 			# Sunbeam motes scale with the sunny patch (about one per square unit, at most 80).
-			p.amount = clampi(int(size.x * size.z), 24, 80) if sunny else (clampi(int(radius * radius * 0.8), 80, 120) if outdoors else 110)
+			p.amount = clampi(int(size.x * size.z), 24, 80) if sunny else (80 if look == Look.STREET else (clampi(int(radius * radius * 0.8), 80, 120) if outdoors else 110))
 			p.lifetime = 7.0 if outdoors else 4.0
 			p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 			p.emission_box_extents = Vector3(size.x * 0.4, 0.3, size.z * 0.4) if shape == Shape.BOX else Vector3(radius * 0.6, 0.3, radius * 0.6)
@@ -327,7 +364,7 @@ func _build_wisps() -> void:
 			p.damping_min = 0.2
 			p.damping_max = 0.4
 			if outdoors:
-				p.gravity = SMOKE_DRIFT + Vector3(0.0, 0.05, 0.0)
+				p.gravity = smoke_drift + Vector3(0.0, 0.05, 0.0)
 				p.damping_min = 0.0  # so the smoke rises the whole column
 				p.damping_max = 0.0
 			quad.size = Vector2(3.2, 3.2) if outdoors else Vector2(1.3, 1.3)

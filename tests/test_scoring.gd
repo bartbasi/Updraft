@@ -156,7 +156,7 @@ func test_distance_points_and_total() -> void:
 
 
 func test_best_score_round_trip_and_bad_files() -> void:
-	var path := "user://test_best_score.json"
+	var path := "user://test_best_score_%d.json" % OS.get_process_id()
 	check(BestScore.save_best(1234, path), "saving should work")
 	check(BestScore.load_best(path) == 1234, "saved best should load back")
 	var huge := "{\"best\": 5, \"pad\": \"%s\"}" % "x".repeat(2000)

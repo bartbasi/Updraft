@@ -17,6 +17,8 @@ const SUITES := [
 	"res://tests/test_balloon.gd",
 	"res://tests/test_vario.gd",
 	"res://tests/test_about.gd",
+	"res://tests/test_progress.gd",
+	"res://tests/test_endless.gd",
 ]
 
 
@@ -60,12 +62,15 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	# Keep the player's real best score out of the tests.
-	BestScore.file_path = "user://test_best_score.json"
+	# Keep the player's real best score out of the tests (and each run its own files: two can run at once).
+	BestScore.file_path = "user://test_best_score_%d.json" % OS.get_process_id()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
 	# ...and their choice of plane or balloon.
-	PlayerSettings.file_path = "user://test_settings.json"
+	PlayerSettings.file_path = "user://test_settings_%d.json" % OS.get_process_id()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
+	# ...and their Endless progress.
+	Progress.file_path = "user://test_progress_%d.json" % OS.get_process_id()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
 	var passed := 0
 	var failed := 0
 	var only := OS.get_environment("TEST_ONLY")
@@ -90,6 +95,8 @@ func _run() -> void:
 			await suite.cleanup()
 			# Whatever a test did to the player's settings or the sound, the next starts clean.
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
+			Progress.unlocked_this_session = false
 			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), false)
 			for error in _errors.take():
 				suite.failures.append("error during the test: " + error)
@@ -107,4 +114,5 @@ func _run() -> void:
 		await process_frame
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
 	quit(1 if failed > 0 else 0)

@@ -266,6 +266,32 @@ def splash(rng):
     return out
 
 
+def star():
+    """Endless's star pickup: a bright, quick "tink" (a sine at 1568 Hz with two soft overtones)."""
+    n = int(0.16 * RATE)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        env = min(1.0, t / 0.002) * math.exp(-t / 0.045)
+        out.append(env * (math.sin(2 * math.pi * 1568 * t) + 0.35 * math.sin(2 * math.pi * 3136 * t)
+                          + 0.15 * math.sin(2 * math.pi * 4704 * t)))
+    return out
+
+
+def flutter(rng):
+    """Snagging a kite's ring or a line: a papery flutter, noise band-passed to 600-2400 Hz,
+    shaken at 22 Hz and dying away."""
+    n = int(0.3 * RATE)
+    noise = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    band = lowpass(highpass(noise, 600), 2400)
+    out = []
+    for i, x in enumerate(band):
+        t = i / RATE
+        env = min(1.0, t / 0.01) * math.exp(-t / 0.09)
+        out.append(x * env * (0.55 + 0.45 * math.sin(2 * math.pi * 22 * t)))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -283,6 +309,8 @@ def main():
     write_wav("gull.wav", gull(), peak=0.55)
     write_wav("sink_tick.wav", sink_tick(), peak=0.6)
     write_wav("splash.wav", splash(rng), peak=0.7)
+    write_wav("star.wav", star(), peak=0.4)  # -8 dBFS
+    write_wav("flutter.wav", flutter(rng), peak=0.32)  # -10 dBFS
 
 
 if __name__ == "__main__":

@@ -28,11 +28,13 @@ func _initialize() -> void:
 			_pilot = Autopilot.touring(arg.trim_prefix("--route="))
 	DirAccess.make_dir_recursive_absolute(_out)
 	# The test pilot's score goes to its own file, never the player's best score.
-	BestScore.file_path = "user://capture_best_score.json"
+	BestScore.file_path = "user://capture_best_score_%d.json" % OS.get_process_id()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
 	# ...and its own choice of plane or balloon.
-	PlayerSettings.file_path = "user://capture_settings.json"
+	PlayerSettings.file_path = "user://capture_settings_%d.json" % OS.get_process_id()
 	PlayerSettings.save_look(_look)
+	Progress.file_path = "user://capture_progress_%d.json" % OS.get_process_id()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
 	_game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_game)
 	_plane = _game.get_node("Plane")
@@ -58,6 +60,7 @@ func _run() -> void:
 			break
 	print("fps at end: ", Engine.get_frames_per_second())
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
 	_game.queue_free()
 	for _i in 10:  # let the audio thread release the game's sounds before quitting
 		OS.delay_msec(20)

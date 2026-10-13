@@ -42,8 +42,10 @@ func _initialize() -> void:
 		elif arg == "--quiet":
 			_quiet = true
 	# Test pilots' scores go to their own file, never the player's best score.
-	BestScore.file_path = "user://flight_log_best_score.json"
+	BestScore.file_path = "user://flight_log_best_score_%d.json" % OS.get_process_id()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
+	Progress.file_path = "user://flight_log_progress_%d.json" % OS.get_process_id()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
 	_run_all.call_deferred()
 
 
@@ -53,6 +55,7 @@ func _run_all() -> void:
 		results.append(await _fly(_seed + i))
 	_summary(results)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
 	quit()
 
 

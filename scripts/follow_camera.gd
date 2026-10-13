@@ -12,6 +12,7 @@ var _look := Vector3.ZERO
 var _shake := 0.0
 var _intro_eye := Vector3.ZERO
 var _intro_time := -1.0  ## Seconds into the opening shot; negative when not in it.
+var _intro_seconds := -1.0  ## The opening shot's length, if not Tuning's camera_intro_duration.
 var _base_fov := 70.0  ## The field of view before any kick.
 var _kick := 0.0  ## Degrees of the current kick at its height.
 var _kick_time := -1.0  ## Seconds into the kick; negative when there is none.
@@ -65,9 +66,10 @@ func snap() -> void:
 
 
 ## Starts the opening shot: looking at the plane from `eye` (the thrower), then easing into
-## the chase camera once the plane is flying.
-func start_intro(eye: Vector3) -> void:
+## the chase camera once the plane is flying, over `seconds` (or Tuning's camera_intro_duration).
+func start_intro(eye: Vector3, seconds := -1.0) -> void:
 	snap()
+	_intro_seconds = seconds
 	_intro_eye = eye
 	_intro_time = 0.0
 	global_position = eye
@@ -93,11 +95,12 @@ func _process(delta: float) -> void:
 	if in_intro():
 		if not target.held:
 			_intro_time += delta
-		var k := smoothstep(0.0, 1.0, _intro_time / _t().camera_intro_duration) if _t().camera_intro_duration > 0.0 else 1.0
+		var length := _intro_seconds if _intro_seconds > 0.0 else _t().camera_intro_duration
+		var k := smoothstep(0.0, 1.0, _intro_time / length) if length > 0.0 else 1.0
 		global_position = _intro_eye.lerp(_follow, k)
 		_look = p.lerp(look_goal, k)
 		_aim(_t().camera_lean * k)  # no lean from the thrower's eye, easing in with the move
-		if _intro_time >= _t().camera_intro_duration:
+		if _intro_time >= length:
 			_intro_time = -1.0
 	else:
 		global_position = _follow

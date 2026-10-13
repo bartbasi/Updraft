@@ -3,9 +3,10 @@
 class_name AboutPanel
 extends Control
 ## About Updraft, opened from the settings: what the game is and who made it, a request for
-## feedback with a button that starts an email, a link to the source code, and two pages to
-## read: License (Updraft's notice, with its additional terms, and the GNU GPL) and Credits (the
-## Godot Engine's notices and those of its third-party parts). The game builds this panel the
+## feedback with a button that starts an email, a link to the source code, and three pages to
+## read: How to fly (the player's guide, HowToFly), License (Updraft's notice, with its additional
+## terms, and the GNU GPL) and Credits (the Godot Engine's notices and those of its third-party
+## parts). The game builds this panel the
 ## first time it is opened, and each page's text the first time that page is shown, a few
 ## paragraphs a frame, so a long page never holds up the game. The labels on those pages don't
 ## word-wrap (re-wrapping every label as the page grew made filling slow): the license texts
@@ -31,6 +32,7 @@ const FILL_BUDGET_USEC := 4000
 const INK := Color("5d5468")  ## The game's ink and lilac (game.gd), for the scroll bar.
 const LILAC := Color("c9b2d6")
 
+var guide: Button
 var feedback: Button
 var source: Button
 var license: Button
@@ -43,7 +45,8 @@ var _reader_title: Label
 var _scroll: ScrollContainer
 var _text_box: VBoxContainer
 var _pending: PackedStringArray = []  ## Paragraph chunks still to add to the page shown.
-var _showing := ""  ## Which page the reader holds: "License", "Credits" or "".
+var _showing := ""  ## Which page the reader holds: GUIDE, "License", "Credits" or "".
+const GUIDE := "How to fly"
 
 
 func _init() -> void:
@@ -60,15 +63,16 @@ func open() -> void:
 	visible = true
 	_reader.visible = false
 	_page.visible = true
-	feedback.grab_focus()
+	guide.grab_focus()
 
 
-## Back (or Escape): from License or Credits to the About page, and from there out of About.
+## Back (or Escape): from a page to the About page, and from there out of About.
 func go_back() -> void:
 	if _reader.visible:
 		_reader.visible = false
 		_page.visible = true
-		(license if _showing == "License" else credits).grab_focus()
+		var buttons := {GUIDE: guide, "License": license, "Credits": credits}
+		(buttons.get(_showing, guide) as Button).grab_focus()
 	else:
 		visible = false
 		closed.emit()
@@ -139,12 +143,20 @@ static func _godot_version() -> String:
 
 
 ## Splits `text` at blank lines into chunks of about CHUNK_CHARS characters (a paragraph longer
-## than that is a chunk on its own), with lines longer than WRAP_COLUMN broken.
-static func chunks(text: String) -> PackedStringArray:
+## than that is a chunk on its own), with lines longer than WRAP_COLUMN broken. With `headings`,
+## a paragraph starting "# " is a chunk of its own (the page shows it as a heading).
+static func chunks(text: String, headings := false) -> PackedStringArray:
 	var out := PackedStringArray()
 	var group := PackedStringArray()  # the paragraphs of the chunk being gathered
 	var size := 0
 	for paragraph in wrap_lines(text, WRAP_COLUMN).split("\n\n"):
+		if headings and paragraph.begins_with("# "):  # a heading: a chunk of its own
+			if not group.is_empty():
+				out.append("\n\n".join(group))
+				group.clear()
+				size = 0
+			out.append(paragraph)
+			continue
 		if not group.is_empty() and size + paragraph.length() > CHUNK_CHARS:
 			out.append("\n\n".join(group))
 			group.clear()
@@ -212,10 +224,20 @@ func show_page(which: String) -> void:
 	_reader_title.text = which
 	for child in _text_box.get_children():
 		child.queue_free()
-	_pending = chunks(license_text() if which == "License" else credits_text())
+	_pending = page_chunks(which)
 	_pending.reverse()  # taken from the end, so the page fills from the top
 	_scroll.scroll_vertical = 0
 	set_process(true)
+
+
+## A page's text in chunks, as its labels show it.
+static func page_chunks(which: String) -> PackedStringArray:
+	match which:
+		GUIDE:
+			return chunks(HowToFly.TEXT, true)
+		"License":
+			return chunks(license_text())
+	return chunks(credits_text())
 
 
 ## True once the page shown has all its text.
@@ -227,9 +249,11 @@ func _process(_delta: float) -> void:
 	var start := Time.get_ticks_usec()
 	while not _pending.is_empty():
 		var label := Label.new()
-		label.text = _pending[_pending.size() - 1]
+		var text := _pending[_pending.size() - 1]
 		_pending.remove_at(_pending.size() - 1)
-		label.add_theme_font_size_override("font_size", 20)
+		var heading := _showing == GUIDE and text.begins_with("# ")
+		label.text = text.trim_prefix("# ") if heading else text
+		label.add_theme_font_size_override("font_size", 30 if heading else 20)
 		label.add_theme_constant_override("outline_size", 0)
 		_text_box.add_child(label)
 		label.get_minimum_size()  # lays the text out now, inside this frame's budget
@@ -253,10 +277,16 @@ func _build_page() -> void:
 	box.add_child(byline)
 	box.add_child(_paragraph(BLURB, 26))
 	box.add_child(_paragraph(FEEDBACK_ASK, 26))
-	feedback = _button("Send feedback", Vector2(340, 80), 32)
-	feedback.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var main_row := HBoxContainer.new()
+	main_row.add_theme_constant_override("separation", 14)
+	main_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	guide = _button(GUIDE, Vector2(300, 80), 32)
+	guide.pressed.connect(show_page.bind(GUIDE))
+	feedback = _button("Send feedback", Vector2(300, 80), 32)
 	feedback.pressed.connect(_on_feedback)
-	box.add_child(feedback)
+	main_row.add_child(guide)
+	main_row.add_child(feedback)
+	box.add_child(main_row)
 	# The address too, for a phone with no email app (where the button can do nothing).
 	var address := _label(FEEDBACK_EMAIL, 22)
 	address.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

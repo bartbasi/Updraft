@@ -204,3 +204,116 @@ for the phone test"). From the build:
   Gap style path ends at y 13.5; sink ticks quiet within 1 u of the ground or water. The drift
   test's naive pilot hears exactly one sigh, right on its threshold: retuning drift or the sigh
   may need that test's numbers revisited.
+
+# Phase 5: open source, How to fly, and Endless step 1 (docs/endless-plan.md)
+
+## License and About (done first)
+
+- GPL v3 (LICENSE) with additional terms in NOTICE (attribution 7(b), marking 7(c)/(d), name and
+  icon 7(e)); a two-line notice on every source file, enforced by a test. Repo public since
+  2026-10-13.
+- About (Settings > About): the blurb, How to fly, Send feedback (a mailto: draft to
+  bartbasi@gmail.com with the version and phone), the address shown too, Source code, License,
+  Credits (Godot's notices, FreeType's line, AndroidX and Kotlin). Android Back steps out of pages,
+  About and Settings, then closes the game.
+- **How to fly** (owner's request): the player's guide, `scripts/how_to_fly.gd`: controls, how
+  flying works, every kind of rising and sinking air and how to spot it, sounds, how the Course
+  and Endless score, tips. A test checks it names every style moment and gives the landing
+  bonuses, scoring numbers and star values as the game has them.
+
+## Deviations from the Endless plan
+
+- **game.gd changed more than "the card's Endless button and unlock line".** Everything both
+  modes share (sky, watercolour pass, sounds, vario, sigh, sink ticks, close calls, hint and
+  pop-up labels, the end card's frame, Settings, About, Back) moved into a base class,
+  `scripts/flight_game.gd`; game.gd keeps the Course's own parts. The Course flies identically:
+  the flight logs of all seven routes and ten novices are byte-identical before and after.
+- **Decision 9 is a one-time step**: a saved Course best of 1500+ unlocks Endless only when there
+  is no progress file yet (the first launch of this version). Checked on every load, a crash with
+  a big score could have unlocked it silently.
+- **Thermals' Endless drift** is its own method (drift_with_wind) with a life and a fade; the
+  Course's drift (toward -X, capped) is unchanged.
+- **The Barley Field's spiral of stars forms around the pilot.** A helix laid in advance climbs at
+  the same rate as the pilot, so anyone who doesn't arrive at its exact starting height and place
+  stays out of step with it all the way up (the test pilot took 0%). Now, once you circle inside
+  the thermal, the spiral lays itself a little ahead of you at your own height and distance from
+  the middle, turning your way, and re-forms ahead after each star; its stars are taken from 3 u
+  (spiral_pickup_radius) because nobody circles exactly. Its stars slide into place (0.5 s). The
+  skilled pilot now takes about 60% of them. **For the fun review and the phone:** does it read
+  as the stars coming to meet you, or as stars jumping?
+- **The good line through the Barley Field dives into the thermal's lower part first** (to y 9 at
+  its near edge), then circles up. Arriving high over the field is the usual case (the pieces
+  before it leave you high), and the spiral can only be flown from below.
+- **Hoops start 20 u in** (plan: 16), every hoop 4 u further: from 16 there was too little room to
+  line up from wherever the previous piece ended (the plan's own reaction-distance rule wants
+  about 23 u). The Hamlet's chimney stars sit 1.5 u further upstream, clear of the turn to the
+  next plume; the Ridge's first star is on the band's line, 4 u further in; the Rim's welcome S is
+  a little gentler and back on the middle before its last star.
+- **Calibrated numbers** (`tools/endless_log.gd --calibrate`, wind 1.5): the generator's table now
+  matches the measured exits within about 1.5 u for every piece at wind 1.5. Two changes:
+  Cloud Street's add is (14, 11) (plan 14, 13: at difficulty 1 the street lifts less), and the
+  Hamlet's cap is (15, 14.5) (plan 17.5, 16.5: the line holds you near the rooftops whatever
+  height you arrive at). So at difficulty 0 only a street can follow the Hamlet. Step 2's rising
+  wind will need the table measured again at 1.0-3.0 (at wind 3 the street from its lowest entry
+  leaves 3-4 u below the table).
+- **The viaduct's deck stars are an alternative line** (counted apart: they don't count against the
+  share of stars taken by a pilot who goes under).
+- **Test pilots in Endless** pitch firmer (gain 0.7), look a little less far ahead (2.5) and climb
+  gently in lift (+0.15; +0.3 sits right at the stall). Novices circle at most about a lap.
+- **Clouds and birds**: Endless has its own manager (`scripts/endless/sky.gd`), using the Course's
+  puff and bird shapes and the same thinning, since the Course's are built once for fixed thermals.
+- **Tiles' meshes are built per piece and difficulty step (0.25)** and kept; continuous lerps in the
+  plan are taken at the nearest step.
+- **Not in step 1 yet**: the plan's PC frame-time captures and the fair-failure sight-line check
+  (no obstacle hidden less than 60 u before it); the hoop's white flash; ribbons don't flutter.
+
+## Endless step 1: measured
+
+- Generator: 10,000 sequences of 30 pieces, no broken rules (a test).
+- Skilled pilots, 20 runs of 200 s: all flew 12+ pieces, no crashes or touchdowns, stars taken median
+  87% (77-91%). Shaky pilots: 20 of 20 flew 12+ pieces, no crashes, median 83%.
+- Calibration: every piece within about 1.5 u of its table at wind 1.5; lowest over the ground
+  7.3 u (Long Ridge), nearest solid 3 u (the Hamlet's cottages).
+
+## Endless step 1: check on the phone
+
+The plan's checklist (§10.1): pace at wind 0 / 1.5 / 3.0 (debug button on the card); following
+star lines on tilt (Hamlet, Kites); the viaduct dive; the hoops at their smallest; whether every
+ending made sense; the retry; frame rate (target 120 fps); the height bar. Plus: the spiral
+forming around you.
+
+## Endless step 1: after the code review and fun review 5
+
+- **Shipped code never names the test pilot.** EndlessGame has a `test_pilot` Callable and a
+  `run_started` signal; tools and tests attach `Autopilot.fly_endless()`. A test fails if anything
+  in scripts/ or scenes/ names a class or path from tests/ or tools/; an exported pack opened with
+  last mode Endless flies Endless with no errors.
+- **Kits are built a step at a time on the main thread** (EndlessPieces.KitBuild, pumped about
+  3 ms a physics tick), from three tiles before a piece is drawn; the longest step measured 3.3 ms
+  on the PC. Building them on a worker thread corrupted the engine's shared strings and hung, so
+  that was dropped. The ground grid's heights are computed once (each was computed up to four
+  times). Collision comes in several shapes of about 1,500 triangles each.
+- **A retry resets every sound count and wait** (FlightGame.reset_flight_sounds()); a card timer
+  from an earlier run shows nothing (run ids); an unreadable progress file is never overwritten.
+- **The HUD's star is drawn**, not a glyph a phone's font may lack.
+- **Fun review 5 (all eight items):**
+  1. The Barley spiral is laid only after the pilot has turned 120 degrees inside the thermal; its
+     next star is 4.5 u of arc ahead (out of reach); at most one spiral star in 0.25 s; the way
+     round, radius and climb are judged afresh at every star; 6 stars 40 degrees apart; a re-lay
+     that moves no star more than 1 u is skipped. A straight pass takes at most one (a test).
+  2. Hamlet: three stars a plume, 5/3/1 u upstream of the chimney, plume 0 from y 15 (line
+     starts (-8, 15, -16), (-8, 16, -27)). Cloud Street: from an entry below 23 its stars rise
+     from the entry height (1.4 a star at d 0, 1.0 at d 1). Viaduct dive: 6 stars from z -16.
+  3. A touch on a slope steeper than about 25 degrees nudges you off like a bump; a touchdown is
+     flat ground or half a second of sliding.
+  4. The look-back eye is (-6, 2.5, -9): the balloon sits clear of the lake and the Gap.
+  5. Full difficulty at 400 m (step 2 sets 1,000 with the rising wind).
+  6. "The breeze is behind you: fly on!" when heading back near the start.
+  7. The card says where: "Touchdown in the Hamlet".
+  8. How to fly: the designer's text changes (opener, beeps, ridges, sounds, the viaduct wall, the
+     spiral, the paper plane, "Follow the stars").
+- **Measured after the fixes** (skilled, 8 runs of 200 s): all flew 12+ pieces, no crashes; stars
+  taken median 94%; spiral 21 of 21 full; chimneys 95%, street 96%, dive 92%.
+- **Not done from the reviews (later):** the hands-off, middle and star-chaser pilots in
+  endless_log for the step 2 novice marks; wind 3.0 batch; the content and mesh steps could be
+  split further if the phone shows dropped frames.

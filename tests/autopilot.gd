@@ -48,6 +48,57 @@ func _init(p_line: PackedVector3Array, p_seed := 1) -> void:
 		orbits.assign(route("lavender")["orbits"])
 
 
+## Endless: a test pilot of `kind` (see endless()) flying `game`: it starts afresh at every run's
+## start and follows each piece's line and circles as the world places it. Call before the game
+## enters the tree, so it flies the first run too.
+static func fly_endless(game: EndlessGame, kind: String, p_seed: int) -> Autopilot:
+	var pilot := endless(kind, p_seed)
+	var world: EndlessWorld = game.get_node("World")
+	game.test_pilot = pilot.fly
+	game.run_started.connect(pilot.restart)
+	world.placed.connect(func(p: EndlessWorld.Piece) -> void: pilot.extend(world.line_for(p), world.orbits_for(p)))
+	return pilot
+
+
+## Starts afresh at `from`, heading on (toward -Z), with no line ahead yet and no circles to fly.
+func restart(from: Vector3) -> void:
+	line = PackedVector3Array([from, from + Vector3(0.0, -0.1, -1.0)])
+	lengths = Scoring.arc_lengths(line)
+	orbits.clear()
+	_orbit = 0
+	_orbiting = false
+	_orbit_time = 0.0
+	_segment = -1
+
+
+## Endless: more line to follow (and circles to fly on it) as the next piece is placed. Points
+## behind the line's end are skipped, as when the course's parts are joined.
+func extend(points: PackedVector3Array, more_orbits: Array[Dictionary] = []) -> void:
+	line = _join(line, points)
+	lengths = Scoring.arc_lengths(line)
+	orbits.append_array(more_orbits)
+
+
+## A test pilot for Endless: "skilled" (steady hands), "shaky" (a skilled line with wobbly hands and
+## a little lag) or "novice". It starts at the Endless start; the game extends its line and circles
+## as pieces are placed.
+static func endless(kind: String, p_seed: int) -> Autopilot:
+	var start := PackedVector3Array([EndlessWorld.START, EndlessWorld.START + Vector3(0.0, -0.1, -1.0)])
+	var pilot: Autopilot
+	if kind == "novice":
+		pilot = novice(start, p_seed)
+	else:
+		pilot = Autopilot.new(start, p_seed)
+		pilot.pitch_gain = 0.7  # firm on the pitch: Endless's lines dive and climb more than the Course's
+		pilot.lookahead = 2.5
+		pilot.max_climb = 0.15  # in lift, climb gently (slow flight): +0.3 sits right at the stall
+		if kind == "shaky":
+			pilot.wobble = 0.15
+			pilot.reaction = 0.15
+	pilot.orbits.clear()  # (a line ending past the house gets the lavender circles by default)
+	return pilot
+
+
 ## A pilot who flies the whole course and then the outdoor route `route_name` (see route()).
 static func touring(route_name: String, p_seed := 1) -> Autopilot:
 	var pilot := Autopilot.new(course_line(route_name), p_seed)

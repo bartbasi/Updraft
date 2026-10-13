@@ -42,6 +42,8 @@ var plane: Flyer
 var lifts: Array[Thermal] = []
 var lift: Thermal
 var _met := {}  ## The lifts where a gull has already joined you this run.
+## The ground's height under a point (the Course's hills unless the game says otherwise).
+var ground_height := func(x: float, z: float) -> float: return Course.terrain_height(x, z)
 var _along := 0.0  ## Seconds flying along the ridge lift so far.
 var _time := 0.0  ## Seconds in the current state.
 var _start := Vector3.ZERO  ## Where it hung on arrival.
@@ -104,7 +106,7 @@ func _physics_process(delta: float) -> void:
 			_keep_clear()
 			_keep_above_ground()  # last, so the floor always holds
 			_face(_forward(), plane.model.bank * k)
-			if not lift.contains(plane.global_position) or plane.is_ended():
+			if not is_instance_valid(lift) or not lift.contains(plane.global_position) or plane.is_ended():
 				_leave()
 			elif _time >= ARRIVE_SECONDS:
 				_set_state(State.ESCORTING)
@@ -115,7 +117,7 @@ func _physics_process(delta: float) -> void:
 			_keep_clear()
 			_keep_above_ground()  # last, so the floor always holds
 			_face(_forward(), plane.model.bank)
-			if _time >= tune.gull_stay or not lift.contains(plane.global_position) or plane.is_ended():
+			if _time >= tune.gull_stay or not is_instance_valid(lift) or not lift.contains(plane.global_position) or plane.is_ended():
 				_leave()
 		State.LEAVING:
 			global_position += (_leave_dir * LEAVE_SPEED + Vector3.UP * LEAVE_CLIMB) * delta
@@ -135,6 +137,29 @@ func _physics_process(delta: float) -> void:
 					set_physics_process(false)
 
 
+## Endless: the ridge lifts placed now. A gull that had met every ridge comes back for a new one.
+func set_lifts(p_lifts: Array[Thermal]) -> void:
+	lifts = p_lifts
+	for l in _met.keys():
+		if not is_instance_valid(l):
+			_met.erase(l)
+	if state == State.GONE and lifts.any(func(l: Thermal) -> bool: return not _met.has(l)):
+		_set_state(State.WAITING)
+		_along = 0.0
+		lift = null
+		set_physics_process(true)
+
+
+## Forgets every ridge met (a new run) and goes back to waiting, out of sight.
+func reset() -> void:
+	_met.clear()
+	lift = null
+	_along = 0.0
+	visible = false
+	_set_state(State.WAITING)
+	set_physics_process(true)
+
+
 ## The spot off the plane's wing it soars in, on the side _choose_side() picked: a little up and
 ## a little ahead.
 func slot() -> Vector3:
@@ -147,7 +172,7 @@ func slot() -> Vector3:
 func _choose_side() -> void:
 	var gap := _spacing()
 	var hill := plane.global_position + Vector3.UP * gap.y + _forward() * gap.z + _hill_side() * gap.x
-	var clearance := hill.y - Course.terrain_height(hill.x, hill.z) - plane.tuning.gull_min_ground
+	var clearance: float = hill.y - ground_height.call(hill.x, hill.z) - plane.tuning.gull_min_ground
 	if _side > 0.0 and clearance < 0.0:
 		_side = -1.0
 	elif _side < 0.0 and clearance >= SIDE_HYSTERESIS:
@@ -171,7 +196,7 @@ func _ridge_flown_along() -> Thermal:
 	if absf(flat.angle_to(Vector2(0.0, -1.0))) > ALONG_RIDGE and absf(flat.angle_to(Vector2(0.0, 1.0))) > ALONG_RIDGE:
 		return null
 	for l in lifts:
-		if not _met.has(l) and l.contains(plane.global_position):
+		if is_instance_valid(l) and not _met.has(l) and l.contains(plane.global_position):
 			return l
 	return null
 
@@ -196,7 +221,7 @@ func _hill_side() -> Vector3:
 
 ## Never lower than `gull_min_ground` over the grass.
 func _keep_above_ground() -> void:
-	var floor_y := Course.terrain_height(global_position.x, global_position.z) + plane.tuning.gull_min_ground
+	var floor_y: float = ground_height.call(global_position.x, global_position.z) + plane.tuning.gull_min_ground
 	global_position.y = maxf(global_position.y, floor_y)
 
 

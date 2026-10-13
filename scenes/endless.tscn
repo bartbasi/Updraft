@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/endless/endless_game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/endless/endless_world.gd" id="2_world"]
+[ext_resource type="Script" path="res://scripts/flyer.gd" id="3_plane"]
+[ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
+
+[node name="Endless" type="Node3D"]
+script = ExtResource("1_game")
+
+[node name="World" type="Node3D" parent="."]
+script = ExtResource("2_world")
+
+[node name="Plane" type="CharacterBody3D" parent="."]
+script = ExtResource("3_plane")
+
+[node name="Camera" type="Camera3D" parent="."]
+current = true
+script = ExtResource("4_camera")

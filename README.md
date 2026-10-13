@@ -11,6 +11,12 @@ Soft beeps tell you when you're in lift, a sigh when you've flown out of it; the
 the breeze and their clouds thin once climbed, and a gull joins you on the ridges. A run lasts
 one to two and a half minutes. Prefer the paper plane? Pick it on the end card.
 
+**Endless.** Land outdoors once and Endless opens: a country beyond the lake that never ends,
+built ahead of you from pieces (a cloud street, a barley field with a thermal, a long ridge, a
+hamlet's chimney smoke, a meadow of ring kites, a viaduct to dive under). A breeze carries you on;
+stay up as long as you can, collecting stars. The run ends at the first touch of the ground. See
+[docs/endless-plan.md](docs/endless-plan.md); this is its first step, a prototype.
+
 Updraft is free and open source: Copyright (C) 2026 Bart Basi, under the GNU GPL v3 with a few
 additional terms (see [License](#license)). Feedback is welcome at bartbasi@gmail.com, or with
 the Send feedback button under Settings > About.
@@ -74,6 +80,13 @@ C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 -
 # ...or a skilled pilot on an outdoor route: lavender, chain, ridge or picnic
 C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tools/flight_log.gd -- --route=chain
 
+# Endless: test pilots (skilled, shaky or novice) with a timeline, summaries and stars by arc
+C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tools/endless_log.gd -- --pilot=shaky --runs=20 --max=200 --quiet
+# ...each piece flown alone, against the generator's table (exit height, clearances, stars)
+C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tools/endless_log.gd -- --calibrate --piece=viaduct
+# ...and screenshots from the look back on
+C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --path . -s res://tools/endless_capture.gd -- --out=screens --seed=1
+
 # Rebuild the sound effects (Python 3, standard library only)
 python tools/gen_sounds.py
 ```
@@ -122,7 +135,14 @@ scripts/best_score.gd     the saved best score (validated on load)
 scripts/debug_overlay.gd  debug-build view of the style paths
 scripts/follow_camera.gd  smoothed chase camera
 scripts/game.gd           run flow, lighting, sound, end card, settings
-scripts/about_panel.gd    About, with the License and Credits pages and Send feedback
+scripts/about_panel.gd    About, with How to fly, the License and Credits pages and Send feedback
+scripts/how_to_fly.gd     the player's guide (About > How to fly)
+scripts/flight_game.gd    what every flight shares: sounds, settings, About, the end card's frame
+scripts/progress.gd       Endless's save: unlocked, the star bank, bests, the mode flown last
+scripts/boot.gd           opens the mode flown last
+scripts/endless/          Endless: the game, the world (streaming pieces), the generator,
+                          the pieces, stars, clouds and birds
+scenes/endless.tscn       the Endless scene
 scripts/art.gd            materials and the low-poly mesh builder
 shaders/                  watercolor screen pass, thermal shimmer
 audio/                    synthesized WAVs (from tools/gen_sounds.py)

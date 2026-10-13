@@ -86,7 +86,7 @@ func test_crashed_balloon_pops_and_its_string_falls_to_the_floor() -> void:
 
 
 func test_look_choice_is_saved_and_bad_files_mean_the_balloon() -> void:
-	var path := "user://test_look.json"
+	var path := "user://test_look_%d.json" % OS.get_process_id()
 	check(PlayerSettings.save_look(PlayerSettings.BALLOON, path), "saves")
 	check(PlayerSettings.load_look(path) == PlayerSettings.BALLOON, "balloon comes back")
 	check(PlayerSettings.save_look(PlayerSettings.PLANE, path), "saves")
@@ -144,7 +144,7 @@ func test_relaunching_a_popped_balloon_restores_it() -> void:
 
 ## Settings: each setting is checked on load, and bad or missing ones fall back to defaults.
 func test_settings_are_checked_and_bad_values_fall_back() -> void:
-	var path := "user://test_settings_all.json"
+	var path := "user://test_settings_all_%d.json" % OS.get_process_id()
 	check(PlayerSettings.save_all({"look": "balloon", "sensitivity": 1.5, "sound": false, "invert_pitch": true}, path), "saves")
 	var s := PlayerSettings.load_all(path)
 	check(s["look"] == "balloon" and is_equal_approx(s["sensitivity"], 1.5) and s["sound"] == false and s["invert_pitch"] == true, "everything comes back: %s" % s)

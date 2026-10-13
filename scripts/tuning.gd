@@ -362,3 +362,50 @@ extends Resource
 	"island": 500,
 	"beach": 250,
 }
+
+@export_group("Endless")
+## The tailwind in Endless (u/s toward -Z): the air carries the flyer along on top of its own
+## flight, fading out within `endless_wind_ground_fade` of the ground so slides and landings look as
+## they do in the Course. The flight model is untouched. Zero everywhere in the Course.
+@export var endless_wind := 1.5
+@export var endless_wind_ground_fade := 4.0
+## Difficulty reaches 1 at this many metres.
+@export var endless_full_distance_m := 400.0
+## A piece is placed only if its need is at least this far below the height a good pilot is sure
+## to have (x at difficulty 0, y at difficulty 1).
+@export var endless_margin := Vector2(6.0, 3.0)
+## A thermal drifts with the wind once reached; after drifting this far (x at difficulty 0, y at
+## 1) its lift fades away over `endless_thermal_fade` seconds and its cloud thins.
+@export var endless_thermal_life := Vector2(36.0, 24.0)
+@export var endless_thermal_fade := 4.0
+## Pieces are placed this many tiles ahead of the plane and kept this many behind.
+@export var endless_tiles_ahead := 5
+@export var endless_tiles_behind := 1
+## Tiles fade out of the fog: visibility range end and its fade margin (units).
+@export var endless_tile_fade := Vector2(440.0, 60.0)
+## The look back over the bowl at the start of a session (seconds), and the fade-in on a retry.
+@export var endless_intro_seconds := 1.4
+@export var endless_retry_fade := 0.2
+## Seconds from a touchdown (or splashdown) to the end card, so the slide shows.
+@export var endless_card_delay_touchdown := 0.6
+## Stars: pickup radius from the flyer's centre (units), what a big star and a full arc are worth
+## (in stars), points per star, the pickup sound's level, and how many semitones it can rise.
+@export var star_pickup_radius := 1.4
+@export var big_star_pickup_radius := 1.5
+## A spiral's stars round a thermal are taken from further away: nobody circles exactly, and
+## they re-form ahead of you after each one (see EndlessStars._lay_spiral()).
+@export var spiral_pickup_radius := 3.0
+@export var big_star_value := 10
+@export var arc_bonus := 5
+@export var points_per_star := 10
+@export var star_db := -10.0
+@export var star_pitch_steps := 12
+## Touching a wire, kite ring, washing or sail keeps this much of the speed (never a crash).
+@export_range(0.1, 1.0) var snag_speed_keep := 0.75
+## The height bar on the left fills over this many units above the ground, and warns below the
+## second (units).
+@export var height_bar_full := 30.0
+@export var height_bar_warn := 4.0
+## Passing through an arch at speed widens the view this many degrees for a moment.
+@export var arch_pass_fov_kick := 3.0
+@export var arch_pass_speed := 7.5

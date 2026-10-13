@@ -169,3 +169,45 @@ func test_every_source_file_carries_the_license_header() -> void:
 		if not FileAccess.get_file_as_string(path).begins_with("<!-- " + HEADER):
 			missing.append(path)
 	check(missing.is_empty(), "files without the header: %s" % ", ".join(missing))
+
+
+## The guide must say what the game does: every style moment, every landing bonus, the scoring
+## numbers, and Endless's star values, as the game has them now.
+func test_the_guide_matches_the_game() -> void:
+	var text := HowToFly.TEXT.to_lower()
+	for def: Dictionary in Course.style_moment_defs():
+		var title := String(def["title"]).to_lower()
+		check(text.contains(title) or text.contains(title.replace("out the", "out of the")), "names the style moment \"%s\"" % title)
+	var tune := Tuning.new()
+	var spots := {"lavender": "lavender", "picnic": "picnic blanket", "island": "island", "beach": "beach"}
+	for id: String in tune.landing_bonus:
+		var line := "%s (+%d)" % [spots[id], int(tune.landing_bonus[id])]
+		check(text.contains(line), "gives the %s landing's bonus: %s" % [id, line])
+	check(text.contains("%d points for every metre" % int(tune.points_per_meter)), "distance points")
+	check(text.contains("%d points for every second in the air outdoors, up to %d seconds" % [int(tune.airtime_points_per_second), int(tune.airtime_max_seconds)]), "airtime points")
+	check(text.contains("big stars are worth %d" % tune.big_star_value) and text.contains("(+%d)" % tune.arc_bonus), "star values")
+	check(text.contains("%d points for every metre and %d for every star" % [EndlessGame.POINTS_PER_METRE, tune.points_per_star]), "Endless's score")
+	for piece in ["barley field", "viaduct"]:
+		check(text.contains(piece), "mentions the %s" % piece)
+
+
+func test_the_guide_page_shows_its_headings() -> void:
+	var chunks := AboutPanel.page_chunks(AboutPanel.GUIDE)
+	var headings := Array(chunks).filter(func(c: String) -> bool: return c.begins_with("# "))
+	check(headings.size() >= 8, "the guide has its sections (%d)" % headings.size())
+	check(chunks[1] == "# Controls", "after a line of welcome, it opens with the controls: %s" % chunks[1].left(30))
+	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
+	await physics_frames(2)
+	game.show_settings(true)
+	game.show_about()
+	var about: AboutPanel = game._about
+	check(about.guide.has_focus(), "How to fly is the first thing to press")
+	about.show_page(AboutPanel.GUIDE)
+	var frames := 0
+	while not about.is_page_filled() and frames < 300:
+		await tree.process_frame
+		frames += 1
+	var big := about._text_box.get_children().filter(func(l: Node) -> bool: return (l as Label).get_theme_font_size("font_size") == 30)
+	check(big.size() == headings.size() and (big[0] as Label).text == "Controls", "headings show large, without their mark")
+	about.go_back()
+	check(about.guide.has_focus(), "Back returns to How to fly")
