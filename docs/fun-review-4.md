@@ -19,7 +19,7 @@
   - bluff foot, bluff run, bluff top to beach, SandHeat, end cards.
   - Frame rate: 57-60 fps at the saddle, on the bluff and over the island (PC).
 - The scratch scripts are outside the repo:
-  - `C:\Users\BARTBA~1\AppData\Local\Temp\claude\C--bart-paperplane\5dfbb0a8-6333-4579-b031-523eeb3e5d5a\scratchpad\seek.gd`;
+  - `seek.gd`, in the review session's temporary scratch folder;
   - `cap2.gd` in the same folder, which is `capture.gd` without its 90 s cutoff (bowl shots need it).
 
 ## Pass marks (§D)

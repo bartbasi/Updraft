@@ -220,11 +220,11 @@ func _box_zone(at: Vector3, box: Vector3, look: Thermal.Look, sun := Vector3.DOW
 	return zone
 
 
-func _glider(at: Vector3) -> PaperPlane:
-	var plane := PaperPlane.new()
+func _glider(at: Vector3) -> Flyer:
+	var plane := Flyer.new()
 	add_node(plane)
 	plane.launch(at, 0.0)
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	return plane
 
 

@@ -1,4 +1,4 @@
-# Paper Plane: Phase 2 brief (from the owner, verbatim)
+# Updraft: Phase 2 brief (from the owner, verbatim)
 
 ## Where we are
 

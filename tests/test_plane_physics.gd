@@ -2,11 +2,11 @@ extends TestCase
 ## The plane node against real physics bodies.
 
 
-func _plane(at: Vector3, heading: float, input := Vector2.ZERO) -> PaperPlane:
-	var plane := PaperPlane.new()
+func _plane(at: Vector3, heading: float, input := Vector2.ZERO) -> Flyer:
+	var plane := Flyer.new()
 	add_node(plane)
 	plane.launch(at, heading)
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return input
+	plane.autopilot = func(_p: Flyer) -> Vector2: return input
 	return plane
 
 
@@ -58,7 +58,7 @@ func test_landing_slides_to_a_stop() -> void:
 ## show from above and behind, where the camera is (not sunk into the wing, which would flicker,
 ## nor under it, where the camera never looks).
 func test_plane_has_coral_wing_marks_on_both_wings() -> void:
-	var arrays := PaperPlane.build_paper_mesh().surface_get_arrays(0)
+	var arrays := Flyer.build_paper_mesh().surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 	# The white wing triangles (nose, tip, fold), to measure how far each mark sits above them.
@@ -68,7 +68,7 @@ func test_plane_has_coral_wing_marks_on_both_wings() -> void:
 			wings.append([Plane(verts[i], verts[i + 1], verts[i + 2]), signf(verts[i].x + verts[i + 1].x + verts[i + 2].x)])
 	var marked := {}
 	for i in verts.size():
-		if not colors[i].is_equal_approx(PaperPlane.FELT_PEN):
+		if not colors[i].is_equal_approx(Flyer.FELT_PEN):
 			continue
 		var side := signf(verts[i].x)
 		marked[side] = true

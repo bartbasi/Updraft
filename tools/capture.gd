@@ -1,15 +1,15 @@
 extends SceneTree
 ## Flies the course with the autopilot in a real window and saves screenshots along the way.
-##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...] [--look=balloon] [--route=ridge]
+##   godot --path . -s res://tools/capture.gd -- --out=<folder> [--times=0.3,5.5,...] [--look=plane] [--route=ridge]
 
 var _times: Array[float] = [0.3, 4.6, 5.6, 8.2, 9.6, 12.8, 15.4, 18.0, 23.0]
 var _out := "user://screens"
 var _game: Node
-var _plane: PaperPlane
+var _plane: Flyer
 var _pilot := Autopilot.new(Autopilot.course_line())  # Held here: a Callable alone does not keep its object alive.
 var _shot := 0
 var _ended_at := -1.0
-var _look := PlayerSettings.PLANE
+var _look := PlayerSettings.BALLOON
 
 
 func _initialize() -> void:
@@ -39,6 +39,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	if _game._fps != null:
+		_game._fps.visible = false  # release builds have no fps counter, so the shots shouldn't either
 	while true:
 		await process_frame
 		var t := _plane.flight_time

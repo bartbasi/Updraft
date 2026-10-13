@@ -4,7 +4,7 @@ extends Camera3D
 ## pulled in toward the plane whenever a wall would get in between. Its feel (distance,
 ## height, smoothing, lean, opening shot) comes from the plane's Tuning.
 
-var target: PaperPlane
+var target: Flyer
 var _follow := Vector3.ZERO  ## Where the chase camera would be, smoothed.
 var _look := Vector3.ZERO
 var _shake := 0.0
@@ -138,7 +138,7 @@ func _look_point(p: Vector3) -> Vector3:
 
 ## Moves `spot` toward the plane if a wall is between them.
 func _unblocked(p: Vector3, spot: Vector3) -> Vector3:
-	var query := PhysicsRayQueryParameters3D.create(p, spot, PaperPlane.WORLD_LAYER)
+	var query := PhysicsRayQueryParameters3D.create(p, spot, Flyer.WORLD_LAYER)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return spot

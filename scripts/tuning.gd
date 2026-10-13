@@ -1,7 +1,7 @@
 class_name Tuning
 extends Resource
 ## =============================================================================
-##  PAPER PLANE TUNING: every number that changes how the game feels lives here.
+##  UPDRAFT TUNING: every number that changes how the game feels lives here.
 ## =============================================================================
 ##
 ##  Change numbers here, not code. Quick recipes:

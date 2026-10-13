@@ -35,7 +35,7 @@ const SIDE_HYSTERESIS := 0.5
 const ACROSS_RIDGE := 0.3
 
 var state := State.WAITING
-var plane: PaperPlane
+var plane: Flyer
 ## The ridge lifts a gull can join you in, and the one it is in now (or last was).
 var lifts: Array[Thermal] = []
 var lift: Thermal
@@ -50,7 +50,7 @@ var _wings: Array[MeshInstance3D] = []
 var _call: AudioStreamPlayer
 
 
-func setup(p_plane: PaperPlane, p_lifts: Array[Thermal]) -> void:
+func setup(p_plane: Flyer, p_lifts: Array[Thermal]) -> void:
 	plane = p_plane
 	lifts = p_lifts
 	var body := MeshInstance3D.new()

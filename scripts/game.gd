@@ -1,7 +1,8 @@
 extends Node3D
 ## Runs one flight: sets up the look and sound, starts the plane in the air in the bedroom
 ## (seen from the kid who threw it), keeps score, and shows the end card with distance,
-## style, total, best, "Fly again", a button to swap the paper plane for a balloon, and settings.
+## style, total, best, "Fly again", a button to swap between the balloon and the paper plane,
+## settings and "Quit".
 
 const POST_SHADER := preload("res://shaders/watercolor.gdshader")
 const INK := Color("5d5468")
@@ -10,7 +11,7 @@ const LILAC := Color("c9b2d6")
 const GOLD := Color("e0a63c")
 
 @onready var course: Course = $Course
-@onready var plane: PaperPlane = $Plane
+@onready var plane: Flyer = $Plane
 @onready var camera: FollowCamera = $Camera
 
 var reached_outside := false
@@ -57,6 +58,7 @@ var _card_lines: Label
 var _fly_again: Button
 var _swap_look: Button
 var _settings_button: Button
+var _quit: Button
 var _settings_panel: Control
 var _sensitivity: HSlider
 var _sensitivity_value: Label
@@ -225,7 +227,7 @@ func _check_close_call(delta: float) -> void:
 	_close_call_wait = maxf(_close_call_wait - delta, 0.0)
 	if _pass == Pass.CLEAR and (_close_call_wait > 0.0 or plane.model.velocity.length() < tune.close_call_speed):
 		return  # no pass can begin: skip the query
-	(_near_query.shape as SphereShape3D).radius = PaperPlane.RADIUS + tune.close_call_distance
+	(_near_query.shape as SphereShape3D).radius = Flyer.RADIUS + tune.close_call_distance
 	_near_query.transform = Transform3D(Basis.IDENTITY, plane.global_position)
 	var near := not plane.get_world_3d().direct_space_state.intersect_shape(_near_query, 1).is_empty()
 	match _pass:
@@ -472,6 +474,11 @@ func _on_fly_again() -> void:
 	get_tree().reload_current_scene()
 
 
+## Closes the game (on a phone, the app).
+func _on_quit() -> void:
+	get_tree().quit()
+
+
 ## Flies the other one next time (and every time after, until swapped back).
 func _on_swap_look() -> void:
 	save_other_look()
@@ -579,7 +586,7 @@ func _setup_audio() -> void:
 	_splash = _player("res://audio/splash.wav", tune.splash_db)
 	vario = Vario.new(tune)
 	_near_query.shape = SphereShape3D.new()
-	_near_query.collision_mask = PaperPlane.WORLD_LAYER
+	_near_query.collision_mask = Flyer.WORLD_LAYER
 	_near_query.exclude = [plane.get_rid()]
 	var wind_stream := _wind.stream as AudioStreamWAV
 	if wind_stream and wind_stream.loop_mode == AudioStreamWAV.LOOP_DISABLED:
@@ -688,8 +695,14 @@ func _setup_ui() -> void:
 	_settings_button.pressed.connect(show_settings.bind(true))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
+	_quit = Button.new()
+	_quit.text = "Quit"
+	_quit.custom_minimum_size = Vector2(160, 64)
+	_quit.add_theme_font_size_override("font_size", 26)
+	_quit.pressed.connect(_on_quit)
 	row.add_child(_swap_look)
 	row.add_child(_settings_button)
+	row.add_child(_quit)
 	box.add_child(row)
 	_build_settings_panel()
 

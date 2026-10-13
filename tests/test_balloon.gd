@@ -2,12 +2,12 @@ extends TestCase
 ## Drawing the plane bigger, and as a balloon: only the looks change, never the flight.
 
 
-func _plane(at: Vector3, look: String, input := Vector2(0.3, 0.4)) -> PaperPlane:
-	var plane := PaperPlane.new()
+func _plane(at: Vector3, look: String, input := Vector2(0.3, 0.4)) -> Flyer:
+	var plane := Flyer.new()
 	add_node(plane)
 	plane.set_look(look)
 	plane.launch(at, 0.0)
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return input
+	plane.autopilot = func(_p: Flyer) -> Vector2: return input
 	return plane
 
 
@@ -26,7 +26,7 @@ func test_plane_is_drawn_bigger_but_collides_the_same() -> void:
 	var plane := _plane(Vector3(0.0, 10.0, 0.0), PlayerSettings.PLANE)
 	await physics_frames(2)
 	var shape := (plane.get_child(0) as CollisionShape3D).shape as SphereShape3D
-	check(is_equal_approx(shape.radius, PaperPlane.RADIUS), "the collision sphere keeps its size (%.2f)" % shape.radius)
+	check(is_equal_approx(shape.radius, Flyer.RADIUS), "the collision sphere keeps its size (%.2f)" % shape.radius)
 	check_between(plane._visual.basis.get_scale().x, 1.29, 1.31, "the plane's drawn scale")
 
 
@@ -51,11 +51,11 @@ func test_balloon_string_keeps_its_length_and_trails_behind() -> void:
 	await physics_frames(60)
 	for t in 4:  # and it stays that way, without whipping about
 		await physics_frames(15)
-		var trail := plane.string_points[PaperPlane.STRING_POINTS - 1] - plane.string_points[0]
+		var trail := plane.string_points[Flyer.STRING_POINTS - 1] - plane.string_points[0]
 		check(trail.z > 0.8 and trail.y < -0.3, "%.2f s: the string trails back and down (%s)" % [1.0 + t * 0.25, trail])
 	var pts := plane.string_points
 	var tune := plane.tuning
-	var segment := tune.balloon_string_length * tune.look_scale / (PaperPlane.STRING_POINTS - 1)
+	var segment := tune.balloon_string_length * tune.look_scale / (Flyer.STRING_POINTS - 1)
 	check(pts[0].is_equal_approx(plane.knot_position()), "the string is tied to the knot")
 	for i in range(1, pts.size()):
 		check_between(pts[i].distance_to(pts[i - 1]), segment * 0.99, segment * 1.01, "segment %d" % i)
@@ -83,7 +83,7 @@ func test_crashed_balloon_pops_and_its_string_falls_to_the_floor() -> void:
 		check(p.y >= 0.0 and p.y < 0.2, "the string lies on the floor (y %.2f)" % p.y)
 
 
-func test_look_choice_is_saved_and_bad_files_mean_the_plane() -> void:
+func test_look_choice_is_saved_and_bad_files_mean_the_balloon() -> void:
 	var path := "user://test_look.json"
 	check(PlayerSettings.save_look(PlayerSettings.BALLOON, path), "saves")
 	check(PlayerSettings.load_look(path) == PlayerSettings.BALLOON, "balloon comes back")
@@ -93,23 +93,32 @@ func test_look_choice_is_saved_and_bad_files_mean_the_plane() -> void:
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		f.store_string(junk)
 		f.close()
-		check(PlayerSettings.load_look(path) == PlayerSettings.PLANE, "junk %s... falls back to the plane" % junk.left(12))
+		check(PlayerSettings.load_look(path) == PlayerSettings.BALLOON, "junk %s... falls back to the balloon" % junk.left(12))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	check(PlayerSettings.load_look(path) == PlayerSettings.PLANE, "no file means the plane")
+	check(PlayerSettings.load_look(path) == PlayerSettings.BALLOON, "no file means the balloon, the default")
 
 
 func test_game_flies_the_saved_look_and_the_card_swaps_it() -> void:
-	PlayerSettings.save_look(PlayerSettings.BALLOON)
+	# A player who chose the paper plane gets it, though the balloon is the default.
+	PlayerSettings.save_look(PlayerSettings.PLANE)
 	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
 	await physics_frames(2)
-	check((game.plane as PaperPlane).balloon, "the saved balloon is flown")
-	check(game._swap_look.text == "Fly the paper plane", "the card offers the plane back")
+	check(not (game.plane as Flyer).balloon, "the saved paper plane is flown")
+	check(game._swap_look.text == "Fly the balloon", "the card offers the balloon back")
 	game.save_other_look()
-	check(PlayerSettings.load_look() == PlayerSettings.PLANE, "the button swaps the saved choice to the plane")
-	# A crash pops the balloon, with the pop and not the paper crumple.
-	(game.plane as PaperPlane).crashed.emit()
-	check(game._pop.playing and not game._crumple.playing, "a balloon crash plays the pop")
-	PlayerSettings.save_look(PlayerSettings.PLANE)
+	check(PlayerSettings.load_look() == PlayerSettings.BALLOON, "the button swaps the saved choice to the balloon")
+	# A plane crash crumples it, with the paper crumple and not the pop.
+	(game.plane as Flyer).crashed.emit()
+	check(game._crumple.playing and not game._pop.playing, "a plane crash plays the crumple")
+	await cleanup()
+	# With nothing saved, the balloon is flown, and a crash pops it.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
+	var fresh: Node = add_node(load("res://scenes/main.tscn").instantiate())
+	await physics_frames(2)
+	check((fresh.plane as Flyer).balloon, "a first-timer flies the balloon")
+	check(fresh._swap_look.text == "Fly the paper plane", "and the card offers the plane")
+	(fresh.plane as Flyer).crashed.emit()
+	check(fresh._pop.playing and not fresh._crumple.playing, "a balloon crash plays the pop")
 
 
 func test_relaunching_a_popped_balloon_restores_it() -> void:
@@ -141,9 +150,9 @@ func test_settings_are_checked_and_bad_values_fall_back() -> void:
 	f.store_string('{"look": 3, "sensitivity": 99, "sound": "yes", "invert_pitch": 1, "cheat": true}')
 	f.close()
 	s = PlayerSettings.load_all(path)
-	check(s == {"look": "plane", "sensitivity": PlayerSettings.SENSITIVITY_MAX, "sound": true, "invert_pitch": false}, "bad values fall back or are clamped, unknown keys dropped: %s" % s)
-	PlayerSettings.save_look("balloon", path)
-	check(PlayerSettings.load_all(path)["sensitivity"] == PlayerSettings.SENSITIVITY_MAX, "changing the look keeps the other settings")
+	check(s == {"look": "balloon", "sensitivity": PlayerSettings.SENSITIVITY_MAX, "sound": true, "invert_pitch": false}, "bad values fall back or are clamped, unknown keys dropped: %s" % s)
+	PlayerSettings.save_look("plane", path)
+	check(PlayerSettings.load_all(path)["look"] == "plane" and PlayerSettings.load_all(path)["sensitivity"] == PlayerSettings.SENSITIVITY_MAX, "changing the look keeps the other settings")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
@@ -152,7 +161,7 @@ func test_settings_panel_applies_and_saves() -> void:
 	PlayerSettings.save_all(PlayerSettings.DEFAULTS)
 	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
 	await physics_frames(2)
-	var plane := game.plane as PaperPlane
+	var plane := game.plane as Flyer
 	game.show_settings(true)
 	check(game._settings_panel.visible and not game._card.visible, "the panel opens")
 	game._sensitivity.value = 1.5

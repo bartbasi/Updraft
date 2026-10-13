@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Script" path="res://scripts/course.gd" id="2_course"]
-[ext_resource type="Script" path="res://scripts/paper_plane.gd" id="3_plane"]
+[ext_resource type="Script" path="res://scripts/flyer.gd" id="3_plane"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
 
 [node name="Main" type="Node3D"]

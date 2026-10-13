@@ -47,7 +47,7 @@ func test_beeping_stops_only_well_below_the_start() -> void:
 func test_a_whole_flight_beeps_only_in_lift() -> void:
 	var pilot := Autopilot.new(Autopilot.course_line())
 	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	plane.autopilot = pilot.fly
 	var last := 0
 	var bad := []
@@ -120,8 +120,8 @@ func test_sighs_wait_out_their_cooldown() -> void:
 ## sigh on the far side, in the hay field's voice, at the sigh's quiet volume.
 func test_flying_straight_across_the_hay_field_sighs_on_the_far_side() -> void:
 	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
-	var plane := game.get_node("Plane") as PaperPlane
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	var plane := game.get_node("Plane") as Flyer
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	await physics_frames(2)
 	plane.launch(Vector3(-2.0, 8.0, -98.0), 0.0)
 	var sigh_at := []

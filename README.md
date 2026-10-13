@@ -1,7 +1,7 @@
 # Updraft
 
-Fly a folded paper plane through a pastel house and out over the hills by tilting your phone.
-A kid throws it across a bedroom; bank out of the door, ride a sunbeam down a long gallery,
+Fly a little red balloon (or a folded paper plane) through a pastel house and out over the hills
+by tilting your phone. A kid lets it go in a bedroom; bank out of the door, ride a sunbeam down a long gallery,
 dive the stairwell, then ride warm air from a radiator and steam from a kettle, dive under the
 dining-room lamp, burst out of the kitchen window, and explore the valley outside: circle up
 the warm air over a hay field, a barn, a ploughed field and a bonfire's smoke, soar the ridge,
@@ -9,7 +9,7 @@ and come down in the lavender or on the picnic blanket. Or climb the chalk pit's
 valley's end and cross the Gap in the hills to a lake with an island, a beach and a windy bluff.
 Soft beeps tell you when you're in lift, a sigh when you've flown out of it; thermals drift with
 the breeze and their clouds thin once climbed, and a gull joins you on the ridges. A run lasts
-one to two and a half minutes. Prefer a red balloon? Pick it on the end card.
+one to two and a half minutes. Prefer the paper plane? Pick it on the end card.
 
 ## Scoring
 
@@ -79,16 +79,16 @@ Needs the Android export templates, JDK 17 and the Android SDK (`C:\Android\Sdk`
 Godot's editor settings, plus a debug keystore; all of this is already set up on this PC.
 
 ```powershell
-C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-debug "Android" build/paper-plane-debug.apk
+C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe --headless --path . --export-debug "Android" build/updraft-debug.apk
 ```
 
 Install on a phone with USB debugging on:
 
 ```powershell
-C:\Android\Sdk\platform-tools\adb.exe install -r build\paper-plane-debug.apk
+C:\Android\Sdk\platform-tools\adb.exe install -r build\updraft-debug.apk
 ```
 
-Without USB debugging: plug the phone in, copy `build\paper-plane-debug.apk` into its
+Without USB debugging: plug the phone in, copy `build\updraft-debug.apk` into its
 `Download` folder from File Explorer, then on the phone open Files > Downloads, tap the APK and
 allow installing from that app when asked. Installing a newer build over the old one keeps the
 best score.
@@ -96,8 +96,7 @@ best score.
 In a debug build, F3 (or a tap on the fps counter) shows the style moments' best lines and
 corridors. Release builds have no debug tools.
 
-The app is **Updraft**, package `io.github.bartbasi.updraft` (the old test builds were
-`com.example.paperplane` and install as a separate app). The signed release (`.aab` for Google
+The app is **Updraft**, package `io.github.bartbasi.updraft`. The signed release (`.aab` for Google
 Play, `.apk` to share) is built with `bash tools/build_release.sh`. See
 [docs/release.md](docs/release.md) for the signing key, the Play upload steps and the store
 listing.
@@ -109,7 +108,7 @@ scenes/main.tscn          the one scene: course, plane, camera
 scripts/tuning.gd         all tuning numbers
 scripts/flight_model.gd   glider physics (pure, testable)
 scripts/controls.gd       tilt calibration + keyboard
-scripts/paper_plane.gd    the plane node: physics, collisions, looks
+scripts/flyer.gd          what you fly (balloon or paper plane): physics, collisions, looks
 scripts/thermal.gd        rising and sinking air zones and their visuals
 scripts/course.gd         builds the house, furniture and hills in code; course layout
 scripts/course_upstairs.gd the bedroom, gallery and stair hall

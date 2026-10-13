@@ -81,7 +81,7 @@ func test_a_whole_run_scores_distance_and_style_and_distance_never_drops() -> vo
 	var pilot := Autopilot.new(Autopilot.course_line())
 	var game := MAIN.instantiate()
 	add_node(game)
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	check(game.best_score == 0, "no best score yet")
 	plane.autopilot = pilot.fly
 	var awards := []
@@ -113,7 +113,7 @@ func test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp() -> voi
 		pilot.pitch_gain = gain
 		var game := MAIN.instantiate()
 		add_node(game)
-		var plane := game.get_node("Plane") as PaperPlane
+		var plane := game.get_node("Plane") as Flyer
 		plane.autopilot = pilot.fly
 		plane.launch(Course.LIVING_ROOM_ENTRY, 0.0)
 		(game.get_node("Camera") as FollowCamera).snap()
@@ -135,12 +135,12 @@ func test_a_firm_pilot_earns_every_downstairs_moment_including_the_lamp() -> voi
 ## quiet and loud, through a flight and its end (no -inf or NaN volume).
 func test_wind_survives_its_quietest_settings() -> void:
 	var game := MAIN.instantiate()
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	plane.tuning = Tuning.new()
 	plane.tuning.wind_quiet = 0.0
 	plane.tuning.wind_quiet_speed = 100.0
 	plane.tuning.wind_loud_speed = 100.0
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	add_node(game)
 	var wind: AudioStreamPlayer = game._wind
 	var bad := []
@@ -174,7 +174,7 @@ func _lamp_divers(gain: float, must_earn: int) -> void:
 		pilot.pitch_gain = gain
 		var game := MAIN.instantiate()
 		add_node(game)
-		var plane := game.get_node("Plane") as PaperPlane
+		var plane := game.get_node("Plane") as Flyer
 		plane.autopilot = pilot.fly
 		plane.launch(Course.LIVING_ROOM_ENTRY, 0.0)
 		(game.get_node("Camera") as FollowCamera).snap()
@@ -199,7 +199,7 @@ func test_wind_swells_in_the_stair_dive() -> void:
 	var pilot := Autopilot.new(Autopilot.course_line())
 	var game := MAIN.instantiate()
 	add_node(game)
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	plane.autopilot = pilot.fly
 	var wind: AudioStreamPlayer = game._wind
 	var gallery := []
@@ -231,9 +231,9 @@ func test_wind_swells_in_the_stair_dive() -> void:
 func test_window_burst_gusts_and_widens_the_view() -> void:
 	var game := MAIN.instantiate()
 	add_node(game)
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var camera := game.get_node("Camera") as FollowCamera
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	plane.launch(Vector3(0.0, 7.5, Course.FAR_Z + 6.0), 0.0)
 	camera.snap()
 	var wind: AudioStreamPlayer = game._wind
@@ -276,12 +276,12 @@ func test_close_calls_whoosh_only_for_near_misses() -> void:
 			[3.0, 8.5, 90.0, false, false], [1.5, 8.5, 25.0, false, false]]:
 		var game := MAIN.instantiate()
 		add_node(game)
-		var plane := game.get_node("Plane") as PaperPlane
-		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var plane := game.get_node("Plane") as Flyer
+		plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 		var north := Course.GALLERY_Z.y  # the gallery's north wall (inner face), at +z
 		var a := deg_to_rad(float(setup[2]))
 		var dir := Vector3(-cos(a), 0.0, sin(a))  # west along the wall, turned toward it by the angle
-		plane.launch(Vector3(55.0, 21.5, north - PaperPlane.RADIUS - float(setup[0])), atan2(-dir.x, -dir.z))
+		plane.launch(Vector3(55.0, 21.5, north - Flyer.RADIUS - float(setup[0])), atan2(-dir.x, -dir.z))
 		var waited := 0
 		while plane.held and waited < 600:
 			await tree.process_frame
@@ -297,10 +297,10 @@ func test_close_calls_whoosh_only_for_near_misses() -> void:
 			# Fly on until well clear of the wall (or crashed), so a touched pass has had every
 			# chance to sound wrongly as the plane gets away.
 			var frames := 0
-			while frames < 240 and not plane.is_ended() and (frames < 48 or plane.global_position.z > north - PaperPlane.RADIUS - plane.tuning.close_call_distance - 0.3):
+			while frames < 240 and not plane.is_ended() and (frames < 48 or plane.global_position.z > north - Flyer.RADIUS - plane.tuning.close_call_distance - 0.3):
 				await tree.physics_frame
 				frames += 1
-			check(plane.model.crashed or plane.global_position.z <= north - PaperPlane.RADIUS - plane.tuning.close_call_distance, "%s: the plane crashes or gets clear of the wall" % label)
+			check(plane.model.crashed or plane.global_position.z <= north - Flyer.RADIUS - plane.tuning.close_call_distance, "%s: the plane crashes or gets clear of the wall" % label)
 		var whoosh: AudioStreamPlayer = game._whoosh
 		if setup[4]:
 			check(plane.touches == 0, "%s: the plane never touches the wall" % label)
@@ -322,11 +322,11 @@ func test_close_calls_whoosh_only_for_near_misses() -> void:
 func test_close_calls_have_a_cooldown() -> void:
 	var game := MAIN.instantiate()
 	add_node(game)
-	var plane := game.get_node("Plane") as PaperPlane
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	var plane := game.get_node("Plane") as Flyer
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	var north := Course.GALLERY_Z.y
-	var range_edge := north - PaperPlane.RADIUS - plane.tuning.close_call_distance  # closer than this is "near"
-	plane.launch(Vector3(60.0, 21.5, north - PaperPlane.RADIUS - 0.8), PI / 2.0)
+	var range_edge := north - Flyer.RADIUS - plane.tuning.close_call_distance  # closer than this is "near"
+	plane.launch(Vector3(60.0, 21.5, north - Flyer.RADIUS - 0.8), PI / 2.0)
 	var waited := 0
 	while plane.held and waited < 600:
 		await tree.process_frame
@@ -374,7 +374,7 @@ func test_twenty_restarts_reset_everything() -> void:
 	var baseline_nodes := -1.0
 	for i in 20:
 		var game: Node = tree.current_scene
-		var plane := game.get_node("Plane") as PaperPlane
+		var plane := game.get_node("Plane") as Flyer
 		var camera := game.get_node("Camera") as FollowCamera
 		check(plane.global_position.distance_to(Course.START) < 0.01 and plane.held, "restart %d: plane back at the throw" % i)
 		check(camera.in_intro(), "restart %d: the opening shot plays again" % i)
@@ -428,8 +428,8 @@ func test_airtime_pays_up_to_its_cap_and_landing_spots_pay_once() -> void:
 func test_landing_in_the_lavender_shows_on_the_card_and_a_crash_pays_nothing() -> void:
 	for crash in [false, true]:
 		var game: Node = add_node(MAIN.instantiate())
-		var plane := game.get_node("Plane") as PaperPlane
-		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var plane := game.get_node("Plane") as Flyer
+		plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 		await physics_frames(2)
 		var y := Course.ground_height(-5.0, -168.0)
 		plane.launch(Vector3(-5.0, y + 1.2, -168.0), 0.0)
@@ -458,9 +458,9 @@ func test_landing_in_the_lavender_shows_on_the_card_and_a_crash_pays_nothing() -
 ## a hint says to keep circling; flying back into the same air a lap later chimes quieter.
 func test_low_in_the_first_outdoor_thermal_a_hint_says_keep_circling() -> void:
 	var game: Node = add_node(MAIN.instantiate())
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var turning := [false]  # once past the middle of the field, it keeps circling
-	plane.autopilot = func(p: PaperPlane) -> Vector2:
+	plane.autopilot = func(p: Flyer) -> Vector2:
 		turning[0] = turning[0] or p.global_position.z < -114.0
 		return Vector2(0.0, -0.6) if turning[0] else Vector2.ZERO
 	await physics_frames(2)
@@ -488,8 +488,8 @@ func test_low_in_the_first_outdoor_thermal_a_hint_says_keep_circling() -> void:
 func test_no_circling_hint_high_up_or_on_the_ridge() -> void:
 	for start in [Vector3(0.0, 19.5, -112.0), Vector3(-37.0, 12.0, -150.0)]:
 		var game: Node = add_node(MAIN.instantiate())
-		var plane := game.get_node("Plane") as PaperPlane
-		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var plane := game.get_node("Plane") as Flyer
+		plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 		await physics_frames(2)
 		plane.launch(start, 0.0)
 		var entered := []
@@ -520,8 +520,8 @@ func test_the_island_and_the_beach_pay_and_airtime_caps_at_ninety_seconds() -> v
 func test_splashdown_and_through_the_gap_on_the_card() -> void:
 	for case in [["Splashdown!", Vector3(20.0, 0.2, -420.0)], ["Through the Gap!", Vector3(-20.0, 0.0, -470.0)]]:
 		var game: Node = add_node(MAIN.instantiate())
-		var plane := game.get_node("Plane") as PaperPlane
-		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		var plane := game.get_node("Plane") as Flyer
+		plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 		await physics_frames(2)
 		var at: Vector3 = case[1]
 		plane.launch(Vector3(at.x, Course.terrain_height(at.x, at.z) + 1.0, at.z), 0.0)
@@ -540,9 +540,9 @@ func test_splashdown_and_through_the_gap_on_the_card() -> void:
 ## The first time over the saddle: a gust, a whoosh and the view widening a moment, once.
 func test_crossing_the_gap_gusts_and_widens_the_view() -> void:
 	var game: Node = add_node(MAIN.instantiate())
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var camera := game.get_node("Camera") as FollowCamera
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	await physics_frames(2)
 	plane.launch(Vector3(Course.GAP_X, 22.0, Course.SADDLE.x + 12.0), 0.0)
 	camera.snap()
@@ -566,7 +566,7 @@ func test_crossing_the_gap_gusts_and_widens_the_view() -> void:
 ## "Through the Gap" without touching the ground or the Gap's walls.
 func test_diving_through_the_gap_earns_its_moment() -> void:
 	var game: Node = add_node(MAIN.instantiate())
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var path: PackedVector3Array
 	for def in Course.style_moment_defs():
 		if def["id"] == &"gap":
@@ -590,3 +590,20 @@ func test_diving_through_the_gap_earns_its_moment() -> void:
 	print("        through the Gap: +%d (quality %.2f), y %.1f at z %.0f" % [award, quality, plane.global_position.y, plane.global_position.z])
 	check(award > 0, "the dive earns the Gap moment (+%d)" % award)
 	check(not plane.model.crashed and plane.touches == touches, "without touching anything")
+
+
+## After a crash the end card offers a way out of the game: a Quit button that closes it.
+func test_after_a_crash_the_card_offers_quit() -> void:
+	var game: Node = add_node(MAIN.instantiate())
+	var plane := game.get_node("Plane") as Flyer
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
+	await physics_frames(2)
+	plane.launch(Vector3(0.0, 8.0, -130.0), 0.0)
+	await physics_frames(10)
+	plane.model.crashed = true
+	plane.crashed.emit()
+	await tree.create_timer(plane.tuning.card_delay_crash + 0.5).timeout
+	check(game._card.visible, "the end card shows after the crash")
+	var quit := game._quit as Button
+	check(quit.is_visible_in_tree() and not quit.disabled and quit.text == "Quit", "with a Quit button")
+	check(quit.pressed.is_connected(game._on_quit), "that closes the game")

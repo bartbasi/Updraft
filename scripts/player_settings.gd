@@ -1,7 +1,7 @@
 class_name PlayerSettings
 extends RefCounted
-## The player's choices, saved on the device as a tiny JSON file: what they fly (the paper
-## plane or the balloon), tilt sensitivity, sound on or off, and whether climb and dive are
+## The player's choices, saved on the device as a tiny JSON file: what they fly (the balloon,
+## the default, or the paper plane), tilt sensitivity, sound on or off, and whether climb and dive are
 ## swapped. Anything missing, unreadable, oversized or out of range falls back to the default
 ## for that setting instead of crashing.
 
@@ -12,7 +12,7 @@ const BALLOON := "balloon"
 const SENSITIVITY_MIN := 0.5
 const SENSITIVITY_MAX := 2.0
 const SENSITIVITY_STEP := 0.25
-const DEFAULTS := {"look": PLANE, "sensitivity": 1.0, "sound": true, "invert_pitch": false}
+const DEFAULTS := {"look": BALLOON, "sensitivity": 1.0, "sound": true, "invert_pitch": false}
 
 ## Where the game keeps its settings (the test runner points this at a scratch file).
 static var file_path := PATH
@@ -38,8 +38,8 @@ static func load_all(path := "") -> Dictionary:
 static func clean(raw: Dictionary) -> Dictionary:
 	var out := DEFAULTS.duplicate()
 	var look: Variant = raw.get("look")
-	if typeof(look) == TYPE_STRING and look == BALLOON:
-		out["look"] = BALLOON
+	if typeof(look) == TYPE_STRING and (look == BALLOON or look == PLANE):
+		out["look"] = look
 	var sens: Variant = raw.get("sensitivity")
 	if (typeof(sens) == TYPE_FLOAT or typeof(sens) == TYPE_INT) and is_finite(float(sens)):
 		out["sensitivity"] = clampf(snappedf(float(sens), SENSITIVITY_STEP), SENSITIVITY_MIN, SENSITIVITY_MAX)

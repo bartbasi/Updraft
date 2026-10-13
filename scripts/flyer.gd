@@ -1,8 +1,9 @@
-class_name PaperPlane
+class_name Flyer
 extends CharacterBody3D
-## The player's paper plane. Reads the controls, runs the flight model, moves through the
-## physics world, and reacts to bumps, crashes and thermals. It can also be drawn as a child's
-## red balloon on a string (`set_look`): only the looks change, never how it flies.
+## What the player flies: a child's red balloon on a string (the game's default, see
+## PlayerSettings) or a folded paper plane (`set_look`); only the looks differ, never how it
+## flies. Reads the controls, runs the flight model, moves through the physics world, and reacts
+## to bumps, crashes and thermals.
 
 signal bumped(strength: float)
 signal crashed

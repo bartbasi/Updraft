@@ -214,7 +214,7 @@ static func novice(p_line: PackedVector3Array, p_seed: int) -> Autopilot:
 
 ## While circling, a point a little way round the circle (turning right), a little above (or
 ## below) the plane. Starts and ends the circles.
-func _orbit_aim(plane: PaperPlane) -> Vector3:
+func _orbit_aim(plane: Flyer) -> Vector3:
 	var p := plane.global_position
 	_orbit_time += 1.0 / 60.0
 	if _orbit >= orbits.size():
@@ -246,7 +246,7 @@ func _orbit_aim(plane: PaperPlane) -> Vector3:
 	return Vector3(at.x, p.y + (1.5 if up else -1.0), at.y)
 
 
-func _find_zone(plane: PaperPlane, zone_name: String) -> Thermal:
+func _find_zone(plane: Flyer, zone_name: String) -> Thermal:
 	for node in plane.get_tree().get_nodes_in_group("thermals"):
 		if node.name == zone_name:
 			return node
@@ -264,7 +264,7 @@ func point_at(s: float) -> Vector3:
 	return line[line.size() - 1]
 
 
-func fly(plane: PaperPlane) -> Vector2:
+func fly(plane: Flyer) -> Vector2:
 	var p := plane.global_position
 	var aim := _orbit_aim(plane)
 	if not _orbiting:

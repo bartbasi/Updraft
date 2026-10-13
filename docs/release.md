@@ -67,8 +67,6 @@ Send `build/updraft.apk` (about 27 MB). On the phone: open it, then allow instal
 app (Files, Chrome, Gmail and so on) when asked. Play Protect may warn that it doesn't know the
 app; "Install anyway" is fine for your own build.
 
-- Updraft installs as its own app, next to the old "Paper Plane" test build
-  (`com.example.paperplane`). That one can be uninstalled.
 - A **debug** build of Updraft installed with `adb` is signed with the debug key, so the release
   APK won't install over it. Uninstall the debug one first. Only the best score and settings
   are lost.
@@ -119,12 +117,12 @@ The screenshots were taken from the test pilot's flight with `tools/capture.gd` 
 
 **Short description** (80 characters max):
 
-> Tilt your phone to fly a paper plane out of the house and up on the warm air.
+> Tilt your phone to fly a red balloon out of the house and up on the warm air.
 
 **Full description**:
 
-> A kid throws a paper plane across the bedroom, and you take it from there. Or swap it for a
-> little red balloon.
+> A kid lets go of a little red balloon in the bedroom, and you take it from there. Or swap it
+> for a folded paper plane.
 >
 > Tilt your phone to bank out of the door and ride a sunbeam down the long gallery. Dive the
 > stairwell, catch warm air off the radiator and steam from the kettle, swoop under the
@@ -138,7 +136,7 @@ The screenshots were taken from the test pilot's flight with `tools/capture.gd` 
 > lavender or on the picnic blanket for a bonus, then fly again for a new best.
 >
 > • Tilt to fly: one to two minutes a flight
-> • A paper plane and a balloon, with the same physics
+> • A balloon and a paper plane, with the same physics
 > • No ads, no in-app purchases, no internet, no account
 > • Adjustable tilt sensitivity, sound on or off, swap climb and dive
 

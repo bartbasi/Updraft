@@ -57,7 +57,7 @@ func _run_all() -> void:
 func _fly(run_seed: int) -> Dictionary:
 	var game: Node = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
-	var plane: PaperPlane = game.get_node("Plane")
+	var plane: Flyer = game.get_node("Plane")
 	var pilot: Autopilot = null
 	match _pilot_kind:
 		"novice":
@@ -66,7 +66,7 @@ func _fly(run_seed: int) -> Dictionary:
 			pass
 		_:
 			pilot = Autopilot.touring(_route, run_seed)
-	plane.autopilot = pilot.fly if pilot else func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.autopilot = pilot.fly if pilot else func(_p: Flyer) -> Vector2: return Vector2.ZERO
 
 	var log := []
 	var state := {"section": "", "last_event": 0.0, "dead_air": 0.0, "max_speed": 0.0, "sections": {}}

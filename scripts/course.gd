@@ -152,7 +152,7 @@ const BOWL_END_Z := -528.0
 const TERRAIN_STEP := 6.0
 const TERRAIN_ORIGIN := Vector2(-126.0, -30.0)
 ## Things painted on the hills (hay field, stream, lavender) sit this far above the grass. The plane's
-## shadow sits higher than every painted floor layer (PaperPlane.SHADOW_LIFT).
+## shadow sits higher than every painted floor layer (Flyer.SHADOW_LIFT).
 const PAINT_LIFT := 0.05
 
 # Upstairs: the opening (see docs/opening-plan.md).

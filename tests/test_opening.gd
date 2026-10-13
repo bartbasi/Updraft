@@ -8,11 +8,11 @@ func _game(pilot := Callable()) -> Node:
 	var game := MAIN.instantiate()
 	add_node(game)
 	if pilot.is_valid():
-		(game.get_node("Plane") as PaperPlane).autopilot = pilot
+		(game.get_node("Plane") as Flyer).autopilot = pilot
 	return game
 
 
-func _until_released(plane: PaperPlane) -> void:
+func _until_released(plane: Flyer) -> void:
 	var frames := 0
 	while plane.held and frames < 600:
 		await tree.process_frame
@@ -28,7 +28,7 @@ func _gravity(back_deg: float, right_down_deg := 0.0) -> Vector3:
 
 func test_run_starts_in_the_air_in_the_bedroom() -> void:
 	var game := _game()
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	check(plane.held, "the plane waits until the game draws smoothly")
 	check(plane.global_position.distance_to(Course.START) < 0.01, "starts at the throw point")
 	check(Course.section_at(plane.global_position) == "bedroom", "starts in the bedroom")
@@ -49,8 +49,8 @@ func _camera_roll(camera: Camera3D) -> float:
 
 func test_opening_camera_eases_from_the_kids_eye_into_follow() -> void:
 	# The player banks hard right away, so the camera's lean has to ease in too.
-	var game := _game(func(_p: PaperPlane) -> Vector2: return Vector2(0.0, 1.0))
-	var plane := game.get_node("Plane") as PaperPlane
+	var game := _game(func(_p: Flyer) -> Vector2: return Vector2(0.0, 1.0))
+	var plane := game.get_node("Plane") as Flyer
 	var camera := game.get_node("Camera") as FollowCamera
 	await tree.process_frame
 	check(camera.global_position.distance_to(Course.KID_EYE) < 0.01, "first frame is from the kid's eye (%s)" % camera.global_position)
@@ -84,7 +84,7 @@ func test_opening_camera_eases_from_the_kids_eye_into_follow() -> void:
 
 func test_tilt_calibrates_at_the_throw() -> void:
 	var game := _game()
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	# The phone is held at 40 degrees at the moment of the throw, then tipped to 55 straight away.
 	# Only calibrating at the throw (not at the first reading afterwards) turns that into a dive.
 	var reads := [0]
@@ -105,8 +105,8 @@ func test_tilt_calibrates_at_the_throw() -> void:
 
 
 func test_bedroom_glide_is_clear() -> void:
-	var game := _game(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
-	var plane := game.get_node("Plane") as PaperPlane
+	var game := _game(func(_p: Flyer) -> Vector2: return Vector2.ZERO)
+	var plane := game.get_node("Plane") as Flyer
 	var bumps := [0]
 	plane.bumped.connect(func(_s: float) -> void: bumps[0] += 1)
 	await _until_released(plane)
@@ -120,12 +120,12 @@ func test_bedroom_glide_is_clear() -> void:
 func test_clipping_either_door_post_is_a_bump_not_a_crash() -> void:
 	var door := Course.BEDROOM_DOOR_X
 	# Fly straight through with the plane's sphere 0.2 units over each jamb line.
-	for x in [door.x + PaperPlane.RADIUS - 0.2, door.y - PaperPlane.RADIUS + 0.2]:
+	for x in [door.x + Flyer.RADIUS - 0.2, door.y - Flyer.RADIUS + 0.2]:
 		for speed in [6.5, 9.5]:
 			var game := _game()
-			var plane := game.get_node("Plane") as PaperPlane
+			var plane := game.get_node("Plane") as Flyer
 			plane.launch(Vector3(x, 19.5, 52.0), 0.0)
-			plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+			plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 			var bumps := [0]
 			plane.bumped.connect(func(_s: float) -> void: bumps[0] += 1)
 			await _until_released(plane)
@@ -142,9 +142,9 @@ func test_cones_collide_exactly_as_drawn() -> void:
 	var space := (game as Node3D).get_world_3d().direct_space_state
 	var probe := PhysicsShapeQueryParameters3D.new()
 	var ball := SphereShape3D.new()
-	ball.radius = PaperPlane.RADIUS
+	ball.radius = Flyer.RADIUS
 	probe.shape = ball
-	probe.collision_mask = PaperPlane.WORLD_LAYER
+	probe.collision_mask = Flyer.WORLD_LAYER
 	# The play tent: a six-sided cone 2.2 across at the floor, coming to a point 5.2 up. Probe
 	# toward each drawn corner and across the middle of each drawn face.
 	var axis := Vector3(105.6, Course.UP_FLOOR, 68.5)
@@ -155,15 +155,15 @@ func test_cones_collide_exactly_as_drawn() -> void:
 			var a := TAU * k / (sides * 2)
 			var reach := corner if k % 2 == 0 else corner * cos(PI / sides)  # corner, then face
 			var dir := Vector3(sin(a), 0.0, cos(a))
-			probe.transform = Transform3D(Basis.IDENTITY, axis + Vector3(0.0, h, 0.0) + dir * (reach + PaperPlane.RADIUS + 0.12))
+			probe.transform = Transform3D(Basis.IDENTITY, axis + Vector3(0.0, h, 0.0) + dir * (reach + Flyer.RADIUS + 0.12))
 			check(space.intersect_shape(probe).is_empty(), "nothing to hit just outside the tent (height %.1f, %d deg)" % [h, int(rad_to_deg(a))])
-			probe.transform = Transform3D(Basis.IDENTITY, axis + Vector3(0.0, h, 0.0) + dir * (reach + PaperPlane.RADIUS - 0.15))
+			probe.transform = Transform3D(Basis.IDENTITY, axis + Vector3(0.0, h, 0.0) + dir * (reach + Flyer.RADIUS - 0.15))
 			check(not space.intersect_shape(probe).is_empty(), "but the tent itself is solid (height %.1f, %d deg)" % [h, int(rad_to_deg(a))])
 
 
 func _flight_through_turn(pilot: Callable, seconds: float) -> Dictionary:
 	var game := _game(pilot)
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var result := {"bumps": 0, "crashed": false, "turned": false, "plane": plane}
 	plane.bumped.connect(func(_s: float) -> void: result["bumps"] += 1)
 	await _until_released(plane)
@@ -186,11 +186,11 @@ func test_scripted_turn_clears_the_doorway() -> void:
 
 
 func test_flying_straight_on_ends_at_the_landing_wall() -> void:
-	var r := await _flight_through_turn(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO, 15.0)
-	var plane: PaperPlane = r["plane"]
+	var r := await _flight_through_turn(func(_p: Flyer) -> Vector2: return Vector2.ZERO, 15.0)
+	var plane: Flyer = r["plane"]
 	check(not r["turned"], "no input means no turn")
 	check(plane.is_ended() and plane.model.crashed, "the run ends at the landing wall instead of getting stuck")
-	check(absf(plane.global_position.z - (Course.LANDING_SOUTH_Z + PaperPlane.RADIUS)) < 0.2, "right at the landing's wall (z %.2f)" % plane.global_position.z)
+	check(absf(plane.global_position.z - (Course.LANDING_SOUTH_Z + Flyer.RADIUS)) < 0.2, "right at the landing's wall (z %.2f)" % plane.global_position.z)
 
 
 func test_most_first_time_pilots_make_the_turn() -> void:
@@ -210,9 +210,9 @@ func _probe(game: Node, at: Vector3) -> bool:
 	var space := (game as Node3D).get_world_3d().direct_space_state
 	var query := PhysicsShapeQueryParameters3D.new()
 	var ball := SphereShape3D.new()
-	ball.radius = PaperPlane.RADIUS
+	ball.radius = Flyer.RADIUS
 	query.shape = ball
-	query.collision_mask = PaperPlane.WORLD_LAYER
+	query.collision_mask = Flyer.WORLD_LAYER
 	query.transform = Transform3D(Basis.IDENTITY, at)
 	return not space.intersect_shape(query).is_empty()
 
@@ -230,8 +230,8 @@ func test_taper_wall_collides_exactly_as_drawn() -> void:
 		var on_line := Vector3(lerpf(a.x, b.x, i / 10.0), 0.0, lerpf(a.y, b.y, i / 10.0))
 		for y in [14.0, 19.0, 24.0]:
 			var face := on_line + Vector3(0.0, y, 0.0)
-			check(not _probe(game, face + inward * (PaperPlane.RADIUS + 0.06)), "clear just in front of the taper at %s" % [face])
-			check(_probe(game, face + inward * (PaperPlane.RADIUS - 0.1)), "solid at the taper's face at %s" % [face])
+			check(not _probe(game, face + inward * (Flyer.RADIUS + 0.06)), "clear just in front of the taper at %s" % [face])
+			check(_probe(game, face + inward * (Flyer.RADIUS - 0.1)), "solid at the taper's face at %s" % [face])
 
 
 func test_north_wall_has_no_gaps() -> void:
@@ -252,8 +252,8 @@ func test_late_turns_scrape_the_taper_but_do_not_crash() -> void:
 		var bank: float = setup[0]
 		var start_z: float = setup[1]
 		var speed: float = setup[2]
-		var game := _game(func(p: PaperPlane) -> Vector2: return Vector2(0.0, -bank if p.global_position.z < start_z and p.model.heading < PI / 2.0 - 0.05 else 0.0))
-		var plane := game.get_node("Plane") as PaperPlane
+		var game := _game(func(p: Flyer) -> Vector2: return Vector2(0.0, -bank if p.global_position.z < start_z and p.model.heading < PI / 2.0 - 0.05 else 0.0))
+		var plane := game.get_node("Plane") as Flyer
 		plane.launch(Vector3(100.0, 19.5, 52.0), 0.0)  # near the door, so the speed is the speed at the turn
 		var taper_bumps := [0]
 		plane.bumped.connect(func(_s: float) -> void:
@@ -286,7 +286,7 @@ func test_late_first_time_pilots_mostly_make_the_turn() -> void:
 		var pilot := Autopilot.late_novice(Autopilot.course_line(), i + 300)
 		var r := await _flight_through_turn(pilot.fly, 15.0)
 		# Made it = didn't crash: through the turn, or still flying after a scrape when time ran out.
-		if not r["crashed"] and (r["turned"] or not (r["plane"] as PaperPlane).is_ended()):
+		if not r["crashed"] and (r["turned"] or not (r["plane"] as Flyer).is_ended()):
 			made_it += 1
 		if int(r["bumps"]) > 0:
 			scraped += 1
@@ -299,7 +299,7 @@ func test_late_first_time_pilots_mostly_make_the_turn() -> void:
 func test_sunbeam_is_the_first_lift_within_six_seconds_and_lifts_the_plane() -> void:
 	var pilot := Autopilot.new(Autopilot.course_line())
 	var game := _game(pilot.fly)
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var entered := [-1.0, 0.0]
 	plane.entered_thermal.connect(func(z: Thermal) -> void:
 		if entered[0] < 0.0:
@@ -358,7 +358,7 @@ func test_sunbeam_light_and_motes_lean_with_the_sun() -> void:
 func test_gallery_is_a_clear_glide_with_a_skylight_top_up() -> void:
 	var pilot := Autopilot.new(Autopilot.course_line())
 	var game := _game(pilot.fly)
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var bumps := [0]
 	plane.bumped.connect(func(_s: float) -> void: bumps[0] += 1)
 	var zones := []
@@ -405,7 +405,7 @@ func _box_hits(game: Node, lo: Vector3, hi: Vector3) -> bool:
 	var box := BoxShape3D.new()
 	box.size = hi - lo
 	query.shape = box
-	query.collision_mask = PaperPlane.WORLD_LAYER
+	query.collision_mask = Flyer.WORLD_LAYER
 	query.transform = Transform3D(Basis.IDENTITY, (lo + hi) * 0.5)
 	return not space.intersect_shape(query).is_empty()
 
@@ -413,8 +413,8 @@ func _box_hits(game: Node, lo: Vector3, hi: Vector3) -> bool:
 func test_skylight_tops_up_a_level_glide() -> void:
 	var heights := []
 	for with_skylight in [true, false]:
-		var game := _game(func(_p: PaperPlane) -> Vector2: return Vector2.ZERO)
-		var plane := game.get_node("Plane") as PaperPlane
+		var game := _game(func(_p: Flyer) -> Vector2: return Vector2.ZERO)
+		var plane := game.get_node("Plane") as Flyer
 		if not with_skylight:
 			(game.get_node("Course/Skylight") as Thermal).remove_from_group("thermals")
 		plane.launch(Vector3(56.0, 20.6, 39.5), PI / 2.0)  # heading -X along the skylight side
@@ -447,7 +447,7 @@ func _stair_surface(p: Vector3) -> float:
 ## steps, slips through a banister or leaves the stair hall through a wall.
 func _fly_stairs(pilot: Callable, stop_at_bottom := true) -> Dictionary:
 	var game := _game()
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	plane.launch(Vector3(24.0, 20.5, 41.5), PI / 2.0)  # in the gallery, heading -X
 	plane.autopilot = pilot
 	var out := {"clipped": "", "bumps": 0, "crashed": false, "max_speed": 0.0, "reached_bottom": false}
@@ -461,15 +461,15 @@ func _fly_stairs(pilot: Callable, stop_at_bottom := true) -> Dictionary:
 		await tree.physics_frame
 		var p := plane.global_position
 		out["max_speed"] = maxf(out["max_speed"], plane.model.velocity.length())
-		if p.y < _stair_surface(p) + PaperPlane.RADIUS - 0.05 and out["clipped"] == "":
+		if p.y < _stair_surface(p) + Flyer.RADIUS - 0.05 and out["clipped"] == "":
 			out["clipped"] = "into the stairs at %s" % p
 		# Crossing the flight 1 banister's line below its handrail means passing through it.
 		var rail_top := _stair_surface(Vector3(p.x, 0.0, rail_z + 0.1)) + Course.RAIL_HEIGHT
 		if last.z > rail_z and p.z <= rail_z and p.x > Course.FLIGHT1_BOTTOM_X and p.y < rail_top and out["clipped"] == "":
 			out["clipped"] = "through the flight 1 banister at %s" % p
 		last = p
-		var past_east := p.x > hi.x - PaperPlane.RADIUS + 0.05 and p.z < Course.GALLERY_Z.x
-		if (p.x < lo.x + PaperPlane.RADIUS - 0.05 or p.z > hi.y - PaperPlane.RADIUS + 0.05 or past_east) and out["clipped"] == "":
+		var past_east := p.x > hi.x - Flyer.RADIUS + 0.05 and p.z < Course.GALLERY_Z.x
+		if (p.x < lo.x + Flyer.RADIUS - 0.05 or p.z > hi.y - Flyer.RADIUS + 0.05 or past_east) and out["clipped"] == "":
 			out["clipped"] = "through a wall at %s" % p
 		if p.z < Course.FLIGHT2_BOTTOM_Z:
 			out["reached_bottom"] = true
@@ -491,7 +491,7 @@ func test_stair_dive_and_landing_turn_on_the_good_line() -> void:
 func test_hard_dives_down_the_stairs_never_clip_through() -> void:
 	for dive in [-0.6, -0.8, -1.0]:
 		for turn_at in [12.0, 6.0, 2.0]:
-			var steer := func(plane: PaperPlane) -> Vector2:
+			var steer := func(plane: Flyer) -> Vector2:
 				var p := plane.global_position
 				var roll := 1.0 if p.x < turn_at and plane.model.heading > 0.05 else 0.0
 				return Vector2(dive if p.x < 18.0 else 0.0, roll)
@@ -512,10 +512,10 @@ func test_full_speed_hits_never_tunnel_through_thin_parts() -> void:
 	]
 	for shot in shots:
 		var game := _game()
-		var plane := game.get_node("Plane") as PaperPlane
+		var plane := game.get_node("Plane") as Flyer
 		var dir: Vector3 = (shot[1] as Vector3).normalized()
 		plane.launch(shot[0], atan2(-dir.x, -dir.z))
-		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+		plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 		var touched := [false]
 		plane.bumped.connect(func(_s: float) -> void: touched[0] = true)
 		plane.crashed.connect(func() -> void: touched[0] = true)
@@ -533,7 +533,7 @@ func test_full_speed_hits_never_tunnel_through_thin_parts() -> void:
 			lowest_gap = minf(lowest_gap, p.y - _stair_surface(p))
 		var end := plane.global_position
 		check(touched[0], "a full-speed shot from %s should hit something" % [start])
-		check(lowest_gap > PaperPlane.RADIUS - 0.05, "never sinks into the stairs (gap %.2f)" % lowest_gap)
+		check(lowest_gap > Flyer.RADIUS - 0.05, "never sinks into the stairs (gap %.2f)" % lowest_gap)
 		var dir_v: Vector3 = shot[1]
 		if dir_v.z > 0.9:
 			check(end.z < Course.GALLERY_Z.x, "no tunnelling into flight 1 from the well (z %.2f)" % end.z)
@@ -546,7 +546,7 @@ func test_the_stairs_are_solid_underneath_and_banisters_have_upright_ends() -> v
 	var game := _game()
 	await physics_frames(2)
 	var gz := Course.GALLERY_Z
-	var r := PaperPlane.RADIUS
+	var r := Flyer.RADIUS
 	# Just inside each face of the stairs that faces the well: solid all the way down.
 	var x := Course.FLIGHT1_BOTTOM_X + 0.6
 	while x < Course.STAIR_HALL_MAX.x - 0.4:
@@ -575,11 +575,11 @@ func test_the_stairs_are_solid_underneath_and_banisters_have_upright_ends() -> v
 func test_newel_balls_are_solid() -> void:
 	var t := Tuning.new()
 	var game := _game()
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	# Just above the banister's top, so only the landing newel's ball can be hit.
 	var newel := Vector3(Course.FLIGHT1_BOTTOM_X, 0.0, Course.GALLERY_Z.x)
 	plane.launch(Vector3(newel.x, 11.2, newel.z + 3.0), 0.0)
-	plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2.ZERO
+	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	var hit_at := [Vector3.INF]
 	plane.bumped.connect(func(_s: float) -> void: hit_at[0] = plane.global_position)
 	plane.crashed.connect(func() -> void: hit_at[0] = plane.global_position)
@@ -599,7 +599,7 @@ func test_over_turning_in_the_well_never_clips_into_the_stairs() -> void:
 	for dive in [-0.3, -0.6]:
 		for turn_from in [10.0, 6.0]:
 			var banking := [false]  # once the bank goes on, it stays on
-			var steer := func(plane: PaperPlane) -> Vector2:
+			var steer := func(plane: Flyer) -> Vector2:
 				banking[0] = banking[0] or plane.global_position.x < turn_from
 				return Vector2(dive if plane.global_position.x < 18.0 else 0.0, 1.0 if banking[0] else 0.0)
 			var r := await _fly_stairs(steer, false)  # keep circling until the run ends
@@ -612,12 +612,12 @@ func test_stairwell_downdraft_pushes_the_plane_down() -> void:
 	var speeds := []
 	for with_downdraft in [true, false]:
 		var game := _game()
-		var plane := game.get_node("Plane") as PaperPlane
+		var plane := game.get_node("Plane") as Flyer
 		if not with_downdraft:
 			var zone := game.get_node("Course/StairDowndraft") as Thermal
 			zone.remove_from_group("thermals")
 		plane.launch(Vector3(19.0, 21.0, 41.5), PI / 2.0)
-		plane.autopilot = func(_p: PaperPlane) -> Vector2: return Vector2(-0.3, 0.0)
+		plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2(-0.3, 0.0)
 		var sinks := [0]
 		var heard := []
 		plane.entered_thermal.connect(func(z: Thermal) -> void:
@@ -643,10 +643,10 @@ func test_stairwell_downdraft_pushes_the_plane_down() -> void:
 ## Climbing in warm air, the camera rises with the plane and looks down on it (not edge-on), and
 ## motes near the camera fade away (fun review 2, item 2).
 func test_camera_looks_down_on_the_plane_in_rising_air() -> void:
-	var game := _game(func(p: PaperPlane) -> Vector2:
+	var game := _game(func(p: Flyer) -> Vector2:
 		var to := Vector3(Course.RADIATOR_THERMAL.x, 0.0, Course.RADIATOR_THERMAL.z - 6.0) - p.global_position
 		return Vector2(0.2, clampf(-wrapf(atan2(-to.x, -to.z) - p.model.heading, -PI, PI) * 2.0, -1.0, 1.0)))
-	var plane := game.get_node("Plane") as PaperPlane
+	var plane := game.get_node("Plane") as Flyer
 	var camera := game.get_node("Camera") as FollowCamera
 	plane.launch(Vector3(Course.RADIATOR_THERMAL.x, 6.5, Course.RADIATOR_THERMAL.z + 8.0), 0.0)
 	camera.snap()
