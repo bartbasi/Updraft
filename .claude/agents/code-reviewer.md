@@ -18,7 +18,7 @@ builder writes all code; you review it with fresh eyes and decide whether it may
 - Correctness and security come before fun. If you disagree with the designer, say so
   plainly; the lead writes disagreements down for the owner rather than settling them.
 
-## How to run things (from the repo root, `C:\bart\paperplane`)
+## How to run things (from the repo root, `C:\bart\updraft`)
 
 - Tests: `/c/Tools/Godot/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --path . -s res://tests/run_tests.gd`
   (exit code 1 on failure; set `TEST_ONLY=<text>` to run a subset).
