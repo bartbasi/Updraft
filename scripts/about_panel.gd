@@ -2,11 +2,11 @@
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name AboutPanel
 extends Control
-## About Updraft, opened from the settings: what the game is and who made it, a request for
-## feedback with a button that starts an email, a link to the source code, and three pages to
-## read: How to fly (the player's guide, HowToFly), License (Updraft's notice, with its additional
-## terms, and the GNU GPL) and Credits (the Godot Engine's notices and those of its third-party
-## parts). The game builds this panel the
+## About Updraft, opened from the title screen: what the game is and who made it, a request for
+## feedback with a button that starts an email, a link to the source code (and both addresses
+## written out), and two pages to read: License (Updraft's notice, with its additional terms, and
+## the GNU GPL) and Credits (the Godot Engine's notices and those of its third-party parts). (The
+## player's guide is Info's.) The title builds this panel the
 ## first time it is opened, and each page's text the first time that page is shown, a few
 ## paragraphs a frame, so a long page never holds up the game. The labels on those pages don't
 ## word-wrap (re-wrapping every label as the page grew made filling slow): the license texts
@@ -21,6 +21,8 @@ const LICENSE_PATH := "res://LICENSE"
 const NOTICE_PATH := "res://NOTICE"
 const BLURB := "Ride warm air through a house, down a valley and out over a lake, in a red balloon or a paper plane. Tilt your phone to steer."
 const FEEDBACK_ASK := "I'd love to hear what you think: what you enjoyed, where you got stuck, and what you'd like to see next."
+const SOURCE_SHOWN := "github.com/bartbasi/Updraft"  ## SOURCE_URL as it is written out.
+const PRIVACY := "Updraft collects nothing: no ads, no tracking, no internet."
 const LEGAL := "Copyright © 2026 Bart Basi. Updraft is free software: you may share and change it under the GNU GPL v3, with the terms on the License page. It comes with no warranty."
 ## A page's text is split into labels of about this many characters, at blank lines, so the
 ## labels scrolled out of sight are not drawn.
@@ -32,7 +34,6 @@ const FILL_BUDGET_USEC := 4000
 const INK := Color("5d5468")  ## The game's ink and lilac (game.gd), for the scroll bar.
 const LILAC := Color("c9b2d6")
 
-var guide: Button
 var feedback: Button
 var source: Button
 var license: Button
@@ -45,14 +46,13 @@ var _reader_title: Label
 var _scroll: ScrollContainer
 var _text_box: VBoxContainer
 var _pending: PackedStringArray = []  ## Paragraph chunks still to add to the page shown.
-var _showing := ""  ## Which page the reader holds: GUIDE, "License", "Credits" or "".
-const GUIDE := "How to fly"
+var _showing := ""  ## Which page the reader holds: "License", "Credits" or "".
 
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	theme = _scroll_bar_theme()  # everything else comes from the game's theme above
+	theme = page_theme()  # everything else comes from the game's theme above
 	_build_page()
 	_build_reader()
 	set_process(false)
@@ -63,7 +63,7 @@ func open() -> void:
 	visible = true
 	_reader.visible = false
 	_page.visible = true
-	guide.grab_focus()
+	feedback.grab_focus()
 
 
 ## Back (or Escape): from a page to the About page, and from there out of About.
@@ -71,8 +71,7 @@ func go_back() -> void:
 	if _reader.visible:
 		_reader.visible = false
 		_page.visible = true
-		var buttons := {GUIDE: guide, "License": license, "Credits": credits}
-		(buttons.get(_showing, guide) as Button).grab_focus()
+		(credits if _showing == "Credits" else license).grab_focus()
 	else:
 		visible = false
 		closed.emit()
@@ -143,20 +142,12 @@ static func _godot_version() -> String:
 
 
 ## Splits `text` at blank lines into chunks of about CHUNK_CHARS characters (a paragraph longer
-## than that is a chunk on its own), with lines longer than WRAP_COLUMN broken. With `headings`,
-## a paragraph starting "# " is a chunk of its own (the page shows it as a heading).
-static func chunks(text: String, headings := false) -> PackedStringArray:
+## than that is a chunk on its own), with lines longer than WRAP_COLUMN broken.
+static func chunks(text: String) -> PackedStringArray:
 	var out := PackedStringArray()
 	var group := PackedStringArray()  # the paragraphs of the chunk being gathered
 	var size := 0
 	for paragraph in wrap_lines(text, WRAP_COLUMN).split("\n\n"):
-		if headings and paragraph.begins_with("# "):  # a heading: a chunk of its own
-			if not group.is_empty():
-				out.append("\n\n".join(group))
-				group.clear()
-				size = 0
-			out.append(paragraph)
-			continue
 		if not group.is_empty() and size + paragraph.length() > CHUNK_CHARS:
 			out.append("\n\n".join(group))
 			group.clear()
@@ -232,11 +223,8 @@ func show_page(which: String) -> void:
 
 ## A page's text in chunks, as its labels show it.
 static func page_chunks(which: String) -> PackedStringArray:
-	match which:
-		GUIDE:
-			return chunks(HowToFly.TEXT, true)
-		"License":
-			return chunks(license_text())
+	if which == "License":
+		return chunks(license_text())
 	return chunks(credits_text())
 
 
@@ -251,9 +239,8 @@ func _process(_delta: float) -> void:
 		var label := Label.new()
 		var text := _pending[_pending.size() - 1]
 		_pending.remove_at(_pending.size() - 1)
-		var heading := _showing == GUIDE and text.begins_with("# ")
-		label.text = text.trim_prefix("# ") if heading else text
-		label.add_theme_font_size_override("font_size", 30 if heading else 20)
+		label.text = text
+		label.add_theme_font_size_override("font_size", 20)
 		label.add_theme_constant_override("outline_size", 0)
 		_text_box.add_child(label)
 		label.get_minimum_size()  # lays the text out now, inside this frame's budget
@@ -280,31 +267,30 @@ func _build_page() -> void:
 	var main_row := HBoxContainer.new()
 	main_row.add_theme_constant_override("separation", 14)
 	main_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	guide = _button(GUIDE, Vector2(300, 80), 32)
-	guide.pressed.connect(show_page.bind(GUIDE))
 	feedback = _button("Send feedback", Vector2(300, 80), 32)
 	feedback.pressed.connect(_on_feedback)
-	main_row.add_child(guide)
+	source = _button("Source code", Vector2(300, 80), 32)
+	source.pressed.connect(_on_source)
 	main_row.add_child(feedback)
+	main_row.add_child(source)
 	box.add_child(main_row)
-	# The address too, for a phone with no email app (where the button can do nothing).
-	var address := _label(FEEDBACK_EMAIL, 22)
+	# The addresses too, for a phone with no email app or browser (where the buttons can do nothing).
+	var address := _label("%s    %s" % [FEEDBACK_EMAIL, SOURCE_SHOWN], 22)
 	address.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(address)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	source = _button("Source code", Vector2(220, 64), 26)
-	source.pressed.connect(_on_source)
 	license = _button("License", Vector2(180, 64), 26)
 	license.pressed.connect(show_page.bind("License"))
 	credits = _button("Credits", Vector2(180, 64), 26)
 	credits.pressed.connect(show_page.bind("Credits"))
-	done = _button("Done", Vector2(160, 64), 26)
+	done = _button("Back", Vector2(180, 64), 26)
 	done.pressed.connect(go_back)
-	for b in [source, license, credits, done]:
+	for b in [license, credits, done]:
 		row.add_child(b)
 	box.add_child(row)
+	box.add_child(_paragraph(PRIVACY, 19))
 	box.add_child(_paragraph(LEGAL, 19))
 
 
@@ -336,9 +322,13 @@ func _build_reader() -> void:
 	_scroll.add_child(_text_box)
 
 
-## A soft lilac scroll bar, wide enough to drag with a thumb.
-func _scroll_bar_theme() -> Theme:
+## A soft lilac scroll bar, wide enough to drag with a thumb, and the game's cream panel made
+## fully opaque (so the title's sky doesn't show through the text).
+static func page_theme() -> Theme:
 	var t := Theme.new()
+	var panel := (FlightGame.make_theme().get_stylebox("panel", "PanelContainer") as StyleBoxFlat).duplicate() as StyleBoxFlat
+	panel.bg_color.a = 1.0
+	t.set_stylebox("panel", "PanelContainer", panel)
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color(LILAC, 0.35)
 	track.set_corner_radius_all(8)

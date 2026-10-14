@@ -595,7 +595,7 @@ func test_diving_through_the_gap_earns_its_moment() -> void:
 
 
 ## After a crash the end card offers a way out of the game: a Quit button that closes it.
-func test_after_a_crash_the_card_offers_quit() -> void:
+func test_after_a_crash_the_card_offers_menu() -> void:
 	var game: Node = add_node(MAIN.instantiate())
 	var plane := game.get_node("Plane") as Flyer
 	plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
@@ -606,6 +606,6 @@ func test_after_a_crash_the_card_offers_quit() -> void:
 	plane.crashed.emit()
 	await tree.create_timer(plane.tuning.card_delay_crash + 0.5).timeout
 	check(game._card.visible, "the end card shows after the crash")
-	var quit := game._quit as Button
-	check(quit.is_visible_in_tree() and not quit.disabled and quit.text == "Quit", "with a Quit button")
-	check(quit.pressed.is_connected(game._on_quit), "that closes the game")
+	var menu := game._menu as Button
+	check(menu.is_visible_in_tree() and not menu.disabled and menu.text == "Menu", "with a Menu button")
+	check(menu.pressed.is_connected(game.go_to_title), "that goes to the title")

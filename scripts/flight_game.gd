@@ -5,7 +5,8 @@ extends Node3D
 ## What every flight shares, whether the Course (game.gd) or Endless (endless_game.gd): the sky
 ## and light, the watercolour pass, the sounds (wind that rises with airspeed, the vario's beeps,
 ## the sigh when lift is lost, sink ticks, close-call whooshes, bumps), the hint, distance and
-## pop-up labels, the end card's frame and buttons, the settings panel, About, and Back.
+## pop-up labels, the end card's frame and buttons (Menu goes to the title), the settings panel,
+## and Back.
 ## Each kind of flight builds its own world, runs its own scoring and fills in the card.
 
 const POST_SHADER := preload("res://shaders/watercolor.gdshader")
@@ -13,6 +14,9 @@ const INK := Color("5d5468")
 const CREAM := Color("fbf6ee")
 const LILAC := Color("c9b2d6")
 const GOLD := Color("e0a63c")
+const LEAVE_HINT := "Press Back again to leave this run"
+const LEAVE_HINT_PC := "Press Escape again to leave this run"
+const LEAVE_WINDOW_MSEC := 2000
 
 @onready var plane: Flyer = $Plane
 @onready var camera: FollowCamera = $Camera
@@ -57,14 +61,17 @@ var _card_main: HBoxContainer  ## The big buttons: "Fly again", and any other mo
 var _fly_again: Button
 var _swap_look: Button
 var _settings_button: Button
-var _quit: Button
+var _menu: Button
 var _settings_panel: Control
 var _sensitivity: HSlider
 var _sensitivity_value: Label
 var _sound: CheckButton
 var _swap_pitch: CheckButton
-var _about_button: Button
-var _about: AboutPanel  ## Built the first time it is opened.
+## Menu or Back has gone to the title. Tests turn opens_scenes off to see it without leaving.
+var went_to_title := false
+var opens_scenes := true
+## In flight, Back once shows a hint; a second Back before this (msec ticks) leaves the run.
+var _leave_until_msec := 0
 ## The player's settings (PlayerSettings), as loaded and as changed on the settings panel.
 var settings := {}
 var _hint: Label
@@ -372,9 +379,11 @@ func show_card(title: String, lines: PackedStringArray, focus: Button = null, no
 	(focus if focus else _fly_again).grab_focus()
 
 
-## Closes the game (on a phone, the app).
-func _on_quit() -> void:
-	get_tree().quit()
+## Back to the title screen (a run under way is left, and scores nothing).
+func go_to_title() -> void:
+	went_to_title = true
+	if opens_scenes:
+		get_tree().change_scene_to_file(TitleScreen.SCENE)
 
 
 ## Saves the other look (plane or balloon) as the player's choice.
@@ -403,45 +412,33 @@ func _on_setting_changed(_value: Variant = null) -> void:
 		push_warning("Could not save the settings; they last until the game closes.")
 
 
-## The phone's Back (button or gesture): steps back out of About's pages, then out of About,
-## then closes the settings; with none of them open, it closes the game, as Android's Back does
-## (project setting quit_on_go_back is off so this can step back first).
+## The phone's Back (button or gesture): steps back (see handle_back); it never closes the game
+## from a flight (project setting quit_on_go_back is off so the game decides).
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and not handle_back():
 		get_tree().quit()
 
 
-## Steps back one screen (About's page, About, or the settings) and returns true, or returns
-## false if none of them is open.
+## Steps back one screen and returns true: the settings close; from the end card, to the title;
+## in flight, the first Back shows a hint and a second within LEAVE_WINDOW_MSEC goes to the title
+## (so a thumb brushing the edge-swipe doesn't end a run).
 func handle_back() -> bool:
-	if _about and _about.visible:
-		_about.go_back()
-		return true
 	if _settings_panel and _settings_panel.visible:
 		show_settings(false)
-		return true
-	return false
+	elif _card and _card.visible:
+		go_to_title()
+	elif Time.get_ticks_msec() < _leave_until_msec:
+		go_to_title()
+	else:
+		_leave_until_msec = Time.get_ticks_msec() + LEAVE_WINDOW_MSEC
+		show_hint(LEAVE_HINT_PC if OS.has_feature("pc") else LEAVE_HINT, LEAVE_WINDOW_MSEC / 1000.0)
+	return true
 
 
 func show_settings(on: bool) -> void:
 	_settings_panel.visible = on
 	_card.visible = not on
 	(_sensitivity if on else _settings_button).grab_focus()
-
-
-## About Updraft, over the settings; closing it goes back to the settings.
-func show_about() -> void:
-	if _about == null:
-		_about = AboutPanel.new()
-		_about.closed.connect(_on_about_closed)
-		_ui.add_child(_about)
-	_settings_panel.visible = false
-	_about.open()
-
-
-func _on_about_closed() -> void:
-	_settings_panel.visible = true
-	_about_button.grab_focus()
 
 
 # --- Setup -----------------------------------------------------------------------
@@ -554,7 +551,7 @@ func _setup_ui(hint: String) -> void:
 	_ui = Control.new()
 	_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ui.theme = _make_theme()
+	_ui.theme = make_theme()
 	layer.add_child(_ui)
 
 	_hint = Label.new()
@@ -643,14 +640,14 @@ func _setup_ui(hint: String) -> void:
 	_settings_button.pressed.connect(show_settings.bind(true))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
-	_quit = Button.new()
-	_quit.text = "Quit"
-	_quit.custom_minimum_size = Vector2(160, 64)
-	_quit.add_theme_font_size_override("font_size", 26)
-	_quit.pressed.connect(_on_quit)
+	_menu = Button.new()
+	_menu.text = "Menu"
+	_menu.custom_minimum_size = Vector2(160, 64)
+	_menu.add_theme_font_size_override("font_size", 26)
+	_menu.pressed.connect(go_to_title)
 	row.add_child(_swap_look)
 	row.add_child(_settings_button)
-	row.add_child(_quit)
+	row.add_child(_menu)
 	box.add_child(row)
 	_build_settings_panel()
 
@@ -666,8 +663,7 @@ func card_button(text: String) -> Button:
 	return b
 
 
-## Settings: tilt sensitivity, sound, and swapping climb and dive. Changes save at once. Also
-## the way to About.
+## Settings: tilt sensitivity, sound, and swapping climb and dive. Changes save at once.
 func _build_settings_panel() -> void:
 	_settings_panel = CenterContainer.new()
 	_settings_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -720,12 +716,6 @@ func _build_settings_panel() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_about_button = Button.new()
-	_about_button.text = "About"
-	_about_button.custom_minimum_size = Vector2(200, 80)
-	_about_button.add_theme_font_size_override("font_size", 32)
-	_about_button.pressed.connect(show_about)
-	row.add_child(_about_button)
 	var done := Button.new()
 	done.text = "Done"
 	done.custom_minimum_size = Vector2(340, 80)
@@ -760,7 +750,8 @@ func _on_fps_tapped(event: InputEvent) -> void:
 		_overlay.visible = not _overlay.visible
 
 
-func _make_theme() -> Theme:
+## The game's look for screens: ink labels with a cream outline, cream panels, pink rounded buttons.
+static func make_theme() -> Theme:
 	var theme := Theme.new()
 	theme.set_color("font_color", "Label", INK)
 	theme.set_color("font_outline_color", "Label", Color(CREAM, 0.8))

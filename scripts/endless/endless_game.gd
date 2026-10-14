@@ -205,8 +205,6 @@ func start_run(look_back: bool) -> void:
 	gull.set_lifts(world.ridge_lifts())
 	_card.visible = false
 	_settings_panel.visible = false
-	if _about:
-		_about.visible = false
 	if look_back:
 		looked_back = true
 		_intro_left = tune.endless_intro_seconds
@@ -577,6 +575,18 @@ func _finish(title: String, delay: float, why: String) -> void:
 	get_tree().create_timer(delay).timeout.connect(_show_card.bind(title, metres, score, int(progress["stars"]), new_best, _run_id))
 
 
+## Leaving for the title mid-run still banks the run's stars (the guide promises every star is
+## kept, however the run ends); the run's distance doesn't count.
+func go_to_title() -> void:
+	if not _ended and stars_run > 0:
+		var progress := Progress.load_all()
+		progress["stars"] = mini(int(progress["stars"]) + stars_run, Progress.MAX_STARS)
+		stars_run = 0  # banked once
+		if not Progress.save_all(progress):
+			push_warning("Could not save the stars; they last until the game closes.")
+	super()
+
+
 func _show_card(title: String, metres: int, score: int, bank: int, new_best: bool, run: int) -> void:
 	if run != _run_id or not _ended:
 		return  # a new run has already started
@@ -615,7 +625,7 @@ func _setup_endless_ui() -> void:
 		_wind_button.custom_minimum_size = Vector2(180, 64)
 		_wind_button.add_theme_font_size_override("font_size", 26)
 		_wind_button.pressed.connect(_on_wind_button)
-		_quit.get_parent().add_child(_wind_button)
+		_menu.get_parent().add_child(_wind_button)
 	# The stars this run: a drawn star (not a glyph: phones' fonts may lack one) and the count.
 	var stars_row := HBoxContainer.new()
 	stars_row.add_theme_constant_override("separation", 6)

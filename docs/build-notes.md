@@ -464,3 +464,24 @@ cached shapes against the meshes' own triangles. `tools/kit_times.gd` times each
 | Longest build step | 16.6 ms (Pasture's content), the rest 11 ms or less |
 | Placing a piece (its thermals) | 5-7 ms (was 15-18) |
 | Average | 119 fps |
+
+## Title screen, Info and About (2026-10-14)
+
+Owner's ask: a title screen with PLAY, INFO and ABOUT, and an Info guide that teaches everything
+(objectives, Course vs Endless, controls, updrafts, downdrafts, points and bonuses). Built from
+the designer's plan, docs/title-plan.md.
+
+- **Title** (scenes/title.tscn, TitleScreen) is the main scene: a painted 2D sky (no 3D, so it
+  opens at once), PLAY (the mode flown last, as before; a caption says which, with the bests),
+  INFO and ABOUT. Boot is now a helper (first_scene(), open()).
+- **Info** (InfoPanel): HowToFly.TEXT, rewritten by the designer, in nine sections on a rail (after the review: text 28, a column of at most 1000, the section showing lit, list items indented, opaque panels);
+  one section at a time, filled a few paragraphs a frame, wrapping to the screen.
+- **About** moved to the title: the guide left it; the source address is written out, a privacy
+  line added, Done became Back.
+- **Back**: Info/About step back to the title; Back on the title closes the game (Escape never
+  does). In flight, one Back shows "Press Back again to leave this run" and a second within 2 s
+  goes to the title (a stray edge-swipe used to quit the game mid-run). From the end card, Back
+  goes to the title. Quit on the end card became Menu; Settings lost its About button.
+- Tests: tests/test_title.gd (PLAY and its caption in each progress state, Back at every level,
+  Menu, the guide's sections, its numbers and names computed from the game, every character in
+  the font, Info's fill). tools/title_shots.gd saves pictures of the screens at a window size.

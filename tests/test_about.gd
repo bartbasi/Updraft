@@ -91,14 +91,23 @@ func test_version_matches_the_android_exports_and_they_ship_the_license() -> voi
 		check(include.contains("LICENSE") and include.contains("NOTICE"), "preset %d ships LICENSE and NOTICE: %s" % [i, include])
 
 
-func test_about_opens_from_settings_and_back_steps_out_one_page_at_a_time() -> void:
-	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
-	await physics_frames(2)
-	check(game._about == null, "About is not built until it is opened")
-	game.show_settings(true)
-	game.show_about()
-	var about: AboutPanel = game._about
-	check(about.visible and not game._settings_panel.visible, "About opens over the settings")
+func _title_about() -> AboutPanel:
+	var title: TitleScreen = add_node(load(TitleScreen.SCENE).instantiate())
+	title.opens_scenes = false
+	await tree.process_frame
+	check(title._about == null, "About is not built until it is opened")
+	title.show_about()
+	return title._about
+
+
+func test_about_opens_from_the_title_and_its_pages_fill() -> void:
+	var about := await _title_about()
+	check(about.visible and about._page.visible, "About opens on its page")
+	var texts := about.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	check(texts.any(func(t: String) -> bool: return t.contains(AboutPanel.SOURCE_SHOWN) and t.contains(AboutPanel.FEEDBACK_EMAIL)), "both addresses are written out")
+	check(texts.has(AboutPanel.PRIVACY), "it says the game collects nothing")
+	var buttons := about.find_children("*", "Button", true, false).map(func(b: Button) -> String: return b.text)
+	check(not buttons.has("How to fly") and buttons.has("Back") and not buttons.has("Done"), "the guide is Info's now; Done is Back: %s" % [buttons])
 	about.show_page("License")
 	check(about._reader.visible and not about._page.visible, "License opens")
 	var frames := 0
@@ -107,30 +116,11 @@ func test_about_opens_from_settings_and_back_steps_out_one_page_at_a_time() -> v
 		frames += 1
 	check(about.is_page_filled(), "the License page fills (%d frames)" % frames)
 	check(about._text_box.get_child_count() == AboutPanel.chunks(AboutPanel.license_text()).size(), "one label per chunk")
-	# The phone's Back arrives as a notification, Escape as ui_cancel; both step back.
 	check(not ProjectSettings.get_setting("application/config/quit_on_go_back"), "Back doesn't quit before the game can step back")
-	game._notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	check(about.visible and about._page.visible and not about._reader.visible, "Back: License to About")
-	var escape := InputEventAction.new()
-	escape.action = "ui_cancel"
-	escape.pressed = true
-	game._unhandled_input(escape)
-	check(not about.visible and game._settings_panel.visible, "Escape: About to the settings")
-	game._notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
-	check(not game._settings_panel.visible and game._card.visible, "Back: the settings close")
-	check(not game.handle_back(), "with nothing open, Back is left to quit the game")
-	game.show_about()
-	check(game._about == about and about.visible and about._page.visible, "About opens again, on its first page")
-	about.go_back()
-	check(not about.visible and game._settings_panel.visible, "Done goes back to the settings")
 
 
 func test_switching_pages_while_one_fills_shows_only_the_new_page_and_it_fits() -> void:
-	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
-	await physics_frames(2)
-	game.show_settings(true)
-	game.show_about()
-	var about: AboutPanel = game._about
+	var about := await _title_about()
 	about.show_page("License")
 	var waited := 0
 	while about._text_box.get_child_count() == 0 and waited < 60:
@@ -153,6 +143,8 @@ func test_switching_pages_while_one_fills_shows_only_the_new_page_and_it_fits() 
 	var page := about._reader.get_combined_minimum_size().x
 	var screen := about.get_viewport_rect().size.x
 	check(page > 0.0 and page <= screen, "the page, widest line and all, fits the screen (%.0f of %.0f)" % [page, screen])
+	var front := about._page.get_combined_minimum_size()
+	check(front.x <= screen and front.y <= about.get_viewport_rect().size.y, "About's page fits the screen (%s)" % front)
 
 
 func test_every_source_file_carries_the_license_header() -> void:
@@ -189,25 +181,3 @@ func test_the_guide_matches_the_game() -> void:
 	check(text.contains("%d points for every metre and %d for every star" % [EndlessGame.POINTS_PER_METRE, tune.points_per_star]), "Endless's score")
 	for piece in ["barley field", "viaduct", "washing", "poplars", "barn", "standing stones", "mere", "bunting"]:
 		check(text.contains(piece), "mentions the %s" % piece)
-
-
-func test_the_guide_page_shows_its_headings() -> void:
-	var chunks := AboutPanel.page_chunks(AboutPanel.GUIDE)
-	var headings := Array(chunks).filter(func(c: String) -> bool: return c.begins_with("# "))
-	check(headings.size() >= 8, "the guide has its sections (%d)" % headings.size())
-	check(chunks[1] == "# Controls", "after a line of welcome, it opens with the controls: %s" % chunks[1].left(30))
-	var game: Node = add_node(load("res://scenes/main.tscn").instantiate())
-	await physics_frames(2)
-	game.show_settings(true)
-	game.show_about()
-	var about: AboutPanel = game._about
-	check(about.guide.has_focus(), "How to fly is the first thing to press")
-	about.show_page(AboutPanel.GUIDE)
-	var frames := 0
-	while not about.is_page_filled() and frames < 300:
-		await tree.process_frame
-		frames += 1
-	var big := about._text_box.get_children().filter(func(l: Node) -> bool: return (l as Label).get_theme_font_size("font_size") == 30)
-	check(big.size() == headings.size() and (big[0] as Label).text == "Controls", "headings show large, without their mark")
-	about.go_back()
-	check(about.guide.has_focus(), "Back returns to How to fly")
