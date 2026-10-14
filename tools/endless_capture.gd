@@ -4,7 +4,9 @@ extends SceneTree
 ## Flies Endless with a skilled test pilot in a real window, from the look back over the bowl,
 ## and saves screenshots along the way (and the end card, if the run ends).
 ##   godot --path . -s res://tools/endless_capture.gd -- --out=<folder> [--times=0.3,1.0,...]
-##     [--seed=S] [--look=plane] [--wind=W] [--max=SECONDS]
+##     [--seed=S] [--look=plane] [--wind=W] [--max=SECONDS] [--piece=ID [--d=D] [--h=H]]
+## --piece starts the flight at that piece's entry (at difficulty D, height H above the floor),
+## followed by two Cloud Streets, as tools/endless_log.gd --calibrate flies it.
 
 var _times: Array[float] = [0.3, 0.8, 1.6, 4.0, 12.0, 20.0, 30.0, 40.0]
 var _out := "user://endless_screens"
@@ -13,6 +15,9 @@ var _look := PlayerSettings.BALLOON
 var _max := 120.0
 var _game: EndlessGame
 var _shot := 0
+var _piece := ""
+var _d := 0.0
+var _h := 18.0
 
 
 func _initialize() -> void:
@@ -31,6 +36,12 @@ func _initialize() -> void:
 			EndlessGame.debug_wind = float(arg.trim_prefix("--wind="))
 		elif arg.begins_with("--max="):
 			_max = float(arg.trim_prefix("--max="))
+		elif arg.begins_with("--piece="):
+			_piece = arg.trim_prefix("--piece=")
+		elif arg.begins_with("--d="):
+			_d = float(arg.trim_prefix("--d="))
+		elif arg.begins_with("--h="):
+			_h = float(arg.trim_prefix("--h="))
 	DirAccess.make_dir_recursive_absolute(_out)
 	# The test pilot's progress and look go to their own files, never the player's.
 	Progress.file_path = "user://endless_capture_progress_%d.json" % OS.get_process_id()
@@ -42,6 +53,9 @@ func _initialize() -> void:
 	_game = load(EndlessGame.SCENE).instantiate()
 	_game.next_seed = _seed
 	Autopilot.fly_endless(_game, "skilled", _seed)
+	if _piece != "":
+		EndlessGame.looked_back = true
+		_game.calibration = {"pieces": [StringName(_piece), &"street", &"street"], "d": _d, "h": _h}
 	root.add_child(_game)
 	_run.call_deferred()
 

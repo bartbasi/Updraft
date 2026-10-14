@@ -102,6 +102,18 @@ func _ready() -> void:
 	_build_visuals()
 
 
+## Moves the flyer (and its balloon's string) by `offset` without disturbing its flight, as when
+## Endless recentres its world.
+func shift_by(offset: Vector3) -> void:
+	global_position += offset
+	model.position += offset
+	for i in string_points.size():
+		string_points[i] += offset
+	for i in _string_prev.size():
+		_string_prev[i] += offset
+	reset_physics_interpolation()
+
+
 func launch(at: Vector3, heading: float) -> void:
 	global_position = at
 	model.launch(at, heading, tuning.launch_speed)

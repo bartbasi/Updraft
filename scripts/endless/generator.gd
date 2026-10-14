@@ -32,6 +32,11 @@ const TILE_METRES := 24.0
 const OPENING: Array[StringName] = [&"rim", &"street"]
 ## The rescue piece, placed when nothing else is fair.
 const RESCUE := &"street"
+## Pieces looked ahead when choosing, so a choice never corners the run (see _choose()).
+const LOOK_AHEAD := 2
+## A piece whose bold line dives to a low opening is this much less likely when a good pilot will
+## come in too high for it.
+const HIGH_ENTRY_WEIGHT := 0.25
 
 var tuning: Tuning
 var placed: Array[Placement] = []
@@ -43,6 +48,8 @@ var rng := RandomNumberGenerator.new()
 var forced: Array[StringName] = []
 var forced_d := -1.0
 var forced_h := 0.0
+## For test pilots: pieces are chosen as if the run had begun this many metres along.
+var metres_offset := 0.0
 var _next_tile := 0
 var _seen := {}  ## Piece ids placed so far this run.
 
@@ -79,7 +86,7 @@ static func no_repeat(d: float) -> int:
 
 ## Places the next piece and returns it.
 func next() -> Placement:
-	var metres := _next_tile * TILE_METRES
+	var metres := _next_tile * TILE_METRES + metres_offset
 	var d := difficulty(metres)
 	var id: StringName
 	if not forced.is_empty():
@@ -106,83 +113,91 @@ func next_tile() -> int:
 	return _next_tile
 
 
-func _choose(metres: float, d: float) -> StringName:
-	var pool: Array[StringName] = []
-	for id: StringName in EndlessPieces.ids():
-		var info := EndlessPieces.info(id)
-		if bool(info.get("fixed", false)) or float(info["min_m"]) > metres:
-			continue
-		pool.append(id)
-	# Not one of the last few.
-	var recent := _recent(no_repeat(d))
-	pool = pool.filter(func(id: StringName) -> bool: return not recent.has(id))
-	# Lift after too many pieces without it.
-	if _trailing_without_lift() >= max_without_lift(d):
-		pool = pool.filter(func(id: StringName) -> bool: return bool(EndlessPieces.info(id)["lift"]))
-	# A rest piece if none has come for a while.
-	if _since_rest() >= rest_every(d) - 1:
-		pool = pool.filter(func(id: StringName) -> bool: return bool(EndlessPieces.info(id)["rest"]))
-	# Only what can be flown from the height a good pilot is sure to have.
-	var room := h - margin(d)
-	pool = pool.filter(func(id: StringName) -> bool: return EndlessPieces.need_in(id, d) <= room)
+func _choose(metres: float, _d: float) -> StringName:
+	var ids := _placed_ids()
+	var pool := _fair(ids, h, metres)
 	if pool.is_empty():
 		return RESCUE
-	# And not a piece after which nothing could fairly follow (the rescue would have to repeat).
-	var onward := pool.filter(func(id: StringName) -> bool: return _something_follows(id, d, metres))
-	if not onward.is_empty():
-		pool.assign(onward)
-	var weights := PackedFloat32Array()
-	for id in pool:
-		var w := 1.0 if int(EndlessPieces.info(id)["tiles"]) == 1 else 0.6
-		if not _seen.has(id):
-			w *= 1.5
-		weights.append(w)
-	return pool[rng.rand_weighted(weights)]
+	# Not a piece after which the run would be cornered (only the rescue left, repeating), looking
+	# LOOK_AHEAD pieces on. Picks are tried in the usual weighted order; the first that keeps a way
+	# on is taken (nearly always the first).
+	var options := pool.duplicate()
+	while not options.is_empty():
+		var weights := PackedFloat32Array()
+		for id in options:
+			var w := 1.0 if int(EndlessPieces.info(id)["tiles"]) == 1 else 0.6
+			if not _seen.has(id):
+				w *= 1.5
+			if bool(EndlessPieces.info(id).get("high_line", false)) and h >= EndlessPieces.HIGH_FROM:
+				w *= HIGH_ENTRY_WEIGHT  # mostly after a lower exit, where its bold line is in reach
+			weights.append(w)
+		var pick: StringName = options[rng.rand_weighted(weights)]
+		var after := ids.duplicate()
+		after.append(pick)
+		if _way_on(after, EndlessPieces.out(pick, difficulty(metres), h), metres + EndlessPieces.tiles(pick) * TILE_METRES, LOOK_AHEAD):
+			return pick
+		options.erase(pick)
+	return pool[rng.randi() % pool.size()]
 
 
-## Whether some piece could fairly come after `id` (placed now, `metres` along): one not among
-## the last few with it, with lift if it lacks it and the run without lift is at its limit, a rest
-## piece if one is due, and needing no more than the height a good pilot leaves `id` with.
-func _something_follows(id: StringName, d: float, metres: float) -> bool:
-	var after := EndlessPieces.out(id, d, h)
-	d = difficulty(metres + EndlessPieces.tiles(id) * TILE_METRES)  # the rules the next piece is placed by
-	var recent := _recent(no_repeat(d) - 1)
-	recent.append(id)
-	var lift_due := not bool(EndlessPieces.info(id)["lift"]) and _trailing_without_lift() + 1 >= max_without_lift(d)
-	var rest_due := not bool(EndlessPieces.info(id)["rest"]) and _since_rest() + 1 >= rest_every(d) - 1
-	for next_id: StringName in EndlessPieces.ids():
-		var info := EndlessPieces.info(next_id)
-		if bool(info.get("fixed", false)) or recent.has(next_id):
-			continue
-		if (lift_due and not bool(info["lift"])) or (rest_due and not bool(info["rest"])):
-			continue
-		if EndlessPieces.need_in(next_id, d) <= after - margin(d):
+## Whether, after the pieces `ids` leaving a good pilot at height `at_h`, `metres` along, there is
+## a fair choice for each of the next `depth` pieces.
+func _way_on(ids: Array[StringName], at_h: float, metres: float, depth: int) -> bool:
+	if depth <= 0:
+		return true
+	var d := difficulty(metres)
+	for id in _fair(ids, at_h, metres):
+		var after := ids.duplicate()
+		after.append(id)
+		if _way_on(after, EndlessPieces.out(id, d, at_h), metres + EndlessPieces.tiles(id) * TILE_METRES, depth - 1):
 			return true
 	return false
 
 
-func _recent(count: int) -> Array[StringName]:
+## The pieces the rules allow next, after `ids`, for a good pilot at height `at_h`, `metres` along:
+## allowed that far along, not one of the last few, with lift after too many pieces without it, a
+## rest piece if none has come for a while, and needing no more than the height a good pilot is
+## sure to have, less the margin.
+func _fair(ids: Array[StringName], at_h: float, metres: float) -> Array[StringName]:
+	var d := difficulty(metres)
+	var recent := ids.slice(maxi(ids.size() - no_repeat(d), 0))
+	var lift_due := _trailing_without_lift(ids) >= max_without_lift(d)
+	var rest_due := _since_rest(ids) >= rest_every(d) - 1
+	var room := at_h - margin(d)
+	var pool: Array[StringName] = []
+	for id: StringName in EndlessPieces.ids():
+		var info := EndlessPieces.info(id)
+		if bool(info.get("fixed", false)) or float(info["min_m"]) > metres or recent.has(id):
+			continue
+		if (lift_due and not bool(info["lift"])) or (rest_due and not bool(info["rest"])):
+			continue
+		if EndlessPieces.need_in(id, d) <= room:
+			pool.append(id)
+	return pool
+
+
+func _placed_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for i in range(maxi(placed.size() - count, 0), placed.size()):
-		out.append(placed[i].id)
+	for p in placed:
+		out.append(p.id)
 	return out
 
 
-## How many of the last placed pieces in a row have no lift.
-func _trailing_without_lift() -> int:
+## How many of the last pieces in `ids` in a row have no lift.
+static func _trailing_without_lift(ids: Array[StringName]) -> int:
 	var n := 0
-	for i in range(placed.size() - 1, -1, -1):
-		if bool(EndlessPieces.info(placed[i].id)["lift"]):
+	for i in range(ids.size() - 1, -1, -1):
+		if bool(EndlessPieces.info(ids[i])["lift"]):
 			break
 		n += 1
 	return n
 
 
-## How many places since the last rest piece (0 if the last one was a rest piece).
-func _since_rest() -> int:
+## How many places since the last rest piece in `ids` (0 if the last one was a rest piece).
+static func _since_rest(ids: Array[StringName]) -> int:
 	var n := 0
-	for i in range(placed.size() - 1, -1, -1):
-		if bool(EndlessPieces.info(placed[i].id)["rest"]):
+	for i in range(ids.size() - 1, -1, -1):
+		if bool(EndlessPieces.info(ids[i])["rest"]):
 			break
 		n += 1
 	return n

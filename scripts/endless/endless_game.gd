@@ -18,6 +18,10 @@ const LOOK_BACK_EYE := Vector3(-6.0, 2.5, -9.0)  # aside, so the balloon sits cl
 const LANDING_FLAT := 0.9
 const LANDING_SLIDE := 0.5
 const POINTS_PER_METRE := 10
+## Where the freshening breeze is announced (metres), and how much louder the wind bed gets from
+## the start's breeze to full (at 3 u/s).
+const FRESHENING_AT: Array[float] = [250.0, 500.0, 1000.0]
+const WIND_BED_DB := 2.0
 
 ## Something worth a line in a test pilot's log (piece entered, lift, stars, snags, the gull...).
 signal note(text: String)
@@ -26,7 +30,7 @@ signal arc_closed(arc: EndlessStars.Arc)
 ## A run is starting at `start` (before its first pieces are placed): a test pilot starts afresh.
 signal run_started(start: Vector3)
 
-## Debug builds: the wind chosen on the card for this session (negative: Tuning's).
+## Debug builds: a steady wind chosen on the card for this session (negative: the rising wind).
 static var debug_wind := -1.0
 ## The look back plays once a session; later starts and retries go straight to the chase camera.
 static var looked_back := false
@@ -43,6 +47,9 @@ var next_seed := -1
 ## For calibrating one piece (tools/endless_log.gd --calibrate): {"pieces": [ids], "d": d, "h": entry
 ## height}. The run then starts at the first piece's entry, at that height.
 var calibration := {}
+## For test pilots (tools/endless_log.gd --from): the run is flown as if it had begun this many
+## metres along (the pieces' difficulty and the wind).
+var start_m := 0.0
 var run_seed := 0
 ## Stars this run: small stars, big stars and arc bonuses (before any multiplier).
 var stars_run := 0
@@ -70,6 +77,7 @@ var _course: Button
 var _wind_button: Button
 var _hoop_side := {}  ## Hoop key -> which side of its ring the flyer was last tick.
 var _hoop_snag := {}  ## Hoop key -> seconds until it may snag again.
+var _snag_wait := {}  ## Washing key -> seconds until it may snag again.
 var _arch_side := {}  ## Arch key -> which side of the viaduct the flyer was last tick.
 var _overlay_lines: ImmediateMesh
 var _overlay_label: Label
@@ -81,6 +89,10 @@ var _wrong_way_hint := 0.0  ## Seconds until the "fly on" hint may show again.
 var _run_id := 0  ## Counts runs, so a card timer from an earlier run shows nothing.
 ## Pieces entered this run after the Rim.
 var pieces_entered := 0
+## The best distance when this run began (where the bunting hangs), and whether it's been passed.
+var _best_at_start := 0
+var passed_best := false
+var _freshened := 0  ## How many of FRESHENING_AT this run has passed.
 
 
 func _ready() -> void:
@@ -92,6 +104,7 @@ func _ready() -> void:
 	gull.setup(plane, no_ridges)
 	gull.ground_height = world.terrain_height
 	gull.joined.connect(func() -> void: note.emit("gull joins"))
+	world.placed.connect(_hang_best_marker)
 	_setup_flight("Stay up as long as you can")
 	_setup_endless_ui()
 	var tune := plane.tuning
@@ -111,8 +124,31 @@ func _ready() -> void:
 	start_run(not looked_back)
 
 
-func wind() -> float:
-	return debug_wind if debug_wind >= 0.0 else plane.tuning.endless_wind
+## The tailwind `metres` along: rising with distance (docs/endless-plan.md §2.3), unless a steady
+## one was chosen on the card.
+func wind(metres := 0.0) -> float:
+	return debug_wind if debug_wind >= 0.0 else wind_at(plane.tuning, metres)
+
+
+static func wind_at(tune: Tuning, metres: float) -> float:
+	var full := maxf(tune.endless_full_distance_m, 1.0)
+	if metres <= full:
+		return lerpf(tune.endless_wind_start, tune.endless_wind_full, maxf(metres, 0.0) / full)
+	return minf(tune.endless_wind_full + tune.endless_wind_rise * (metres - full) / 100.0, tune.endless_wind_max)
+
+
+## Sets the tailwind for how far the run has come; the wind bed grows with it, and the freshening
+## is felt (a gust and a word) at FRESHENING_AT.
+func _set_wind(metres: float) -> void:
+	var tune := plane.tuning
+	world.wind = wind(metres)
+	plane.air_drift = Vector3(0.0, 0.0, -world.wind)
+	wind_bed_db = WIND_BED_DB * clampf((world.wind - tune.endless_wind_start) / maxf(tune.endless_wind_full - tune.endless_wind_start, 0.01), 0.0, 1.0)
+	if debug_wind < 0.0 and _freshened < FRESHENING_AT.size() and metres >= FRESHENING_AT[_freshened]:
+		_freshened += 1
+		swell(3.0, 1.0)
+		show_hint("The breeze is freshening", 2.0)
+		note.emit("the breeze freshens (%.1f)" % world.wind)
 
 
 ## Starts a run: a new country, the flyer just short of the Rim's crest heading on. `look_back`
@@ -132,6 +168,7 @@ func start_run(look_back: bool) -> void:
 	_streak_arc = null
 	_hoop_side.clear()
 	_hoop_snag.clear()
+	_snag_wait.clear()
 	_arch_side.clear()
 	_run_time = 0.0
 	_piece_tile = -1
@@ -139,19 +176,22 @@ func start_run(look_back: bool) -> void:
 	_graze_wait = 0.0
 	_wrong_way_hint = 0.0
 	pieces_entered = 0
+	_best_at_start = best_m
+	passed_best = false
+	_freshened = FRESHENING_AT.filter(func(m: float) -> bool: return m <= start_m).size()  # (tools may start further on)
 	reset_flight_sounds()
 	run_seed = next_seed if next_seed >= 0 else randi()
 	next_seed = -1
-	world.wind = wind()
-	plane.air_drift = Vector3(0.0, 0.0, -world.wind)
+	_set_wind(start_m)
 	plane.air_drift_ground_fade = tune.endless_wind_ground_fade
+	EndlessWorld.shift = 0.0  # (world.reset() below starts the country afresh too)
 	var start := EndlessWorld.START
 	if not calibration.is_empty():
 		start = EndlessWorld.tile_origin(0) + Vector3(0.0, float(calibration["h"]), -0.5)
 	furthest_z = start.z
 	run_started.emit(start)
 	if calibration.is_empty():
-		world.reset(run_seed, look_back)
+		world.reset(run_seed, look_back, [], -1.0, 0.0, start_m)
 	else:
 		var ids: Array[StringName] = []
 		ids.assign(calibration["pieces"])
@@ -185,6 +225,10 @@ func start_run(look_back: bool) -> void:
 
 func ground_under(x: float, z: float) -> float:
 	return world.terrain_height(x, z)
+
+
+func water_level(x: float, z: float) -> float:
+	return world.water_level(x, z)
 
 
 func section_name(at: Vector3) -> String:
@@ -248,6 +292,9 @@ func _physics_process(delta: float) -> void:
 	if plane.held or _ended:
 		return
 	_run_time += delta
+	if plane.global_position.z < plane.tuning.endless_recentre_z:
+		_recentre()
+	_set_wind(EndlessWorld.metres(furthest_z) + start_m)
 	var at := plane.global_position
 	world.update(at, delta)
 	var lifts := world.ridge_lifts()
@@ -261,12 +308,25 @@ func _physics_process(delta: float) -> void:
 	for arc in world.stars.closed_broken:
 		note.emit("arc flown past (%d of %d)" % [arc.stars.filter(func(s: EndlessStars.Star) -> bool: return s.taken).size(), arc.stars.size()])
 	_check_hoops(delta)
+	_check_snags(delta)
 	_check_arches()
 	furthest_z = minf(furthest_z, at.z)
+	if not passed_best and _best_at_start > 0 and EndlessWorld.metres(furthest_z) > _best_at_start:
+		passed_best = true
+		_chime.pitch_scale = 1.5
+		_chime.volume_db = plane.tuning.chime_volume_db
+		_chime.play()
+		show_popup("Past your best!", true)
+		note.emit("past your best (%d m)" % _best_at_start)
 	var p := world.piece_at(at.z)
-	if p != null and p.placement.tile > _piece_tile:  # only onward (circling over a join doesn't count)
+	if p != null and p.spawned and p.placement.tile > _piece_tile:  # only onward (circling over a join doesn't count)
 		_piece_tile = p.placement.tile
 		piece_name = p.title()
+		world.stars.fit_to_entry(p.placement.tile, at.y)
+		if not p.kit.high_points.is_empty():  # the stars show the line for your height
+			var high := p.kit.takes_high(at - p.origin)
+			world.stars.choose_line(p.placement.tile, high)
+			note.emit("%s line" % ("high" if high else "low"))
 		if p.placement.id != &"rim":
 			pieces_entered += 1
 		note.emit("enter %s (d %.2f, h %.1f)" % [piece_name, p.placement.d, p.placement.h_in])
@@ -276,7 +336,11 @@ func _physics_process(delta: float) -> void:
 	if plane.model.grounded:
 		# Flat ground (or a long slide) is a touchdown; a graze of a slope nudges you off, like a bump.
 		_graze += delta
-		if plane.last_normal.y > LANDING_FLAT or _graze >= LANDING_SLIDE:
+		var water := world.water_level(at.x, at.z)
+		if at.y - water < 0.8:
+			_splash_at(at, water)
+			_finish("Splashdown", plane.tuning.endless_card_delay_touchdown, "came down in the water at %s" % piece_name)
+		elif plane.last_normal.y > LANDING_FLAT or _graze >= LANDING_SLIDE:
 			_finish("Touchdown", plane.tuning.endless_card_delay_touchdown, "ran out of height over %s" % piece_name)
 		elif _graze_wait <= 0.0:
 			_graze_wait = 0.25
@@ -285,14 +349,45 @@ func _physics_process(delta: float) -> void:
 			_on_bumped(1.0)
 	else:
 		_graze = maxf(_graze - delta, 0.0)
-	if not _ended and at.z > EndlessWorld.WRONG_WAY_Z:
+	var course_z := EndlessWorld.unshifted(at.z)
+	if not _ended and course_z > EndlessWorld.WRONG_WAY_Z:
 		_finish("Wrong way!", plane.tuning.endless_card_delay_touchdown, "flew back past the start")
-	elif at.z > EndlessWorld.WRONG_WAY_Z - 12.0 and _wrong_way_hint <= 0.0:
+	elif course_z > EndlessWorld.WRONG_WAY_Z - 12.0 and _wrong_way_hint <= 0.0:
 		var flat := Vector2(plane.model.velocity.x, plane.model.velocity.z)
 		if flat.length() > 0.5 and flat.normalized().dot(Vector2(0.0, 1.0)) > 0.5:  # heading back upwind
 			_wrong_way_hint = 4.0
 			show_hint("The breeze is behind you: fly on!", 2.0)
 	_wrong_way_hint = maxf(_wrong_way_hint - delta, 0.0)
+
+
+## Moves the whole world (and the flyer, camera and gull with it) a whole number of tiles back
+## toward +z, between two physics ticks, so positions stay small (docs/endless-plan.md §2.7).
+## Nothing jumps: everything moves together, and distances allow for the shift.
+func _recentre() -> void:
+	var by := EndlessPieces.TILE * plane.tuning.endless_recentre_tiles
+	var offset := Vector3(0.0, 0.0, by)
+	world.recentre(by, plane.global_position.z + by)
+	plane.shift_by(offset)
+	camera.shift_by(offset)
+	gull.shift_by(offset)
+	furthest_z += by
+	note.emit("recentred by %.0f" % by)
+
+
+## Hangs the bunting where the best run ended, in the piece that holds that spot, once it's placed.
+func _hang_best_marker(p: EndlessWorld.Piece) -> void:
+	if _best_at_start <= 0:
+		return
+	var z := EndlessWorld.START.z - _best_at_start * 4.0 + EndlessWorld.shift
+	var local := z - p.origin.z
+	if local > 0.0 or local <= -EndlessPieces.length(p.placement.id):
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "BestMarker"
+	mi.mesh = EndlessPieces.best_marker(p.placement.id, local)
+	mi.material_override = Art.material(true)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.node.add_child(mi)
 
 
 ## Kite rings: touching one's ring snags (speed lost, never a crash); flying through one rings it.
@@ -322,6 +417,54 @@ func _check_hoops(delta: float) -> void:
 				_chime.play()
 				note.emit("through hoop %d" % (int(h["index"]) + 1))
 			_hoop_side[key] = side
+
+
+## Washing lines and sheets: touching one snags (speed lost, never a crash), and a sheet sends a
+## sock tumbling to the grass.
+func _check_snags(delta: float) -> void:
+	var at := plane.global_position
+	for key in _snag_wait.keys():
+		_snag_wait[key] = maxf(float(_snag_wait[key]) - delta, 0.0)
+	for p in world.pieces:
+		if not p.spawned or p.kit.snags.is_empty() or absf(at.z - (p.origin.z - EndlessPieces.TILE * 0.5)) > EndlessPieces.TILE:
+			continue
+		var local := at - p.origin
+		for i in p.kit.snags.size():
+			var s: Dictionary = p.kit.snags[i]
+			var key := "%d_%d" % [p.placement.tile, i]
+			if float(_snag_wait.get(key, 0.0)) > 0.0:
+				continue
+			var nearest := Geometry3D.get_closest_point_to_segment(local, s["a"], s["b"])
+			if local.distance_to(nearest) < float(s["radius"]) + Flyer.RADIUS:
+				_snag_wait[key] = 0.6
+				plane.snag(plane.tuning.snag_speed_keep)
+				if s["sock"]:
+					_throw_sock(p, nearest)
+
+
+## A sock off the line, tumbling down to the grass under it (it stays there).
+func _throw_sock(p: EndlessWorld.Piece, from: Vector3) -> void:
+	var b := Art.Builder.new()
+	var rng := RandomNumberGenerator.new()  # (its own, so a seeded run stays the same)
+	rng.seed = hash(from)
+	var color: Color = [Color("e8604c"), Color("f6c66f"), Color("a9c8e8"), Color("b9a6dc")][rng.randi() % 4]
+	b.box(Vector3(0.0, 0.0, 0.0), Vector3(0.22, 0.5, 0.2), color)
+	b.box(Vector3(0.0, -0.3, -0.15), Vector3(0.22, 0.18, 0.45), color)
+	b.box(Vector3(0.0, 0.2, 0.0), Vector3(0.24, 0.1, 0.22), Color("fbf8f1"))
+	var sock := MeshInstance3D.new()
+	sock.name = "Sock"
+	sock.mesh = b.commit()
+	sock.material_override = Art.material()
+	sock.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sock.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	p.node.add_child(sock)
+	sock.position = from
+	var land := from + Vector3(rng.randf_range(-1.0, 1.0), 0.0, -1.5)
+	land.y = EndlessPieces.grid_height(p.placement.id, land.x, land.z) + 0.15
+	var fall := clampf(sqrt(maxf(from.y - land.y, 0.0)) * 0.45, 0.4, 1.4)
+	var tween := sock.create_tween().set_parallel()
+	tween.tween_property(sock, "position", land, fall).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(sock, "rotation", Vector3(rng.randf_range(2.0, 5.0), rng.randf_range(-2.0, 2.0), PI * 0.5), fall)
 
 
 ## Through an arch at speed: a whoosh, a swell of wind and the view widening for a moment.
@@ -452,10 +595,13 @@ func _on_course() -> void:
 
 
 func _on_wind_button() -> void:
-	var winds := [0.0, 1.5, 3.0]
-	var i := winds.find(wind())
-	debug_wind = winds[(i + 1) % winds.size()]
-	_wind_button.text = "Wind %.1f" % wind()
+	var winds := [-1.0, 0.0, 1.5, 3.0]
+	debug_wind = winds[(winds.find(debug_wind) + 1) % winds.size()]
+	_wind_button.text = _wind_label()
+
+
+func _wind_label() -> String:
+	return "Wind rising" if debug_wind < 0.0 else "Wind %.1f" % debug_wind
 
 
 # --- Screens ------------------------------------------------------------------------
@@ -465,7 +611,7 @@ func _setup_endless_ui() -> void:
 	_course.pressed.connect(_on_course)
 	if OS.is_debug_build():
 		_wind_button = Button.new()
-		_wind_button.text = "Wind %.1f" % wind()
+		_wind_button.text = _wind_label()
 		_wind_button.custom_minimum_size = Vector2(180, 64)
 		_wind_button.add_theme_font_size_override("font_size", 26)
 		_wind_button.pressed.connect(_on_wind_button)

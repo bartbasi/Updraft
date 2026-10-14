@@ -317,3 +317,127 @@ forming around you.
 - **Not done from the reviews (later):** the hands-off, middle and star-chaser pilots in
   endless_log for the step 2 novice marks; wind 3.0 batch; the content and mesh steps could be
   split further if the phone shows dropped frames.
+
+## Endless step 2: pace and variety (built)
+
+What's in (docs/endless-plan.md §10.2):
+
+- **The rising wind**: T = lerp(1.0, 3.0) over 0-1,000 m, then +0.1 per 100 m up to 3.5
+  (`EndlessGame.wind_at()`, Tuning `endless_wind_start/_full/_rise/_max`). Full difficulty at
+  1,000 m. The debug button on the card now cycles rising / 0 / 1.5 / 3.0.
+- **Recentring**: past world z -4,600 the whole world moves 42 tiles (4,032 u) toward +z between
+  two physics ticks: pieces (zones ride along), stars, clouds, birds, the flyer (and its string),
+  the camera, the gull, the test pilot's line. `EndlessWorld.shift` keeps tiles, distance and the
+  wrong-way check in the original coordinates. Thermal wisps (world-space particles) are refilled
+  in place, already spread through the air.
+- **Six pieces**: Pasture, Washing Lines, Poplar Row, Dutch Barn, Standing Stones, Mere.
+- **The best-distance bunting**: pennants across the valley where your best run ended (hung in
+  whichever piece holds that spot), a chime and "Past your best!" once per run as you cross.
+- **Calibration re-measured with the wind each distance brings** (1.0 at d 0, 2.0 at d 0.5, 3.0 at
+  d 1), entering at each piece's need, at 18 and at 26. The table's outs sit a little under the
+  measurements; the tool now waits for the pilot to finish circling before reading the height.
+- **How to fly** gains the rising wind, low warm air, the copper's steam, the solid new pieces,
+  the washing, the Mere and its splashdown, and the bunting.
+
+Deviations from the plan (all mine, from calibration):
+
+- **Low warm layers.** The Pasture's hedge-hop and the Washing Lines' duck-under were impossible on
+  a glide (3-4 u lost between hedges or lines), so both have a weak box of rising air under 9 / 7 u
+  (about 0.75 u/s up: it roughly holds a glide level). Above it the safe line sinks as usual.
+- **Pasture**: hedges at z -32 / -56 / -80 (not -24 / -50 / -76) so there's room to dive to the
+  first; the bonfire on the line at (0, -90), smoke R 5.5, peak 7.5 (plan 4.5 / 6.5), smoke stars up
+  the climb a pilot really makes. Skim over the hedge tops lerp(3.0, 2.25) (plan 2.0 at d 1 would
+  sit exactly 2 u from the hedge, against the stars' 2 u rule).
+- **Washing Lines**: lines at z -36 / -52 / -68; the wash-house chimney's plume became a **washing
+  copper's steam** wide enough to circle (R 8, peak 4.5, drifts like a thermal) with a spiral of
+  stars, because a straight pass through an R 4 plume gave 7-8 u out against the plan's 14. Over the
+  lines: 3 "alt" stars (not counted in the star share).
+- **Poplar Row**: a second street after the row (z -58..-92) as well as the one before, so the
+  piece has lift after the gap (otherwise ~6 u out). Trees are spaced every 4 u outward from the
+  gap's two sides, so at d 1 no second, narrower gap opens beside it.
+- **Dutch Barn**: at z -44..-64 (plan -40..-60), the heap thermal at (0, -78); the dive's first
+  stars start from the entry height when entering low; the stars out of the barn became a spiral
+  up the heap; 3 alt stars over the roof.
+- **Standing Stones**: ring radius 14 (plan 12) for 6 u gates between 2 u stones, centred at
+  z -56. With 11 stones, straight across from a gate is a stone, so the way out is the gate just
+  left of straight ahead, and the thermal stands 26 u beyond it.
+- **Mere**: the water itself is solid, so touching it is a splashdown ("Splashdown on the Mere");
+  the sink is a box over the water at lerp(0.4, 0.6) u/s.
+- **High lines.** Pieces whose bold line dives to a low opening (Washing, Barn, Stones) have a
+  second ideal line over the top for entries at 21 or above (`Kit.high_points`,
+  `EndlessPieces.HIGH_FROM`). Test pilots get both and take one just before the piece, by the
+  height they really have (and the high one whenever the dive would be steeper than about 19°).
+- **The generator looks two pieces ahead.** With low-exit pieces (Washing then Pasture) a
+  one-piece look-ahead could corner the run into repeating the rescue street. It now tries picks
+  in the usual weighted order and takes the first that leaves a fair choice two pieces on
+  (`LOOK_AHEAD`); its look-ahead also respects each piece's first distance.
+- **Tools**: `endless_log --from=500` flies as if the run began 500 m along; `--pilot=handsoff`
+  never touches the controls; the summary counts runs that flew 10 and 20 pieces; `--calibrate
+  --piece=ID` (without --quiet) prints that piece's events.
+
+## Endless step 2: after the code review and fun review 6
+
+Code review (approved, two should-fixes, done):
+
+- **Recentring and physics**: the moved pieces' bodies are pushed to the physics server at once, so
+  the flyer's move in the same tick meets the ground where it now is (a test checks the ground is
+  under the flyer in the very tick of a recentre; it fails without the fix).
+- **Wisps on a recentre** get 1.5 s of head start (not their whole life), only within 200 u.
+- Nits: `shift` cleared in `setup()` and at every `start_run()`; `terrain_height` passes the
+  unshifted z to the Course; the sock has its own RNG; the stars' recentre comment.
+
+Fun review 6 (sent back; all items addressed):
+
+1. **Stars show the line for your height.** At a two-line piece's entry the game decides by the
+   flyer's height (`Kit.takes_high()`: at or above `HIGH_FROM`, or a dive to the low line's lowest
+   point steeper than `STEEPEST_DIVE` 0.35). Low: the high line's stars are hidden and can't be
+   taken. High: the low line's dim and are alt. Before the entry the high line's are alt.
+2. **High lines rarer**: Washing, Barn and Stones weigh ×0.25 when the good pilot's height is 21+
+   (`HIGH_ENTRY_WEIGHT`); the over-the-washing stars step down 12.5 / 11.5 / 10.5.
+3. **The spiral** (broken since step 1): strong thermals topped out the pilot in half a lap, before
+   the 120° anchor, and stars were laid above where climbs end. Now: laid after 45° of turning
+   while circling at least 3.5 u out (`SPIRAL_FROM_MIDDLE`), never above top − 2.5. The copper's
+   column is R 10 (R 8 was narrower than the pilot's circle).
+4. **Lift off the middle line**: bonfire (7, −90), copper (9, −84), island (−10, −58), poplar
+   streets 10 wide; the hedge-hop stars step 0 / 2.5 / 5 toward the bonfire, the under-washing
+   stars 0 / 1.5 / 3 toward the copper, the smoke stars on the traced climb.
+5. **First stars**: no hedge-hop star before hedge 1; the Mere's arc from (0, 15, −22), 7 stars; the
+   poplar gap's first two at 11 / 10.5; the stones' way in from z −28. Arcs that lead down from the
+   entry (barn dive, stones, poplar gap, Mere) slide their first stars lower when the flyer enters
+   lower than they were laid for (`EndlessStars.fit_to_entry()`; never higher). Ideal lines fixed
+   for the barn dive (down the stars), the Mere and the poplar gap.
+6. **Tools**: `--pilot=chaser|nocircle|middle` (FirstTimer, tests/first_timer.gd); star pickups
+   count as events in the dead-air gaps.
+7. How to fly ("skim", "fly over them", the stars-show-your-line sentence); the ground under the
+   warm layers tinted hay-gold; the stones' line lined up through the exit gate. **Not done**: the
+   Pasture's exit stays 13 / 11 (the smoke stars now reach about 12.5; a straight pass through the
+   smoke can't give 15 without circling it).
+8. **The breeze freshens**: a gust and "The breeze is freshening" at 250, 500 and 1,000 m (rising
+   wind only); the wind bed +2 dB from T 1 to T 3.
+
+Also: the barn's door at d 1 is 6.5 × 6.5 (was 6 × 5.5) and its dive's last star at through + 0.5,
+after chasers still clipped the lintel late in runs; the washing sheets drawn both ways round.
+
+Measured after (20 runs each, 420 s; shaky from 500 m 300 s):
+
+| Pilot | Result |
+|---|---|
+| Skilled | all 420 s, stars median 88-90% (82-93%) |
+| Shaky | all 420 s, 86-87%; from 500 m all 300 s, 82-86% |
+| Chaser / no-circle | 40 of 40 flew 420 s; 0 barn endings |
+| Hands-off | median ~130 s (65-238), 3 of 20 past 12 pieces |
+| Middle-flyer | median ~140 s (65-246) |
+| Spirals (skilled) | Barley 93-97% (31 of 35, 38 of 41 full), copper 100%, heap 93%, island 100% |
+| Low line flown (skilled) | Barn 15 of 18, Washing 17 of 21, Stones: high line has no stars |
+| First stars (skilled) | hedge-hop 85% / 64%, barn dive 40-47%, Mere 59-61%, poplar gap 35-62% (all full from a typical entry in traces; the misses are high or circling entries) |
+
+Follow-up code review (approved): the barn's round door edges sat 0.3 u inside the drawn frame
+(the cylinders were centred on the cut, not just outside it); now the solid doorway is the drawn
+one plus the grace on every side (a test checks both, at d 0 and 1). New unit tests cover the
+two-line stars, fit_to_entry, takes_high, the spiral waiting until you circle out from the middle,
+and the freshening cue. A piece counts as entered only once it is spawned. `from_entry` is clamped
+to its arc; tools starting further on (--from) skip the freshening marks already passed.
+Fun review 6 re-check: approved, with revised marks (hands-off median 45-150 s, at most 3 of 20
+past 12 pieces, none past 20; first stars recorded, each arc full in calibration from need and 18).
+Step 3 follow-ups from it: the Standing Stones' 0-of-9 run after a spiral across the join, and the
+Mere's middle stars.

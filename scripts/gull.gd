@@ -150,6 +150,13 @@ func set_lifts(p_lifts: Array[Thermal]) -> void:
 		set_physics_process(true)
 
 
+## Moves the gull by `offset` (Endless recentring its world).
+func shift_by(offset: Vector3) -> void:
+	global_position += offset
+	_start += offset
+	reset_physics_interpolation()
+
+
 ## Forgets every ridge met (a new run) and goes back to waiting, out of sight.
 func reset() -> void:
 	_met.clear()

@@ -4,11 +4,14 @@ extends SceneTree
 ## Scripted test flights through Endless with a readable log, for judging it without a phone.
 ##   godot --headless --fixed-fps 60 --path . -s res://tools/endless_log.gd -- [options]
 ## Options:
-##   --pilot=skilled|shaky|novice   who flies (default skilled)
+##   --pilot=skilled|shaky|novice|handsoff|chaser|nocircle|middle   who flies (default skilled;
+##                                  handsoff never touches the controls: the floor for a first-timer's
+##                                  runs; chaser, nocircle and middle don't know the lines: FirstTimer)
 ##   --runs=N                       number of flights (default 1)
 ##   --seed=S                       first seed (default 1); each run's country and pilot use seed + run
 ##   --wind=W                       the tailwind (default Tuning's)
 ##   --max=SECONDS                  stop a flight after this long (default 600)
+##   --from=METRES                  fly as if the run had begun this far along (difficulty, wind)
 ##   --quiet                        only each run's summary and the totals
 ##   --calibrate                    fly each piece alone instead (see _calibrate())
 ##   --piece=ID                     with --calibrate, only this piece
@@ -22,6 +25,7 @@ var _runs := 1
 var _seed := 1
 var _wind := -1.0
 var _max := 600.0
+var _from := 0.0
 var _quiet := false
 var _calibrate_mode := false
 var _piece := ""  ## --piece=ID: calibrate only this piece.
@@ -39,6 +43,8 @@ func _initialize() -> void:
 			_seed = int(arg.trim_prefix("--seed="))
 		elif arg.begins_with("--wind="):
 			_wind = float(arg.trim_prefix("--wind="))
+		elif arg.begins_with("--from="):
+			_from = float(arg.trim_prefix("--from="))
 		elif arg.begins_with("--max="):
 			_max = float(arg.trim_prefix("--max="))
 		elif arg == "--quiet":
@@ -76,12 +82,18 @@ func fly(run_seed: int, kind: String, verbose: bool) -> Dictionary:
 	var game: EndlessGame = load(EndlessGame.SCENE).instantiate()
 	root.add_child(game)
 	var plane := game.plane
-	var pilot := Autopilot.fly_endless(game, kind, run_seed)
+	var first_timer := FirstTimer.KINDS.has(kind)
+	var pilot := Autopilot.fly_endless(game, "novice" if kind == "handsoff" or first_timer else kind, run_seed)
+	if kind == "handsoff":
+		game.test_pilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
+	var _first: FirstTimer = FirstTimer.fly_endless(game, kind, run_seed) if first_timer else null  # (kept: a Callable doesn't keep its pilot alive)
 	if kind == "novice":  # circles at most about a lap, then flies on
 		game.world.placed.connect(func(_p: EndlessWorld.Piece) -> void:
 			for o in pilot.orbits:
 				o["max_time"] = minf(float(o["max_time"]), 3.5))
 	game.arc_closed.connect(func(arc: EndlessStars.Arc) -> void:
+		if arc.hidden:
+			return  # the other line's, never shown
 		var row: Array = _arc_stats.get(arc.name, [0, 0, 0, 0])
 		row[0] += arc.stars.filter(func(s: EndlessStars.Star) -> bool: return s.taken).size()
 		row[1] += arc.stars.size()
@@ -96,6 +108,7 @@ func fly(run_seed: int, kind: String, verbose: bool) -> Dictionary:
 		row[4] = by_star
 		_arc_stats[arc.name] = row)
 	game.next_seed = run_seed
+	game.start_m = _from
 	game.start_run(false)
 	var log := []
 	var state := {"last": 0.0, "dead": 0.0, "gaps": []}
@@ -110,9 +123,16 @@ func fly(run_seed: int, kind: String, verbose: bool) -> Dictionary:
 		var p := plane.global_position
 		log.append("%6.1f  %-46s  (%5.1f, %5.1f, %7.1f)  h %5.1f" % [t, text, p.x, p.y - EndlessWorld.FLOOR_Y, p.z, p.y - game.world.terrain_height(p.x, p.z)]))
 	var frames := 0
+	var stars_seen := 0
 	while not game._ended and plane.flight_time < _max and frames < int(_max * 60.0) + 600:
 		await physics_frame
 		frames += 1
+		if game.stars_run != stars_seen:  # a star is something happening too (no line for it)
+			stars_seen = game.stars_run
+			var t := plane.flight_time
+			(state["gaps"] as Array).append(t - float(state["last"]))
+			state["dead"] = maxf(float(state["dead"]), t - float(state["last"]))
+			state["last"] = t
 	var stars_total := 0
 	for arc in game.world.stars.arcs:
 		stars_total += arc.stars.size()
@@ -152,6 +172,8 @@ stars by arc:")
 	var crashes := 0
 	var past_3 := 0
 	var flew_12 := 0
+	var flew_10 := 0
+	var flew_20 := 0
 	for r in results:
 		times.append(r["time"])
 		metres.append(r["metres"])
@@ -162,17 +184,21 @@ stars by arc:")
 			past_3 += 1
 		if int(r["pieces"]) > 12 or (int(r["pieces"]) == 12 and r["ending"] == "still flying"):
 			flew_12 += 1
+		if int(r["pieces"]) >= 10:
+			flew_10 += 1
+		if int(r["pieces"]) >= 20:
+			flew_20 += 1
 	times.sort()
 	metres.sort()
 	shares.sort()
-	print("\n%d runs: time median %.1f s (%.1f-%.1f), distance median %d m (%d-%d), stars taken median %.0f%% (%.0f-%.0f%%), %d crashes, %d got past 3 pieces, %d flew 12" % [
+	print("\n%d runs: time median %.1f s (%.1f-%.1f), distance median %d m (%d-%d), stars taken median %.0f%% (%.0f-%.0f%%), %d crashes, %d got past 3 pieces, %d flew 12 (%d flew 10, %d flew 20)" % [
 		results.size(), times[times.size() / 2], times[0], times[-1], metres[metres.size() / 2], metres[0], metres[-1],
-		100.0 * shares[shares.size() / 2], 100.0 * shares[0], 100.0 * shares[-1], crashes, past_3, flew_12])
+		100.0 * shares[shares.size() / 2], 100.0 * shares[0], 100.0 * shares[-1], crashes, past_3, flew_12, flew_10, flew_20])
 
 
 ## --calibrate (docs/endless-plan.md §2.4, mark 5): the skilled pilot flies each piece on its own, at
-## difficulty 0, 0.5 and 1, wind 0, 1.5 and 3, entering at the piece's need and at 26 (above the
-## floor), and the log gives, for each: the height it left at (against the generator's table), the
+## difficulty 0, 0.5 and 1, each in the wind it has that far along (1.0, 2.0 and 3.0; or --wind's),
+## entering at the piece's need, at 18 and at 26 (above the floor), and the log gives, for each: the height it left at (against the generator's table), the
 ## lowest it came over the ground, the closest it came to anything solid, its stars, and any
 ## touchdown, crash or snag. A piece is followed by two Cloud Streets so there is ground to fly on.
 func _calibrate() -> void:
@@ -182,19 +208,20 @@ func _calibrate() -> void:
 		if id == &"rim" or (_piece != "" and String(id) != _piece):
 			continue
 		for d in [0.0, 0.5, 1.0]:
-			for wind in [0.0, 1.5, 3.0]:
-				for h_in in [EndlessPieces.need_in(id, d), 26.0]:
-					var r: Dictionary = await _calibrate_one(id, d, wind, h_in)
-					var table := EndlessPieces.out(id, d, h_in)
-					var diff: float = r["out"] - table
-					print("%-9s %.1f  %.1f  %4.1f  %4.1f (%4.1f)  %+5.1f  %5.1f  %6.1f  %2d/%-2d  %s" % [id, d, wind, h_in, r["out"], table, diff,
-						r["lowest"], r["nearest"], r["taken"], r["stars"], r["events"]])
-					var w: Dictionary = worst.get(id, {"diff": 0.0, "lowest": INF, "nearest": INF})
-					if absf(diff) > absf(w["diff"]):
-						w["diff"] = diff
-					w["lowest"] = minf(w["lowest"], r["lowest"])
-					w["nearest"] = minf(w["nearest"], r["nearest"])
-					worst[id] = w
+			var tune := Tuning.new()
+			var wind := _wind if _wind >= 0.0 else EndlessGame.wind_at(tune, d * tune.endless_full_distance_m)
+			for h_in in [EndlessPieces.need_in(id, d), 18.0, 26.0]:
+				var r: Dictionary = await _calibrate_one(id, d, wind, h_in)
+				var table := EndlessPieces.out(id, d, h_in)
+				var diff: float = r["out"] - table
+				print("%-9s %.1f  %.1f  %4.1f  %4.1f (%4.1f)  %+5.1f  %5.1f  %6.1f  %2d/%-2d  %s" % [id, d, wind, h_in, r["out"], table, diff,
+					r["lowest"], r["nearest"], r["taken"], r["stars"], r["events"]])
+				var w: Dictionary = worst.get(id, {"diff": 0.0, "lowest": INF, "nearest": INF})
+				if absf(diff) > absf(w["diff"]):
+					w["diff"] = diff
+				w["lowest"] = minf(w["lowest"], r["lowest"])
+				w["nearest"] = minf(w["nearest"], r["nearest"])
+				worst[id] = w
 	print("\nworst by piece: out vs table, lowest over the ground, nearest to a solid")
 	for id in worst:
 		var w: Dictionary = worst[id]
@@ -206,11 +233,14 @@ func _calibrate_one(id: StringName, d: float, wind: float, h_in: float) -> Dicti
 	var game: EndlessGame = load(EndlessGame.SCENE).instantiate()
 	root.add_child(game)
 	var plane := game.plane
-	Autopilot.fly_endless(game, "skilled", 1)
+	var pilot := Autopilot.fly_endless(game, "skilled", 1)
 	game.calibration = {"pieces": [id, &"street", &"street"], "d": d, "h": h_in}
 	game.start_run(false)
 	var events := PackedStringArray()
 	game.note.connect(func(text: String) -> void:
+		if not _quiet and _piece != "":  # one piece: its whole story
+			var at := plane.global_position
+			print("    %5.1f  %-40s (%5.1f, %5.1f, %6.1f)" % [plane.flight_time, text, at.x, at.y - EndlessWorld.FLOOR_Y, at.z - EndlessWorld.tile_origin(0).z])
 		if text.begins_with("snag") or text.begins_with("bump") or text.begins_with("ended"):
 			events.append(text.get_slice(" (", 0)))
 	var end_z := EndlessWorld.tile_origin(0).z - EndlessPieces.length(id)
@@ -221,7 +251,8 @@ func _calibrate_one(id: StringName, d: float, wind: float, h_in: float) -> Dicti
 	query.shape = ball
 	query.collision_mask = Flyer.WORLD_LAYER
 	var frames := 0
-	while plane.global_position.z > end_z and not game._ended and frames < 60 * 90:
+	# (until past the piece's end and done circling: a climb that carries on over the edge counts)
+	while (plane.global_position.z > end_z or pilot._orbiting) and not game._ended and frames < 60 * 90:
 		await physics_frame
 		frames += 1
 		if plane.held:

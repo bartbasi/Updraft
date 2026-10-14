@@ -187,7 +187,7 @@ func test_the_guide_matches_the_game() -> void:
 	check(text.contains("%d points for every second in the air outdoors, up to %d seconds" % [int(tune.airtime_points_per_second), int(tune.airtime_max_seconds)]), "airtime points")
 	check(text.contains("big stars are worth %d" % tune.big_star_value) and text.contains("(+%d)" % tune.arc_bonus), "star values")
 	check(text.contains("%d points for every metre and %d for every star" % [EndlessGame.POINTS_PER_METRE, tune.points_per_star]), "Endless's score")
-	for piece in ["barley field", "viaduct"]:
+	for piece in ["barley field", "viaduct", "washing", "poplars", "barn", "standing stones", "mere", "bunting"]:
 		check(text.contains(piece), "mentions the %s" % piece)
 
 

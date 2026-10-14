@@ -53,6 +53,14 @@ func _kick_now(delta: float) -> float:
 	return _kick * (1.0 - smoothstep(0.0, 1.0, (_kick_time - up) / down))
 
 
+## Moves the camera and everything it eases toward by `offset` (Endless recentring its world).
+func shift_by(offset: Vector3) -> void:
+	global_position += offset
+	_follow += offset
+	_look += offset
+	_intro_eye += offset
+
+
 ## Jumps straight to the resting spot behind the plane.
 func snap() -> void:
 	_base_fov = _wanted_fov()

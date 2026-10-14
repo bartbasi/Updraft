@@ -20,6 +20,8 @@ const GOLD := Color("e0a63c")
 var _ended := false
 var _wind: AudioStreamPlayer
 var _wind_db := -40.0  ## The wind's loudness from airspeed, before any swell on top.
+## Decibels added to the wind bed (Endless: louder as the breeze freshens).
+var wind_bed_db := 0.0
 var _swell_db := 0.0  ## A short swell of wind on top (bursting out of the window).
 var _swell_fade := 1.0  ## Decibels per second the swell dies away.
 var _chime: AudioStreamPlayer
@@ -233,7 +235,7 @@ func _update_wind_and_debug(delta: float) -> void:
 	var volume := linear_to_db(maxf(lerpf(tune.wind_quiet, tune.wind_loud, t), 0.001)) if not plane.is_ended() else -50.0
 	_wind_db = lerpf(_wind_db, volume, 1.0 - exp(-tune.wind_swell_rate * delta))
 	_swell_db = maxf(_swell_db - _swell_fade * delta, 0.0) if not plane.is_ended() else 0.0
-	_wind.volume_db = minf(_wind_db + _swell_db, tune.wind_max_db)
+	_wind.volume_db = minf(_wind_db + wind_bed_db + _swell_db, tune.wind_max_db)
 	_wind.pitch_scale = lerpf(_wind.pitch_scale, lerpf(tune.wind_pitch_low, tune.wind_pitch_high, t), 1.0 - exp(-tune.wind_pitch_rate * delta))
 	if _fps:
 		_fps_timer -= delta

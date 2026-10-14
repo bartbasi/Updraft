@@ -31,6 +31,12 @@ var orbits: Array[Dictionary] = []
 ## re-centres on the beeps; a naive pilot keeps circling where the thermal first was.
 var naive_orbits := false
 
+## Endless: the line in parts, a piece each (see extend()), how far before a piece with a choice
+## of lines the pilot takes one, and the steepest dive (height lost per unit along) it will try
+## to get down to a low line's lowest point.
+var _parts: Array[Dictionary] = []
+const CHOOSE_AHEAD := 10.0
+const STEEPEST_DIVE := 0.35
 var _orbit := 0  ## The next circle to fly.
 var _orbiting := false
 var _orbit_time := 0.0  ## Seconds into the current circle (the pilot flies every physics tick).
@@ -56,14 +62,33 @@ static func fly_endless(game: EndlessGame, kind: String, p_seed: int) -> Autopil
 	var world: EndlessWorld = game.get_node("World")
 	game.test_pilot = pilot.fly
 	game.run_started.connect(pilot.restart)
-	world.placed.connect(func(p: EndlessWorld.Piece) -> void: pilot.extend(world.line_for(p), world.orbits_for(p)))
+	world.placed.connect(func(p: EndlessWorld.Piece) -> void: pilot.extend(world.line_for(p), world.orbits_for(p), world.line_choice(p)))
+	world.recentred.connect(pilot.shift)
 	return pilot
+
+
+## Endless recentred its world: the line, its parts and the circles move with it, `by` toward +z.
+func shift(by: float) -> void:
+	for i in line.size():
+		line[i].z += by
+	for part in _parts:
+		for key in ["points", "low", "high"]:
+			if part.has(key):
+				var points: PackedVector3Array = part[key]
+				for i in points.size():
+					points[i].z += by
+				part[key] = points
+		if part.has("z"):
+			part["z"] = float(part["z"]) + by
+	for o in orbits:
+		o["centre"] = (o["centre"] as Vector2) + Vector2(0.0, by)
 
 
 ## Starts afresh at `from`, heading on (toward -Z), with no line ahead yet and no circles to fly.
 func restart(from: Vector3) -> void:
 	line = PackedVector3Array([from, from + Vector3(0.0, -0.1, -1.0)])
 	lengths = Scoring.arc_lengths(line)
+	_parts = [{"points": line.duplicate()}]
 	orbits.clear()
 	_orbit = 0
 	_orbiting = false
@@ -72,11 +97,40 @@ func restart(from: Vector3) -> void:
 
 
 ## Endless: more line to follow (and circles to fly on it) as the next piece is placed. Points
-## behind the line's end are skipped, as when the course's parts are joined.
-func extend(points: PackedVector3Array, more_orbits: Array[Dictionary] = []) -> void:
+## behind the line's end are skipped, as when the course's parts are joined. A piece with a choice
+## of lines ({z: its entry, high_from: a height, low, high}: see EndlessWorld.line_choice()) is
+## flown by whichever suits the height the pilot really has as it gets there (see _choose_lines()).
+func extend(points: PackedVector3Array, more_orbits: Array[Dictionary] = [], choice := {}) -> void:
+	var part := {"points": points}
+	if not choice.is_empty():
+		part.merge(choice)
+	_parts.append(part)
 	line = _join(line, points)
 	lengths = Scoring.arc_lengths(line)
 	orbits.append_array(more_orbits)
+
+
+## Just before a piece with a choice of lines, takes the one for the height the pilot has now
+## (above high_from, the high line), and joins the whole line afresh if that changes it. Not while
+## circling: a climb that drifts on over the edge decides it.
+func _choose_lines(at: Vector3) -> void:
+	if _orbiting:
+		return
+	var changed := false
+	for part in _parts:
+		if not part.has("z") or part.has("chosen") or at.z > float(part["z"]) + CHOOSE_AHEAD:
+			continue
+		part["chosen"] = true
+		var want: PackedVector3Array = part["high"] if at.y >= float(part["high_from"]) or _too_steep(at, part["low"]) else part["low"]
+		if want != part["points"]:
+			part["points"] = want
+			changed = true
+	if changed:
+		line = PackedVector3Array()
+		for part in _parts:
+			line = _join(line, part["points"])
+		lengths = Scoring.arc_lengths(line)
+		_segment = -1
 
 
 ## A test pilot for Endless: "skilled" (steady hands), "shaky" (a skilled line with wobbly hands and
@@ -306,6 +360,16 @@ func _find_zone(plane: Flyer, zone_name: String) -> Thermal:
 	return null
 
 
+## Whether getting down from `at` to the lowest point ahead on `low` would take a dive steeper
+## than STEEPEST_DIVE.
+func _too_steep(at: Vector3, low: PackedVector3Array) -> bool:
+	var lowest := Vector3(0.0, INF, 0.0)
+	for q in low:
+		if q.z < at.z and q.y < lowest.y:
+			lowest = q
+	return lowest.y < INF and at.y - lowest.y > STEEPEST_DIVE * (at.z - lowest.z)
+
+
 ## The point `s` units along the line (clamped to its ends).
 func point_at(s: float) -> Vector3:
 	var total := lengths[lengths.size() - 1]
@@ -319,6 +383,8 @@ func point_at(s: float) -> Vector3:
 
 func fly(plane: Flyer) -> Vector2:
 	var p := plane.global_position
+	if not _parts.is_empty():
+		_choose_lines(p)
 	var aim := _orbit_aim(plane)
 	if not _orbiting:
 		# The first time, search the whole line (the pilot may start anywhere); then only nearby.

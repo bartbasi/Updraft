@@ -80,6 +80,7 @@ var _fade := 1.0  ## 1 while the lift is whole, down to 0 once it has faded.
 var _fade_time := 0.0
 
 var _wisps: CPUParticles3D
+const REFILL_SECONDS := 1.5
 
 var sinks: bool:
 	get:
@@ -160,6 +161,15 @@ func drift_with_wind(delta: float, plane_at: Vector3, wind: float, tuning: Tunin
 		_fade = 1.0 - smoothstep(0.0, maxf(tuning.endless_thermal_fade, 0.01), _fade_time)
 		if _fade <= 0.0 and _wisps:
 			_wisps.emitting = false
+
+
+## Endless moved the world: the wisps already in the air stayed behind (they live in world space),
+## so start them afresh, already spread a little way through the air (a short head start keeps
+## the work in that one frame small).
+func refill_wisps() -> void:
+	if _wisps and _wisps.emitting:
+		_wisps.preprocess = minf(_wisps.lifetime, REFILL_SECONDS)
+		_wisps.restart()
 
 
 ## True once this air has started to fade (Endless).

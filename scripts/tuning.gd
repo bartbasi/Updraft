@@ -367,10 +367,19 @@ extends Resource
 ## The tailwind in Endless (u/s toward -Z): the air carries the flyer along on top of its own
 ## flight, fading out within `endless_wind_ground_fade` of the ground so slides and landings look as
 ## they do in the Course. The flight model is untouched. Zero everywhere in the Course.
-@export var endless_wind := 1.5
+## It rises with distance: from `endless_wind_start` at the start to `endless_wind_full` at
+## `endless_full_distance_m`, then `endless_wind_rise` more each 100 m up to `endless_wind_max`.
+@export var endless_wind_start := 1.0
+@export var endless_wind_full := 3.0
+@export var endless_wind_rise := 0.1
+@export var endless_wind_max := 3.5
 @export var endless_wind_ground_fade := 4.0
 ## Difficulty reaches 1 at this many metres.
-@export var endless_full_distance_m := 400.0
+@export var endless_full_distance_m := 1000.0
+## Recentring: once the flyer passes this world z, the whole world moves this far back toward +z
+## (a whole number of tiles), so positions stay small enough for the phone's floats.
+@export var endless_recentre_z := -4600.0
+@export var endless_recentre_tiles := 42
 ## A piece is placed only if its need is at least this far below the height a good pilot is sure
 ## to have (x at difficulty 0, y at difficulty 1).
 @export var endless_margin := Vector2(6.0, 3.0)

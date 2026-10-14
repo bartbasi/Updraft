@@ -8,7 +8,8 @@ extends Node3D
 ## ring of far hills that keeps pace, the stars, clouds and birds, and the moving air: thermals
 ## drift with the wind once you reach them, and fade once they have drifted their life.
 ## The world keeps the Course's coordinates: the valley floor is at y FLOOR_Y, and tile i starts
-## at z START_Z - 96 i, just past the bowl's far rim.
+## at z START_Z - 96 i, just past the bowl's far rim, until the world is recentred (recentre()):
+## then everything has moved `shift` toward +z, and the static helpers here allow for it.
 
 const START_Z := -528.0  ## Where tile 0 (the Rim) begins: the Course's far edge.
 const FLOOR_Y := 40.0  ## The valley floor.
@@ -24,6 +25,10 @@ const BUILD_BUDGET_USEC := 3000
 ## A piece is in the world (spawned, in order, a few tiles ahead of the plane): its line and
 ## circles are known (line_for(), orbits_for()).
 signal placed(piece: Piece)
+## Everything has moved `by` toward +z (see recentre()).
+signal recentred(by: float)
+## On a recentre, only zones this near the flyer (z, after the move) refill their wisps.
+const REFILL_NEAR := 200.0
 
 ## One piece placed in the world.
 class Piece:
@@ -52,11 +57,15 @@ var stars: EndlessStars
 var sky: EndlessSky
 var _backdrop: Node3D
 var _hills: Node3D
+static var _boat: ArrayMesh
 var _seed := 1
+## How far the world has been moved toward +z since the run began (see recentre()).
+static var shift := 0.0
 
 
 func setup(p_tuning: Tuning) -> void:
 	tuning = p_tuning
+	shift = 0.0
 	stars = EndlessStars.new()
 	stars.name = "Stars"
 	stars.tuning = tuning
@@ -71,8 +80,9 @@ func setup(p_tuning: Tuning) -> void:
 
 ## Starts a new country from `p_seed`: the old pieces go, and the first few are placed at once.
 ## `with_backdrop` draws the bowl behind the start (a fresh scene; a retry keeps what it has).
-func reset(p_seed: int, with_backdrop: bool, forced: Array[StringName] = [], forced_d := -1.0, forced_h := 0.0) -> void:
+func reset(p_seed: int, with_backdrop: bool, forced: Array[StringName] = [], forced_d := -1.0, forced_h := 0.0, metres_offset := 0.0) -> void:
 	_seed = p_seed
+	shift = 0.0
 	for p in pieces:
 		if is_instance_valid(p.node):
 			p.node.free()
@@ -83,6 +93,7 @@ func reset(p_seed: int, with_backdrop: bool, forced: Array[StringName] = [], for
 	generator.forced = forced
 	generator.forced_d = forced_d
 	generator.forced_h = forced_h
+	generator.metres_offset = metres_offset
 	if with_backdrop and _backdrop == null:
 		_backdrop = _build_backdrop()
 		add_child(_backdrop)
@@ -92,16 +103,21 @@ func reset(p_seed: int, with_backdrop: bool, forced: Array[StringName] = [], for
 
 ## The tile a world z is on (tile 0 is the Rim; negative before it).
 static func tile_at(z: float) -> int:
-	return floori((START_Z - z) / TILE)
+	return floori((START_Z - (z - shift)) / TILE)
 
 
 static func tile_origin(tile: int) -> Vector3:
-	return Vector3(0.0, FLOOR_Y, START_Z - TILE * tile)
+	return Vector3(0.0, FLOOR_Y, START_Z - TILE * tile + shift)
 
 
 ## Metres along the valley from the start point (4 units to the metre).
 static func metres(z: float) -> float:
-	return maxf(START.z - z, 0.0) / 4.0
+	return maxf(START.z - (z - shift), 0.0) / 4.0
+
+
+## A world z as it was before any recentring (the Course's coordinates).
+static func unshifted(z: float) -> float:
+	return z - shift
 
 
 ## Each physics tick: keeps pieces placed from one tile behind the plane to a few ahead (at most
@@ -156,12 +172,22 @@ func piece_at(z: float) -> Piece:
 
 ## The ground under a point, as drawn and as it collides (the bowl's before the Rim).
 func terrain_height(x: float, z: float) -> float:
-	if z > START_Z:
-		return Course.terrain_height(x, z)
+	if unshifted(z) > START_Z:
+		return Course.terrain_height(x, unshifted(z))
 	var p := piece_at(z)
 	if p == null:
 		return FLOOR_Y + EndlessPieces.standard(x)
 	return FLOOR_Y + EndlessPieces.grid_height(p.placement.id, x, z - p.origin.z)
+
+
+## The water's surface under a point (world y), or -INF where there is none (the Mere's).
+func water_level(x: float, z: float) -> float:
+	var p := piece_at(z)
+	if p == null or p.kit == null or p.kit.water.is_empty():
+		return -INF
+	var w := p.kit.water
+	var reach := ((Vector2(x, z - p.origin.z) - (w["centre"] as Vector2)) / (w["radii"] as Vector2)).length()
+	return p.origin.y + float(w["y"]) if reach < 1.0 else -INF
 
 
 ## The ridge lifts placed so far (for the gull).
@@ -179,6 +205,22 @@ func line_for(p: Piece) -> PackedVector3Array:
 	for q in p.kit.line(p.placement.h_in):
 		out.append(p.origin + q)
 	return out
+
+
+## For a piece whose line dives to a low opening, both of its lines in world coordinates, so a test
+## pilot can take the one for the height it really arrives at: {z (the entry), high_from (world
+## y), low, high}; otherwise empty.
+func line_choice(p: Piece) -> Dictionary:
+	var k := p.kit
+	if k.high_points.is_empty():
+		return {}
+	var both := {"z": p.origin.z, "high_from": p.origin.y + k.high_from}
+	for which in [["low", minf(p.placement.h_in, k.high_from - 0.01)], ["high", maxf(p.placement.h_in, k.high_from)]]:
+		var out := PackedVector3Array()
+		for q in k.line(which[1]):
+			out.append(p.origin + q)
+		both[which[0]] = out
+	return both
 
 
 ## A piece's circles for the test pilot, in world coordinates, following its zones by name.
@@ -239,9 +281,44 @@ func _spawn(p: Piece) -> void:
 			t.life = lerpf(tuning.endless_thermal_life.x, tuning.endless_thermal_life.y, p.kit.d)
 		p.node.add_child(t)
 		p.zones[spec["name"]] = t
+	for m in p.kit.movers:
+		var mover := PropMotion.new()
+		mover.name = "Sailboat"
+		if _boat == null:
+			_boat = CourseFar.boat_mesh()
+		mover.mesh = _boat
+		p.node.add_child(mover)
+		mover.sail_round(m["centre"], m["radius"], m["speed"], deg_to_rad(10.0))
 	stars.add_piece(p.placement.tile, p.kit.arcs, p.origin, p.zones, p.placement.h_in)
 	sky.add_piece(p.placement.tile, p.kit.clouds, p.kit.birds, p.origin, p.zones)
 	placed.emit(p)
+
+
+## Moves the whole world `by` toward +z, between two physics ticks: the pieces (with their
+## zones, which move with them), the stars, clouds and birds, the far hills and anything else
+## that keeps a world position (the game moves the flyer, camera and gull). Tiles keep their
+## numbers, and distances are unchanged (shift allows for it).
+func recentre(by: float, near_z: float) -> void:
+	shift += by
+	for p in pieces:
+		p.origin.z += by
+		if is_instance_valid(p.node):
+			p.node.position = p.origin
+			p.node.reset_physics_interpolation()
+			# The physics server hears of a moved body only at the end of the tick; tell it now, so
+			# the flyer's move later in this same tick meets the ground where it now is.
+			for child in p.node.get_children():
+				if child is StaticBody3D:
+					PhysicsServer3D.body_set_state(child.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, child.global_transform)
+		for zone: Thermal in p.zones.values():
+			if absf(zone.global_position.z - near_z) < REFILL_NEAR:
+				zone.refill_wisps()
+	stars.recentre(by)
+	sky.recentre(by)
+	if _backdrop != null:
+		_backdrop.queue_free()
+		_backdrop = null
+	recentred.emit(by)  # (the far hills follow at the next update())
 
 
 # --- Scenery beyond the pieces --------------------------------------------------------
@@ -319,4 +396,4 @@ func _build_far_hills() -> Node3D:
 
 
 func _place_hills(tile: int) -> void:
-	_hills.position = Vector3(0.0, FLOOR_Y - 10.0, START_Z - TILE * tile)
+	_hills.position = Vector3(0.0, FLOOR_Y - 10.0, tile_origin(tile).z)

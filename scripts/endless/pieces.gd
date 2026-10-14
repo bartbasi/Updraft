@@ -41,21 +41,33 @@ const CREAM := Color("f3ece2")
 ## rest (asks for no manoeuvre past an obstacle); min_m (the distance it may first come from);
 ## need (the lowest entry height that flies it with room to spare, at d 0 and d 1); and the
 ## height its ideal line leaves at: min(entry + add, cap), each at d 0 and d 1 (add INF: always
-## cap). "fixed" pieces are placed by the opening, never chosen.
+## cap). "fixed" pieces are placed by the opening, never chosen. "high_line": the piece's bold line
+## dives to a low opening, out of reach from this entry height or above (see Kit.high_from). Outs are a little under what the
+## skilled test pilot leaves at in the wind each difficulty brings (1.0 at d 0, 3.0 at d 1):
+## tools/endless_log.gd --calibrate.
 const TABLE := {
 	&"rim": {"tiles": 1, "lift": false, "rest": true, "min_m": 0.0, "fixed": true, "need": Vector2(0.0, 0.0), "add": Vector2(INF, INF), "cap": Vector2(24.0, 24.0)},
-	&"street": {"tiles": 1, "lift": true, "rest": true, "min_m": 0.0, "need": Vector2(4.0, 6.0), "add": Vector2(14.0, 11.0), "cap": Vector2(24.5, 24.5)},
-	&"barley": {"tiles": 1, "lift": true, "rest": true, "min_m": 0.0, "need": Vector2(9.0, 9.0), "add": Vector2(INF, INF), "cap": Vector2(21.0, 17.0)},
-	&"ridge": {"tiles": 2, "lift": true, "rest": true, "min_m": 40.0, "need": Vector2(11.0, 11.0), "add": Vector2(INF, INF), "cap": Vector2(27.5, 27.5)},
-	&"hamlet": {"tiles": 1, "lift": true, "rest": false, "min_m": 30.0, "need": Vector2(11.0, 11.0), "add": Vector2(3.0, 2.0), "cap": Vector2(15.0, 14.5)},
-	&"kites": {"tiles": 1, "lift": false, "rest": false, "min_m": 0.0, "need": Vector2(14.0, 14.0), "add": Vector2(INF, INF), "cap": Vector2(16.0, 16.0)},
-	&"viaduct": {"tiles": 1, "lift": true, "rest": false, "min_m": 75.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(20.5, 17.5)},
+	&"street": {"tiles": 1, "lift": true, "rest": true, "min_m": 0.0, "need": Vector2(4.0, 6.0), "add": Vector2(14.0, 8.5), "cap": Vector2(24.0, 24.0)},
+	&"barley": {"tiles": 1, "lift": true, "rest": true, "min_m": 0.0, "need": Vector2(9.0, 9.0), "add": Vector2(INF, INF), "cap": Vector2(20.5, 17.5)},
+	&"ridge": {"tiles": 2, "lift": true, "rest": true, "min_m": 40.0, "need": Vector2(11.0, 11.0), "add": Vector2(INF, INF), "cap": Vector2(26.5, 27.0)},
+	&"hamlet": {"tiles": 1, "lift": true, "rest": false, "min_m": 30.0, "need": Vector2(11.0, 11.0), "add": Vector2(3.5, 3.5), "cap": Vector2(14.5, 14.5)},
+	&"kites": {"tiles": 1, "lift": false, "rest": false, "min_m": 0.0, "need": Vector2(14.0, 14.0), "add": Vector2(INF, INF), "cap": Vector2(15.5, 15.5)},
+	&"viaduct": {"tiles": 1, "lift": true, "rest": false, "min_m": 75.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(20.5, 19.5)},
+	&"pasture": {"tiles": 1, "lift": true, "rest": false, "min_m": 30.0, "need": Vector2(9.0, 9.0), "add": Vector2(INF, INF), "cap": Vector2(13.0, 11.0)},
+	&"washing": {"tiles": 1, "lift": true, "rest": false, "min_m": 60.0, "need": Vector2(10.0, 10.0), "add": Vector2(INF, INF), "cap": Vector2(18.5, 17.5), "high_line": true},
+	&"poplars": {"tiles": 1, "lift": true, "rest": false, "min_m": 100.0, "need": Vector2(10.0, 10.0), "add": Vector2(INF, INF), "cap": Vector2(15.0, 13.0)},
+	&"barn": {"tiles": 1, "lift": true, "rest": false, "min_m": 120.0, "need": Vector2(10.0, 10.0), "add": Vector2(INF, INF), "cap": Vector2(20.5, 19.5), "high_line": true},
+	&"stones": {"tiles": 1, "lift": true, "rest": false, "min_m": 120.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(20.0, 19.5), "high_line": true},
+	&"mere": {"tiles": 1, "lift": true, "rest": false, "min_m": 200.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(18.0, 19.0)},
 }
 ## Where a run ended, for the end card ("Touchdown in the Hamlet").
 const WHERE := {&"rim": "on the Rim", &"street": "under Cloud Street", &"barley": "in the Barley Field", &"ridge": "on the Long Ridge",
-	&"hamlet": "in the Hamlet", &"kites": "in Kite Meadow", &"viaduct": "at the Viaduct"}
+	&"hamlet": "in the Hamlet", &"kites": "in Kite Meadow", &"viaduct": "at the Viaduct", &"pasture": "in the Pasture",
+	&"washing": "among the Washing Lines", &"poplars": "at Poplar Row", &"barn": "at the Dutch Barn", &"stones": "at the Standing Stones",
+	&"mere": "on the Mere"}
 const NAMES := {&"rim": "The Rim", &"street": "Cloud Street", &"barley": "Barley Field", &"ridge": "Long Ridge",
-	&"hamlet": "Hamlet", &"kites": "Kite Meadow", &"viaduct": "Viaduct"}
+	&"hamlet": "Hamlet", &"kites": "Kite Meadow", &"viaduct": "Viaduct", &"pasture": "Pasture", &"washing": "Washing Lines",
+	&"poplars": "Poplar Row", &"barn": "Dutch Barn", &"stones": "Standing Stones", &"mere": "Mere"}
 
 ## The Barley Field's thermal: centre x from d 0 to d 1, and its middle along the tile.
 const BARLEY_X := Vector2(4.0, 12.0)
@@ -83,6 +95,72 @@ const VIADUCT_PARAPET := 1.2
 const VIADUCT_HALF := 80.0
 const ARCH_X: Array[float] = [-25.0, -12.5, 0.0, 12.5, 25.0]
 const SHINGLE := Vector2(0.0, -82.0)
+## Low warm layers (the Pasture, the gardens): strength at difficulty 0 and 1 (about 0.75 u/s up,
+## roughly holding a glide level).
+const WARM_LAYER := Vector2(0.16, 0.14)
+## The Pasture's hedges: (z, height above the ground), their gates' x, how far they run, and the
+## bonfire whose smoke you climb out on.
+const PASTURE_HEDGES: Array[Vector2] = [Vector2(-32.0, 2.5), Vector2(-56.0, 3.0), Vector2(-80.0, 3.5)]
+const PASTURE_GATES: Array[float] = [-6.0, 8.0, -2.0]
+const PASTURE_FIRE := Vector2(7.0, -90.0)
+## The hedge-hop's stars step across toward the bonfire: their x over each hedge.
+const PASTURE_STAR_X: Array[float] = [0.0, 2.5, 5.0]
+const HEDGE_HALF := 40.0
+const HEDGE_THICK := 1.5
+const HEDGE_DARK := Color("86ad74")
+## The Washing Lines: cottages, lines across the way (z), posts either side, the line's height and
+## where the sheets hang down to, and the washing copper.
+const WASHING_COTTAGES: Array[Vector2] = [Vector2(-18.0, -30.0), Vector2(18.0, -48.0), Vector2(-18.0, -66.0)]
+const WASHING_LINES_Z: Array[float] = [-36.0, -52.0, -68.0]
+const WASHING_POST_X := 10.0
+const WASHING_LINE_Y := 7.5
+const WASHING_SHEET_BOTTOM := 6.0
+const WASHING_COPPER := Vector2(9.0, -84.0)
+## Poplar Row: the row's z, its gap's x and the height to thread it at, how far it runs, the
+## spacing, crown radius (drawn and colliding) and crown from-to heights.
+const POPLAR_Z := -50.0
+const POPLAR_GAP_X := 6.0
+const POPLAR_GAP_Y := 10.0
+const POPLAR_HALF := 42.0
+const POPLAR_SPACING := 4.0
+const POPLAR_R := 1.6
+const POPLAR_HIT_R := 1.4
+const POPLAR_CROWN := Vector2(2.0, 14.0)
+## The Dutch Barn: its near and far ends (z), half its width, its walls' and roof's heights, and
+## the muck heap.
+const BARN_Z := Vector2(-44.0, -64.0)
+const BARN_HALF := 7.0
+const BARN_WALL := 9.0
+const BARN_ROOF := 12.0
+const BARN_RED := Color("c1675a")
+const BARN_HEAP := Vector2(0.0, -78.0)
+## The barn doorways' round edges (radius).
+const DOOR_ROUND := 0.6
+## The Standing Stones: how many, the ring's middle and radius, each stone's size (across, deep),
+## the height to fly through at, and how far out along the way out its thermal stands.
+const STONE_COUNT := 11
+const STONE_CENTRE := Vector2(0.0, -56.0)
+const STONE_RING := 14.0
+const STONE_SIZE := Vector2(2.0, 1.0)
+const STONE_THROUGH := 5.5
+const STONE_THERMAL_AT := 26.0
+## The Mere: the water's middle, radii and level, the bed under it, the island and the lake's
+## sinking air (strength at difficulty 0 and 1: 0.4 to 0.6 u/s at the default downdraft strength).
+const MERE_CENTRE := Vector2(0.0, -50.0)
+const MERE_RADII := Vector2(24.0, 34.0)
+const MERE_WATER := -1.0
+const MERE_BED := -1.6
+const MERE_ISLAND := Vector2(-10.0, -58.0)
+const MERE_ISLAND_R := 6.0
+const MERE_SINK := Vector2(0.4 / 3.5, 0.6 / 3.5)
+## Entering a piece at least this high (above the floor), the bold line's low opening is out of
+## reach and its ideal line goes over the top instead (Kit.high_from).
+const HIGH_FROM := 21.0
+## The steepest dive (height lost per unit along) to a low opening a pilot is asked to make; any
+## steeper and the high line is the one (see Kit.takes_high()).
+const STEEPEST_DIVE := 0.35
+## The best-distance marker's poles stand this far either side of the middle.
+const MARKER_HALF := 34.0
 ## Collision holes are this much bigger than drawn on every side (docs/endless-plan.md §3.3).
 const HOLE_GRACE := 0.3
 
@@ -154,6 +232,15 @@ static func ground(id: StringName, x: float, z: float) -> float:
 		&"ridge":
 			var w := smoothstep(0.0, 12.0, -z) * (1.0 - smoothstep(180.0, 192.0, -z))
 			h = maxf(h, RIDGE_PLATEAU * smoothstep(24.0, 60.0, -x) * w)
+		&"barn":
+			# The barn's floor and yard are flat.
+			var yard := (1.0 - smoothstep(BARN_HALF + 2.0, BARN_HALF + 8.0, absf(x))) * (1.0 - smoothstep(14.0, 20.0, absf(z - (BARN_Z.x + BARN_Z.y) * 0.5)))
+			return h + rolls(x, z, length(id)) * (1.0 - yard)
+		&"mere":
+			var normal := h + rolls(x, z, length(id))
+			var lake := lerpf(MERE_BED, normal, smoothstep(0.8, 1.15, mere_reach(x, z)))
+			var island := lerpf(0.8, MERE_BED, smoothstep(3.5, MERE_ISLAND_R + 1.0, Vector2(x, z).distance_to(MERE_ISLAND)))
+			return maxf(lake, island)
 	return h + rolls(x, z, length(id))
 
 
@@ -204,13 +291,37 @@ class Kit:
 	var arches: Array[Dictionary] = []
 	## The ridge lift's zone name, if the gull may join you here.
 	var gull_lift := ""
+	## Things that snag but never crash (washing lines and sheets): capsules {a, b, radius}, and
+	## whether a sock flies off.
+	var snags: Array[Dictionary] = []
+	## Moving scenery: {kind ("sailboat"), centre, radius, speed}.
+	var movers: Array[Dictionary] = []
+	## Water to splash down on: {centre (x, z), radii, y}, or empty.
+	var water := {}
+	## Pieces whose line dives to a low opening: entering at `high_from` or above, there's no room
+	## to get down to it, so the ideal line is `high_points` instead (over the top).
+	var high_points: Array[Dictionary] = []
+	var high_from := INF
+
+	## Whether a pilot at `at` (piece-local, near the entry) is on the high line: at or above
+	## high_from, or too high to dive to the low line's lowest point ahead at STEEPEST_DIVE.
+	func takes_high(at: Vector3) -> bool:
+		if high_points.is_empty():
+			return false
+		if at.y >= high_from:
+			return true
+		var lowest := Vector3(0.0, INF, 0.0)
+		for q in line(at.y):
+			if q.z < at.z and q.y < lowest.y:
+				lowest = q
+		return lowest.y < INF and at.y - lowest.y > EndlessPieces.STEEPEST_DIVE * (at.z - lowest.z)
 
 	## The ideal line for an entry at height `h_in`: points given as Vector3, or {x, z, dy} meaning
 	## "the entry height plus dy" (a point held at whatever height the pilot came in at), no higher
 	## than "max" if it has one.
 	func line(h_in: float) -> PackedVector3Array:
 		var out := PackedVector3Array()
-		for p: Dictionary in line_points:
+		for p: Dictionary in (high_points if h_in >= high_from and not high_points.is_empty() else line_points):
 			if p.has("at"):
 				out.append(p["at"])
 			else:
@@ -368,6 +479,12 @@ static func _content(k: Kit, look: Art.Builder, solid: PackedVector3Array) -> vo
 		&"hamlet": _hamlet(k, look, solid, k.d)
 		&"kites": _kites(k, look, solid, k.d)
 		&"viaduct": _viaduct(k, look, solid, k.d)
+		&"pasture": _pasture(k, look, solid, k.d)
+		&"washing": _washing(k, look, solid, k.d)
+		&"poplars": _poplars(k, look, solid, k.d)
+		&"barn": _barn(k, look, solid, k.d)
+		&"stones": _stones(k, look, solid, k.d)
+		&"mere": _mere(k, look, solid, k.d)
 
 
 ## The ground's corners: every one once, (cells across + 1) per row, (cells along + 1) rows.
@@ -423,6 +540,30 @@ static func _paint(k: Kit, x: float, z: float, rng: RandomNumberGenerator) -> Co
 		&"viaduct":
 			if Vector2(x, z).distance_to(SHINGLE) < 10.0:
 				return Color("e6ddcf").darkened(rng.randf() * 0.05)  # the shingle bank
+		&"pasture":
+			if absf(x) < 18.0 and z < -26.0 and z > -86.0:
+				return base.lerp(Color("f4dc9b"), 0.4)  # warm air low over it
+			if absf(x) < FLOOR:
+				return Color("b9d79c").darkened(rng.randf() * 0.04) if int(floorf(-z / 26.0)) % 2 == 0 else Color("c6dfa8").darkened(rng.randf() * 0.04)
+		&"washing":
+			if absf(x) < 12.0 and z < -30.0 and z > -74.0:
+				return base.lerp(Color("f4dc9b"), 0.4)  # warm air low over the gardens
+			if absf(x) < 14.0:
+				return Color("c9e2ae") if int(floorf((x + 14.0) / 3.0)) % 2 == 0 else Color("bcd9a0")  # mown stripes
+		&"barn":
+			if absf(x) < BARN_HALF + 3.0 and absf(z - (BARN_Z.x + BARN_Z.y) * 0.5) < 14.0:
+				return Color("e9d7a6").darkened(rng.randf() * 0.05)  # straw on the floor and yard
+		&"stones":
+			if Vector2(x, z).distance_to(STONE_CENTRE) < STONE_RING + 3.0:
+				return Color("cfe0b4").darkened(rng.randf() * 0.04)  # close-cropped down
+		&"mere":
+			var q := mere_reach(x, z)
+			if Vector2(x, z).distance_to(MERE_ISLAND) < MERE_ISLAND_R:
+				return Color("eadcb8")  # the island's warm sand
+			if q < 0.95:
+				return Color("cbbfa6")  # the bed, under the water
+			if q < 1.2:
+				return Color("e6ddcf").darkened(rng.randf() * 0.05)  # the shore
 	return base
 
 
@@ -498,7 +639,7 @@ static func _clear_of_air_and_line(k: Kit, line: PackedVector3Array, x: float, z
 
 ## A few sheep grazing on the floor, off the line (looks only).
 static func _sheep(k: Kit, look: Art.Builder, rng: RandomNumberGenerator) -> void:
-	if k.id == &"hamlet" or k.id == &"viaduct":
+	if k.id in [&"hamlet", &"viaduct", &"washing", &"mere"]:
 		return
 	var line := k.line(20.0)
 	for i in rng.randi_range(2, 5) * tiles(k.id):
@@ -869,6 +1010,478 @@ static func _viaduct_wall(look: Art.Builder, solid: PackedVector3Array, span: fl
 			look.triangle(faces[i], faces[i + 2], faces[i + 1], STONE)
 	else:
 		solid.append_array(faces)
+
+
+## A sun-warmed layer of air low over a piece's floor: the bold line skimming the hedges or
+## ducking the washing is carried level; above the layer's top the safe line sinks as usual.
+static func _warm_layer(k: Kit, name: String, at: Vector3, size: Vector3, d: float) -> void:
+	k.zones.append({"name": name, "shape": Thermal.Shape.BOX, "at": at, "size": size, "look": Thermal.Look.STREET,
+		"strength": lerpf(WARM_LAYER.x, WARM_LAYER.y, d), "pitch": 0.94, "drifts": false})
+
+
+## A hedge across the floor at `z`, `height` tall above the ground under it, with a rounded top
+## and a field gate `gate` wide at `gate_x` (two posts and an open gap). All solid.
+static func _hedge(k: Kit, look: Art.Builder, solid: PackedVector3Array, z: float, height: float, gate_x: float, gate: float) -> void:
+	var runs: Array[Vector2] = [Vector2(-HEDGE_HALF, gate_x - gate * 0.5), Vector2(gate_x + gate * 0.5, HEDGE_HALF)]
+	for run in runs:
+		var n := maxi(1, ceili((run.y - run.x) / 4.0))
+		for i in n:
+			var x0 := lerpf(run.x, run.y, float(i) / n)
+			var x1 := lerpf(run.x, run.y, float(i + 1) / n)
+			var g := minf(grid_height(k.id, x0, z), grid_height(k.id, x1, z))
+			var top := maxf(grid_height(k.id, x0, z), grid_height(k.id, x1, z)) + height
+			var r := HEDGE_THICK * 0.5
+			var box_top := top - r
+			_solid_box(look, solid, Vector3((x0 + x1) * 0.5, (g - 0.8 + box_top) * 0.5, z), Vector3(x1 - x0, box_top - g + 0.8, HEDGE_THICK), HEDGE_DARK)
+			var cap := CylinderMesh.new()  # the rounded top, along x
+			cap.top_radius = r
+			cap.bottom_radius = r
+			cap.height = x1 - x0
+			cap.radial_segments = 8
+			cap.rings = 0
+			var xf := Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3((x0 + x1) * 0.5, box_top, z))
+			look.add(cap, xf, HEDGE)
+			_mesh_faces(solid, cap, xf)
+	for side in [-1.0, 1.0]:  # the gate's posts
+		var x: float = gate_x + side * (gate * 0.5 + 0.15)
+		_solid_box(look, solid, Vector3(x, grid_height(k.id, x, z) + 0.6, z), Vector3(0.3, 2.0, 0.3), CREAM)
+
+
+## The ground under hedge `i`'s line at x 0, plus its height: where the hedge's top is.
+static func _hedge_top(i: int) -> float:
+	return grid_height(&"pasture", 0.0, PASTURE_HEDGES[i].x) + PASTURE_HEDGES[i].y
+
+
+## P7 Pasture: three hedgerows across the floor to hop low and fast, each with a field gate, and a
+## garden bonfire's smoke to climb out on.
+static func _pasture(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	var gate := lerpf(6.0, 4.5, d)
+	var skim := lerpf(3.0, 2.25, d)
+	var stars := PackedVector3Array()
+	for i in PASTURE_HEDGES.size():
+		var h := PASTURE_HEDGES[i]
+		_hedge(k, look, solid, h.x, h.y, PASTURE_GATES[i], gate)
+		var y := _hedge_top(i) + skim
+		for dz in ([0.0, -4.0] if i == 0 else [4.0, 0.0, -4.0]):  # (from the usual entry, a star before the first is out of reach)
+			stars.append(Vector3(PASTURE_STAR_X[i], y, h.x + dz))
+	_warm_layer(k, "Warm", Vector3(0.0, 0.0, -56.0), Vector3(36.0, 9.0, 60.0), d)
+	var fire := Vector3(PASTURE_FIRE.x, grid_height(&"pasture", PASTURE_FIRE.x, PASTURE_FIRE.y), PASTURE_FIRE.y)
+	look.sphere(fire + Vector3(0, 0.3, 0), 1.3, Color("b5835a"), Vector3(1.0, 0.5, 1.0), 7, 3)  # the heap of clippings
+	look.sphere(fire + Vector3(0, 0.7, 0), 0.6, Color("f19e5f"), Vector3(1.0, 0.8, 1.0), 6, 3)  # its glow
+	k.zones.append({"name": "Bonfire", "shape": Thermal.Shape.CYLINDER, "at": fire + Vector3(0, 1.0, 0), "radius": 5.5, "height": 20.0,
+		"look": Thermal.Look.STEAM, "strength": lerpf(1.5, 1.4, d), "pitch": 1.08, "drifts": false})
+	k.arcs.append({"name": "hedge-hop", "stars": stars, "big": _no_big(stars.size()), "zone": "", "title": "Hedge-hop!", "bonus": true})
+	var smoke := PackedVector3Array()  # up the smoke, as a pilot rises through it
+	for i in 4:
+		smoke.append(Vector3(PASTURE_FIRE.x - 1.0 + 0.4 * i, 6.6 + 1.65 * i, PASTURE_FIRE.y + 3.0 - 2.4 * i))  # (traced)
+	k.arcs.append({"name": "bonfire", "stars": smoke, "big": _no_big(4), "zone": "", "title": "Full arc!", "bonus": true})
+	k.line_points.append({"x": 0.0, "z": -8.0, "dy": 0.0})
+	for p in stars:
+		k.line_points.append({"at": p})
+	for p in smoke:
+		k.line_points.append({"at": p})
+	k.line_points.append({"at": Vector3(PASTURE_FIRE.x, 14.0, -96.0)})
+
+
+## P8 Washing Lines: three cottage gardens with washing hung across the way. Duck under the sheets
+## (they snag, and a sock flies off) or hop over the lines; a washing copper's steam lifts you on.
+static func _washing(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	var walls: Array[Color] = [Color("f2e3d5"), Color("e3eedf"), Color("f4dc9b")]
+	var roofs: Array[Color] = [Color("c1675a"), Color("5f5b70"), Color("c1675a")]
+	for i in WASHING_COTTAGES.size():
+		var at := WASHING_COTTAGES[i]
+		_gabled(look, solid, Vector3(at.x, _lowest(&"washing", at, COTTAGE), at.y), COTTAGE, COTTAGE_ROOF, walls[i], roofs[i])
+	var sheet_colors: Array[Color] = [Color("fbf8f1"), Color("a9c8e8"), Color("f19e8f"), Color("f6e1d3"), Color("c6dfa8"), Color("b9a6dc")]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 23
+	var low := lerpf(4.5, 4.0, d)
+	var stars := PackedVector3Array()
+	for li in WASHING_LINES_Z.size():
+		var z := WASHING_LINES_Z[li]
+		for side in [-1.0, 1.0]:
+			var x: float = side * WASHING_POST_X
+			_solid_cylinder(look, solid, Vector3(x, grid_height(&"washing", x, z) - 0.4, z), 0.15, 0.12, WASHING_LINE_Y + 0.7, Color("a88b74"), 6)
+		var a := Vector3(-WASHING_POST_X, WASHING_LINE_Y, z)
+		var b := Vector3(WASHING_POST_X, WASHING_LINE_Y, z)
+		_line(look, a, b, Color("f4efe6"), 0.06)
+		k.snags.append({"a": a, "b": b, "radius": 0.1, "sock": false})
+		# Sheets and shirts along the line, with gaps; each snags as a soft bar at its middle.
+		var x := -WASHING_POST_X + 1.0
+		while x < WASHING_POST_X - 2.0:
+			var w := rng.randf_range(1.4, 2.6)
+			if x + w > WASHING_POST_X - 0.8:
+				break
+			var color: Color = sheet_colors[rng.randi() % sheet_colors.size()]
+			var drop := WASHING_LINE_Y - WASHING_SHEET_BOTTOM - rng.randf_range(0.0, 0.3)
+			var sway := rng.randf_range(-0.12, 0.12)
+			var top_l := Vector3(x, WASHING_LINE_Y, z)
+			var top_r := Vector3(x + w, WASHING_LINE_Y, z)
+			var bottom_l := Vector3(x, WASHING_LINE_Y - drop, z - sway)
+			var bottom_r := Vector3(x + w, WASHING_LINE_Y - drop, z - sway)
+			for side in [color, color.darkened(0.05)]:  # both ways round: seen from either side
+				look.triangle(top_l, bottom_l, top_r, side)
+				look.triangle(top_r, bottom_l, bottom_r, side)
+				var swap := top_l
+				top_l = top_r
+				top_r = swap
+				swap = bottom_l
+				bottom_l = bottom_r
+				bottom_r = swap
+			k.snags.append({"a": Vector3(x + 0.4, WASHING_LINE_Y - drop * 0.5, z), "b": Vector3(x + w - 0.4, WASHING_LINE_Y - drop * 0.5, z),
+				"radius": drop * 0.5, "sock": true})
+			for peg in [x + 0.15, x + w - 0.15]:
+				look.box(Vector3(peg, WASHING_LINE_Y, z), Vector3(0.08, 0.25, 0.1), Color("e8604c"))
+			x += w + rng.randf_range(0.6, 1.6)
+		var y := low - 0.5 * li
+		for dz in [3.0, 0.0, -3.0]:
+			stars.append(Vector3(1.5 * li, y, z + dz))
+	_warm_layer(k, "Gardens", Vector3(0.0, 0.0, -52.0), Vector3(24.0, 7.0, 44.0), d)
+	# The wash-house, and its copper steaming in the yard.
+	var house := Vector2(-11.0, WASHING_COPPER.y - 2.0)
+	_gabled(look, solid, Vector3(house.x, _lowest(&"washing", house, Vector3(5.0, 0.0, 4.0)), house.y), Vector3(5.0, 2.6, 4.0), 1.6, CREAM, Color("8a8496"))
+	var copper := Vector3(WASHING_COPPER.x, grid_height(&"washing", WASHING_COPPER.x, WASHING_COPPER.y), WASHING_COPPER.y)
+	_solid_cylinder(look, solid, copper - Vector3(0, 0.3, 0), 0.9, 0.8, 1.3, Color("b8877a"), 8)
+	look.cylinder(copper + Vector3(0, 1.0, 0), 0.7, 0.7, 0.05, Color("dceef6"), 8)
+	var top := lerpf(22.0, 20.0, d)
+	k.zones.append({"name": "Copper", "shape": Thermal.Shape.CYLINDER, "at": copper + Vector3(0, 1.0, 0), "radius": 10.0, "height": top - copper.y - 1.0,
+		"look": Thermal.Look.STEAM, "strength": lerpf(0.9, 0.8, d), "pitch": 1.12, "drifts": true})
+	k.arcs.append({"name": "washing", "stars": stars, "big": _no_big(9), "zone": "", "title": "Under the washing!", "bonus": true, "line": "low"})
+	_spiral(k, "copper", "Copper", WASHING_COPPER, 7.0, top, 6, d)
+	var over := PackedVector3Array()
+	for z in WASHING_LINES_Z:
+		over.append(Vector3(0.0, WASHING_LINE_Y + 5.0 - over.size(), z))  # 12.5, 11.5, 10.5
+	k.arcs.append({"name": "over the washing", "stars": over, "big": _no_big(3), "zone": "", "title": "Full arc!", "bonus": true, "line": "high"})
+	k.line_points.append({"x": 0.0, "z": -10.0, "dy": 0.0, "max": 9.0})
+	for p in stars:
+		k.line_points.append({"at": p})
+	k.high_from = HIGH_FROM
+	k.high_points.append({"x": 0.0, "z": -10.0, "dy": 0.0})
+	for p in over:
+		k.high_points.append({"at": p})
+	for points: Array[Dictionary] in [k.line_points, k.high_points]:
+		points.append({"at": Vector3(WASHING_COPPER.x, 7.0, WASHING_COPPER.y + 6.0)})
+		points.append({"at": Vector3(0.0, top - 4.0, -96.0)})
+	k.orbits.append({"centre": WASHING_COPPER, "zone": "Copper", "radius": 5.0, "to_y": top - 2.0, "up": true, "max_time": 25.0})
+
+
+## P9 Poplar Row: a wall of tall poplars across the valley with one gap. Climb in the cloud street
+## before it, then thread the gap (or go over); another street lifts you on beyond.
+static func _poplars(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	var gap := lerpf(8.0, 5.6, d)
+	# Every 4 u out from the gap's two sides, so the gap is the only way through.
+	var flank := gap * 0.5 + POPLAR_R
+	var xs: Array[float] = []
+	var x := POPLAR_GAP_X - flank
+	while x >= -POPLAR_HALF:
+		xs.append(x)
+		x -= POPLAR_SPACING
+	x = POPLAR_GAP_X + flank
+	while x <= POPLAR_HALF:
+		xs.append(x)
+		x += POPLAR_SPACING
+	for tx in xs:
+		var base := Vector3(tx, grid_height(&"poplars", tx, POPLAR_Z), POPLAR_Z)
+		_solid_cylinder(look, solid, base - Vector3(0, 0.4, 0), 0.3, 0.25, POPLAR_CROWN.x + 0.6, BARK, 5)
+		var mid := (POPLAR_CROWN.x + POPLAR_CROWN.y) * 0.5
+		var half := (POPLAR_CROWN.y - POPLAR_CROWN.x) * 0.5
+		look.sphere(base + Vector3(0, mid, 0), POPLAR_R, LEAF[int(absf(tx)) % 3], Vector3(1.0, half / POPLAR_R, 1.0), 7, 5)
+		var crown := CylinderMesh.new()
+		crown.top_radius = POPLAR_HIT_R * 0.6
+		crown.bottom_radius = POPLAR_HIT_R
+		crown.height = POPLAR_CROWN.y - POPLAR_CROWN.x - 0.5
+		crown.radial_segments = 6
+		crown.rings = 0
+		_mesh_faces(solid, crown, Transform3D(Basis.IDENTITY, base + Vector3(0, POPLAR_CROWN.x + crown.height * 0.5, 0)))
+	var strength := lerpf(0.36, 0.32, d)
+	for street in [["StreetIn", -24.0, 32.0], ["StreetOut", -76.0, 32.0]]:
+		k.zones.append({"name": street[0], "shape": Thermal.Shape.BOX, "at": Vector3(POPLAR_GAP_X, 0.0, street[1]), "size": Vector3(10.0, 24.0, street[2]),
+			"look": Thermal.Look.STREET, "strength": strength, "pitch": 0.9 if street[0] == "StreetIn" else 0.95, "drifts": false})
+	for z in [-14.0, -32.0, -70.0, -88.0]:
+		k.clouds.append({"at": Vector3(POPLAR_GAP_X, 28.0, z), "radius": 5.0, "puffs": 3, "zone": ""})
+	var stars := PackedVector3Array()
+	for z in [-38.0, -44.0, -50.0, -56.0, -62.0]:
+		stars.append(Vector3(POPLAR_GAP_X, POPLAR_GAP_Y + (1.0 if z == -38.0 else (0.5 if z == -44.0 else 0.0)), z))
+	k.arcs.append({"name": "poplar gap", "stars": stars, "big": _no_big(5), "zone": "", "title": "Threaded!", "bonus": true, "from_entry": 2})
+	if d >= 0.5:
+		k.arcs.append({"name": "poplar big star", "stars": PackedVector3Array([Vector3(POPLAR_GAP_X, POPLAR_GAP_Y + 0.5, -70.0)]), "big": [true], "zone": "", "title": "", "bonus": false})
+	k.line_points.append({"x": POPLAR_GAP_X, "z": -10.0, "dy": 0.0})
+	k.line_points.append({"x": POPLAR_GAP_X, "z": -28.0, "dy": 0.0, "max": POPLAR_GAP_Y + 2.0})
+	for p in stars:
+		k.line_points.append({"at": p})
+	k.line_points.append({"at": Vector3(POPLAR_GAP_X, POPLAR_GAP_Y + 1.0, -70.0)})
+	k.line_points.append({"at": Vector3(POPLAR_GAP_X, 17.0, -96.0)})
+
+
+## P10 Dutch Barn: a big open barn across the way. In one door and out the other (dark, fast, the
+## hay and the lanterns going by), into the muck heap's warm air; or over its roof.
+static func _barn(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	var door := Vector2(lerpf(8.0, 6.5, d), lerpf(8.0, 6.5, d))
+	_barn_shell(look, PackedVector3Array(), door, true)
+	# The solid doorways are cut bigger by the rounding, which their round edges then take back.
+	_barn_shell(look, solid, door + Vector2((HOLE_GRACE + DOOR_ROUND) * 2.0, HOLE_GRACE + DOOR_ROUND), false)
+	_door_edges(look, solid, door, door + Vector2(HOLE_GRACE * 2.0, HOLE_GRACE))
+	for side in [-1.0, 1.0]:  # hay bales stacked along the inside walls
+		for i in 6:
+			var z := BARN_Z.x - 2.5 - 3.0 * i
+			for level in 2:
+				_solid_box(look, solid, Vector3(side * (BARN_HALF - 1.1), 0.6 + 1.2 * level, z), Vector3(1.6, 1.15, 2.6), Color("e9c98a") if (i + level) % 2 == 0 else Color("f4dc9b"))
+	for at in [Vector3(-3.5, 7.4, BARN_Z.x - 6.0), Vector3(3.5, 7.4, BARN_Z.y + 6.0)]:  # lanterns
+		look.box(at, Vector3(0.35, 0.5, 0.35), Color("f6c66f"))
+		_line(look, at + Vector3(0, 0.25, 0), at + Vector3(0, 1.2, 0), DARK, 0.04)
+	var heap := Vector3(BARN_HEAP.x, grid_height(&"barn", BARN_HEAP.x, BARN_HEAP.y), BARN_HEAP.y)
+	look.sphere(heap, 3.0, Color("9a7a5e"), Vector3(1.3, 0.35, 1.0), 8, 3)
+	var radius := 10.0
+	var top := lerpf(24.0, 22.0, d)
+	k.zones.append({"name": "Heap", "shape": Thermal.Shape.CYLINDER, "at": heap, "radius": radius, "height": top - heap.y,
+		"look": Thermal.Look.WARM_AIR, "strength": lerpf(0.8, 0.7, d), "pitch": 0.98, "drifts": true})
+	k.clouds.append({"at": Vector3(heap.x, top + 4.0, heap.z), "radius": radius * 0.7, "puffs": 4, "zone": "Heap"})
+	k.birds.append({"zone": "Heap", "below_top": 4.0})
+	var through := lerpf(4.2, 3.6, d)
+	var dive := PackedVector3Array()
+	for i in 6:
+		dive.append(Vector3(0.0, lerpf(15.0, through + 0.5, i / 5.0), lerpf(-12.0, BARN_Z.x + 6.0, i / 5.0)))  # into the door's middle
+	k.arcs.append({"name": "barn dive", "stars": dive, "big": _no_big(6), "zone": "", "title": "Full arc!", "bonus": true, "from_entry": 5, "line": "low"})
+	k.arcs.append({"name": "barn big star", "stars": PackedVector3Array([Vector3(0.0, through, (BARN_Z.x + BARN_Z.y) * 0.5)]), "big": [true], "zone": "", "title": "", "bonus": false, "line": "low"})
+	_spiral(k, "heap spiral", "Heap", BARN_HEAP, 6.0, top, 6, d)
+	var roof := PackedVector3Array()
+	for z in [BARN_Z.x - 4.0, BARN_Z.x - 10.0, BARN_Z.x - 16.0]:
+		roof.append(Vector3(0.0, BARN_ROOF + 3.5, z))
+	k.arcs.append({"name": "barn roof", "stars": roof, "big": _no_big(3), "zone": "", "title": "Full arc!", "bonus": true, "line": "high"})
+	k.line_points.append({"x": 0.0, "z": -6.0, "dy": 0.0, "max": 16.0})
+	for i in dive.size() - 1:
+		k.line_points.append({"x": 0.0, "z": dive[i].z, "dy": 0.0, "max": dive[i].y})
+	for p in [dive[dive.size() - 1], Vector3(0.0, through, BARN_Z.x - 2.0), Vector3(0.0, through, BARN_Z.y + 2.0), Vector3(0.0, 5.0, BARN_HEAP.y + 6.0)]:
+		k.line_points.append({"at": p})
+	k.high_from = HIGH_FROM
+	k.high_points.append({"x": 0.0, "z": -8.0, "dy": 0.0})
+	for p in roof:
+		k.high_points.append({"at": p})
+	for points: Array[Dictionary] in [k.line_points, k.high_points]:
+		points.append({"at": Vector3(0.0, top - 4.0, -96.0)})
+	k.orbits.append({"centre": BARN_HEAP, "zone": "Heap", "radius": 6.0, "to_y": top - 2.0, "up": true, "max_time": 25.0})
+
+
+## Round edges to both doorways (jambs and lintel), so a pass that clips one glances off it rather
+## than meeting a square corner head-on (docs/endless-plan.md §3.4): solid cylinders standing just
+## outside the opening `hole` (the doorway as it collides: never smaller than as drawn), and a cream
+## frame drawn round the doorway `door`.
+static func _door_edges(look: Art.Builder, solid: PackedVector3Array, door: Vector2, hole: Vector2) -> void:
+	var t := 0.5  # wall thickness
+	for zc in [BARN_Z.x - t * 0.5, BARN_Z.y + t * 0.5]:
+		for side in [-1.0, 1.0]:
+			var jamb := CylinderMesh.new()
+			jamb.top_radius = DOOR_ROUND
+			jamb.bottom_radius = DOOR_ROUND
+			jamb.height = hole.y + DOOR_ROUND + 0.8
+			jamb.radial_segments = 8
+			jamb.rings = 0
+			_mesh_faces(solid, jamb, Transform3D(Basis.IDENTITY, Vector3(side * (hole.x * 0.5 + DOOR_ROUND), (hole.y + DOOR_ROUND - 0.8) * 0.5, zc)))
+			look.box(Vector3(side * (door.x * 0.5 + 0.12), door.y * 0.5, zc), Vector3(0.24, door.y, t + 0.1), CREAM)
+		var lintel := CylinderMesh.new()
+		lintel.top_radius = DOOR_ROUND
+		lintel.bottom_radius = DOOR_ROUND
+		lintel.height = hole.x + DOOR_ROUND * 2.0
+		lintel.radial_segments = 8
+		lintel.rings = 0
+		_mesh_faces(solid, lintel, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, hole.y + DOOR_ROUND, zc)))
+		look.box(Vector3(0.0, door.y + 0.12, zc), Vector3(door.x + 0.48, 0.24, t + 0.1), CREAM)
+
+
+## The barn: side walls, a barrel roof, and gable ends with a doorway `door` (width, height)
+## through each. Drawn into `look` (drawn true), or its faces collected into `solid`.
+static func _barn_shell(look: Art.Builder, solid: PackedVector3Array, door: Vector2, drawn: bool) -> void:
+	var boxes: Array[AABB] = []
+	var t := 0.5  # wall thickness
+	for side in [-1.0, 1.0]:
+		var x0: float = BARN_HALF - t if side > 0.0 else -BARN_HALF
+		boxes.append(AABB(Vector3(x0, -0.8, BARN_Z.y), Vector3(t, BARN_WALL + 0.8, BARN_Z.x - BARN_Z.y)))
+	for zf in [BARN_Z.x - t, BARN_Z.y]:
+		boxes.append(AABB(Vector3(-BARN_HALF, -0.8, zf), Vector3(BARN_HALF - door.x * 0.5, BARN_WALL + 0.8, t)))
+		boxes.append(AABB(Vector3(door.x * 0.5, -0.8, zf), Vector3(BARN_HALF - door.x * 0.5, BARN_WALL + 0.8, t)))
+		boxes.append(AABB(Vector3(-door.x * 0.5, door.y, zf), Vector3(door.x, BARN_WALL - door.y, t)))
+	for b in boxes:
+		if drawn:
+			look.box(b.get_center(), b.size, BARN_RED)
+		else:
+			_box_faces(solid, b.get_center(), b.size)
+	# The barrel roof, and the gables under it at both ends.
+	var segments := 10
+	var faces := PackedVector3Array()
+	var roof := PackedVector3Array()
+	var over := 0.5
+	for i in segments:
+		var a0 := PI * float(i) / segments
+		var a1 := PI * float(i + 1) / segments
+		var p0 := Vector2(-(BARN_HALF + 0.3) * cos(a0), BARN_WALL + (BARN_ROOF - BARN_WALL) * sin(a0))
+		var p1 := Vector2(-(BARN_HALF + 0.3) * cos(a1), BARN_WALL + (BARN_ROOF - BARN_WALL) * sin(a1))
+		roof.append_array([Vector3(p0.x, p0.y, BARN_Z.x + over), Vector3(p1.x, p1.y, BARN_Z.x + over), Vector3(p1.x, p1.y, BARN_Z.y - over),
+			Vector3(p0.x, p0.y, BARN_Z.x + over), Vector3(p1.x, p1.y, BARN_Z.y - over), Vector3(p0.x, p0.y, BARN_Z.y - over)])
+		for zf in [BARN_Z.x, BARN_Z.y]:
+			faces.append_array([Vector3(p0.x, BARN_WALL, zf), Vector3(p0.x, p0.y, zf), Vector3(p1.x, p1.y, zf),
+				Vector3(p0.x, BARN_WALL, zf), Vector3(p1.x, p1.y, zf), Vector3(p1.x, BARN_WALL, zf)])
+	if drawn:
+		for i in range(0, faces.size(), 3):
+			look.triangle(faces[i], faces[i + 1], faces[i + 2], BARN_RED.lightened(0.06))
+			look.triangle(faces[i], faces[i + 2], faces[i + 1], BARN_RED.lightened(0.06))
+		for i in range(0, roof.size(), 3):
+			look.triangle(roof[i], roof[i + 1], roof[i + 2], DARK)
+			look.triangle(roof[i], roof[i + 2], roof[i + 1], DARK.darkened(0.2))
+	else:
+		solid.append_array(faces)
+		solid.append_array(roof)
+
+
+## P11 Standing Stones: a ring of old stones on the down. Fly in through one gap, over the big
+## star in the middle, and out through the far side, to a thermal off the ring.
+static func _stones(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var step := TAU / STONE_COUNT
+	for i in STONE_COUNT:
+		var a := step * (i + 0.5)  # gates at whole steps, from straight ahead (+z)
+		var at := Vector2(STONE_CENTRE.x + sin(a) * STONE_RING, STONE_CENTRE.y + cos(a) * STONE_RING)
+		var height := rng.randf_range(6.0, 8.0)
+		var base := _lowest(&"stones", at, Vector3(2.0, 0.0, 2.0))
+		var basis := Basis(Vector3.UP, a) * Basis(Vector3.BACK, rng.randf_range(-0.05, 0.05))
+		_solid_box(look, solid, Vector3(at.x, base + height * 0.5 - 0.6, at.y), Vector3(STONE_SIZE.x, height + 1.2, STONE_SIZE.y),
+			Color("b9b2aa") if i % 2 == 0 else Color("c9c2ba"), basis)
+	var exit := _stones_exit()
+	var thermal := STONE_CENTRE + exit * STONE_THERMAL_AT
+	var floor_y := ground(&"stones", thermal.x, thermal.y)
+	var radius := 9.0
+	var top := lerpf(24.0, 22.0, d)
+	k.zones.append({"name": "Down", "shape": Thermal.Shape.CYLINDER, "at": Vector3(thermal.x, floor_y, thermal.y), "radius": radius,
+		"height": top - floor_y, "look": Thermal.Look.WARM_AIR, "strength": lerpf(0.85, 0.75, d), "pitch": 1.02, "drifts": true})
+	k.clouds.append({"at": Vector3(thermal.x, top + 4.0, thermal.y), "radius": radius * 0.7, "puffs": 4, "zone": "Down"})
+	k.birds.append({"zone": "Down", "below_top": 4.0})
+	var into := PackedVector3Array()
+	for i in 4:
+		into.append(Vector3(0.0, lerpf(8.5, STONE_THROUGH + 0.5, i / 3.0), lerpf(-28.0, STONE_CENTRE.y + STONE_RING, i / 3.0)))
+	var away := PackedVector3Array()
+	for i in 4:
+		var p := STONE_CENTRE + exit * (STONE_RING + 4.0 * i)
+		away.append(Vector3(p.x, STONE_THROUGH + 0.5 * i, p.y))
+	var stars := into.duplicate()
+	stars.append(Vector3(STONE_CENTRE.x, STONE_THROUGH, STONE_CENTRE.y))
+	stars.append_array(away)
+	var big := _no_big(stars.size())
+	big[4] = true
+	k.arcs.append({"name": "stones", "stars": stars, "big": big, "zone": "", "title": "Through the stones!", "bonus": true, "from_entry": 4, "line": "low"})
+	k.line_points.append({"x": 0.0, "z": -10.0, "dy": 0.0, "max": 9.5})
+	for i in stars.size():
+		if i == 5:  # lined up with the way out before reaching its gate
+			var lined := STONE_CENTRE + exit * (STONE_RING - 4.0)
+			k.line_points.append({"at": Vector3(lined.x, STONE_THROUGH, lined.y)})
+		k.line_points.append({"at": stars[i]})
+	# Entering high, over the stones (the tallest is 8) and down into the thermal beyond.
+	k.high_from = HIGH_FROM
+	k.high_points.append({"x": 0.0, "z": -10.0, "dy": 0.0})
+	k.high_points.append({"x": 0.0, "z": STONE_CENTRE.y, "dy": -5.0, "max": 13.0})
+	k.high_points.append({"at": Vector3(thermal.x, 9.0, thermal.y + 6.0)})
+	for points: Array[Dictionary] in [k.line_points, k.high_points]:
+		points.append({"at": Vector3(thermal.x * 0.5, top - 4.0, -96.0)})
+	k.orbits.append({"centre": thermal, "zone": "Down", "radius": 5.5, "to_y": top - 2.0, "up": true, "max_time": 25.0})
+
+
+## A spiral of `count` stars round zone `zone` (its home at `centre`), starting low on its near
+## side at `start_y`: laid as the pilot starts circling (see EndlessStars._watch_spiral()).
+static func _spiral(k: Kit, arc_name: String, zone: String, centre: Vector2, start_y: float, top: float, count: int, d: float) -> void:
+	var stars := PackedVector3Array()
+	var rise := lerpf(2.5, 2.0, d)
+	for i in count:
+		var a := PI * 0.5 + deg_to_rad(40.0) * i
+		stars.append(Vector3(centre.x + 6.0 * cos(a), minf(start_y + rise * i, top - 2.5), centre.y + 6.0 * sin(a)))
+	k.arcs.append({"name": arc_name, "stars": stars, "big": _no_big(count), "zone": zone, "title": "Full spiral!", "bonus": true,
+		"spiral": {"radius": 6.0, "rise": 3.0, "step": 40.0, "top": top}})
+
+
+## The way out of the stone ring (plan view, x and z), through the gate nearest straight ahead
+## on the left (with an odd number of stones, straight across from a gate is a stone).
+static func _stones_exit() -> Vector2:
+	var a := PI + PI / STONE_COUNT
+	return Vector2(sin(a), cos(a))
+
+
+## P12 Mere: a lake across the floor whose cool air sinks under you, and an island with a
+## warm-sand thermal to spiral up on; a sailboat goes round it.
+static func _mere(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	var water := PackedVector3Array()
+	var c := Vector3(MERE_CENTRE.x, MERE_WATER, MERE_CENTRE.y)
+	for i in 32:
+		var a0 := TAU * i / 32.0
+		var a1 := TAU * (i + 1) / 32.0
+		var p0 := c + Vector3(cos(a0) * MERE_RADII.x * 1.04, 0.0, sin(a0) * MERE_RADII.y * 1.04)
+		var p1 := c + Vector3(cos(a1) * MERE_RADII.x * 1.04, 0.0, sin(a1) * MERE_RADII.y * 1.04)
+		look.triangle(c, p0, p1, WATER)  # facing up
+		water.append_array([c, p0, p1])
+	solid.append_array(water)  # the water is solid: touching it is a splashdown
+	k.water = {"centre": MERE_CENTRE, "radii": MERE_RADII * 1.04, "y": MERE_WATER}
+	for i in 14:  # reeds round the island's edge
+		var a := TAU * i / 14.0 + 0.2
+		var at := MERE_ISLAND + Vector2(cos(a), sin(a)) * (MERE_ISLAND_R - 0.5)
+		look.cylinder(Vector3(at.x, grid_height(&"mere", at.x, at.y) - 0.2, at.y), 0.12, 0.04, 1.3, Color("8fb47e"), 4)
+	k.zones.append({"name": "Lake", "shape": Thermal.Shape.BOX, "at": Vector3(MERE_CENTRE.x, MERE_WATER, MERE_CENTRE.y), "size": Vector3(MERE_RADII.x * 1.9, 27.0, MERE_RADII.y * 1.9),
+		"look": Thermal.Look.LAKE, "strength": lerpf(MERE_SINK.x, MERE_SINK.y, d), "pitch": 1.0, "drifts": false})
+	var floor_y := ground(&"mere", MERE_ISLAND.x, MERE_ISLAND.y)
+	var radius := 10.0
+	var top := 24.0
+	k.zones.append({"name": "Island", "shape": Thermal.Shape.CYLINDER, "at": Vector3(MERE_ISLAND.x, floor_y, MERE_ISLAND.y), "radius": radius,
+		"height": top - floor_y, "look": Thermal.Look.WARM_AIR, "strength": 0.8, "pitch": 1.04, "drifts": true})
+	k.clouds.append({"at": Vector3(MERE_ISLAND.x, top + 4.0, MERE_ISLAND.y), "radius": radius * 0.7, "puffs": 4, "zone": "Island"})
+	k.birds.append({"zone": "Island", "below_top": 4.0})
+	k.movers.append({"kind": "sailboat", "centre": Vector3(MERE_ISLAND.x, MERE_WATER, MERE_ISLAND.y), "radius": 13.0, "speed": 1.2})
+	var across := PackedVector3Array()
+	for i in 7:
+		across.append(Vector3(lerpf(0.0, MERE_ISLAND.x, i / 6.0), lerpf(15.0, 10.0, i / 6.0), lerpf(-22.0, MERE_ISLAND.y + 9.0, i / 6.0)))
+	k.arcs.append({"name": "mere", "stars": across, "big": _no_big(7), "zone": "", "title": "Full arc!", "bonus": true, "from_entry": 6})
+	var helix := PackedVector3Array()
+	var rise := lerpf(2.5, 2.0, d)
+	for i in 10:
+		var a := PI * 0.5 + deg_to_rad(40.0) * i
+		helix.append(Vector3(MERE_ISLAND.x + 6.0 * cos(a), minf(9.0 + rise * i, top - 2.5), MERE_ISLAND.y + 6.0 * sin(a)))
+	k.arcs.append({"name": "island spiral", "stars": helix, "big": _no_big(10), "zone": "Island", "title": "Full spiral!", "bonus": true,
+		"spiral": {"radius": 6.0, "rise": 3.0, "step": 40.0, "top": top}})
+	k.line_points.append({"x": 0.0, "z": -10.0, "dy": 0.0, "max": 15.5})
+	for p in across:
+		k.line_points.append({"at": p})
+	k.line_points.append({"at": Vector3(MERE_ISLAND.x, 9.0, MERE_ISLAND.y + 6.0)})
+	k.orbits.append({"centre": MERE_ISLAND, "zone": "Island", "radius": 6.0, "to_y": top - 2.0, "up": true, "max_time": 25.0})
+	k.line_points.append({"at": Vector3(MERE_ISLAND.x * 0.5, top - 4.0, -80.0)})
+	k.line_points.append({"at": Vector3(0.0, top - 5.0, -96.0)})
+
+
+## How far out into the Mere a point is (piece-local x, z): under 1 inside the water's edge.
+static func mere_reach(x: float, z: float) -> float:
+	return (Vector2(x - MERE_CENTRE.x, z - MERE_CENTRE.y) / MERE_RADII).length()
+
+
+# --- The best-distance marker --------------------------------------------------------
+
+## Bunting across the valley where your best run ended (docs/endless-plan.md §10.2): two tall
+## poles beside the floor and a sagging line of pennants between them, at piece-local `z` on piece
+## `id`. Looks only: flying through it does nothing but cheer.
+static func best_marker(id: StringName, z: float) -> ArrayMesh:
+	var b := Art.Builder.new()
+	var colors: Array[Color] = [Color("e8604c"), Color("f6c66f"), Color("a9c8e8"), Color("9cc48a"), Color("b9a6dc")]
+	var top := 24.0
+	var sag := 4.0
+	for side in [-1.0, 1.0]:
+		var x: float = side * MARKER_HALF
+		var foot := Vector3(x, grid_height(id, x, z) - 0.5, z)
+		b.cylinder(foot, 0.25, 0.2, top - foot.y + 0.5, CREAM, 6)
+		b.sphere(Vector3(x, top + 0.2, z), 0.4, Color("f6c66f"), Vector3.ONE, 6, 3)
+	var n := 24
+	var prev := Vector3(-MARKER_HALF, top, z)
+	for i in range(1, n + 1):
+		var t := float(i) / n
+		var at := Vector3(lerpf(-MARKER_HALF, MARKER_HALF, t), top - sag * 4.0 * t * (1.0 - t), z)
+		_line(b, prev, at, Color("f4efe6"), 0.08)
+		var mid := (prev + at) * 0.5
+		var color := colors[i % colors.size()]
+		b.triangle(mid + Vector3(-0.7, 0.0, 0.0), mid + Vector3(0.7, 0.0, 0.0), mid + Vector3(0.0, -1.5, -0.15), color)
+		b.triangle(mid + Vector3(0.7, 0.0, 0.0), mid + Vector3(-0.7, 0.0, 0.0), mid + Vector3(0.0, -1.5, -0.15), color.darkened(0.08))
+		prev = at
+	return b.commit()
 
 
 # --- Small things ----------------------------------------------------------------------

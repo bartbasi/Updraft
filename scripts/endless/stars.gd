@@ -54,6 +54,16 @@ class Arc:
 	## where the pilot starts circling (see _watch_spiral()).
 	var spiral := {}
 	var anchored := false
+	## Pieces with two lines (EndlessPieces.Kit.high_points): "low" or "high", else "". Until the
+	## pilot reaches the piece the high line's arcs are alt; then the line it isn't on is hidden
+	## (low) or dimmed and alt (high): see choose_line().
+	var line := ""
+	var hidden := false
+	var dim := false
+	## Arcs whose first `fit` stars lead down from the entry: their heights as laid (world y); see
+	## fit_to_entry().
+	var fit := 0
+	var fit_from := PackedFloat32Array()
 
 
 ## What happened at one pickup check.
@@ -79,7 +89,9 @@ var _big: MultiMeshInstance3D
 var _time := 0.0
 var _ticks := 0  ## check() calls: physics ticks.
 ## A spiral is laid once the pilot has turned this far (radians) inside its thermal.
-const SPIRAL_TURN := 2.094
+const SPIRAL_TURN := 0.785
+## ...and is circling at least this far from its middle.
+const SPIRAL_FROM_MIDDLE := 3.5
 ## Its next star is laid this far (units of arc) ahead of the pilot: beyond the pickup reach.
 const SPIRAL_LEAD := 4.5
 ## At most one spiral star in this many physics ticks (0.25 s).
@@ -116,6 +128,9 @@ func add_piece(tile: int, kit_arcs: Array[Dictionary], origin: Vector3, zones: D
 		arc.title = a["title"]
 		arc.bonus = a["bonus"]
 		arc.alt = a.get("alt", false)
+		arc.line = a.get("line", "")
+		if arc.line == "high":
+			arc.alt = true
 		arc.tile = tile
 		if a.has("spiral"):
 			arc.spiral = (a["spiral"] as Dictionary).duplicate()
@@ -127,6 +142,16 @@ func add_piece(tile: int, kit_arcs: Array[Dictionary], origin: Vector3, zones: D
 			points = points.duplicate()
 			for i in points.size():
 				points[i].y = minf(float(a["entry_top"]), h_in - 1.0 + float(a["entry_rise"]) * i)
+		if a.has("from_entry"):  # its first stars start from a low entry lower (and fit_to_entry() fits them again on arrival)
+			var n := mini(int(a["from_entry"]), points.size() - 1)
+			arc.fit = n
+			for i in n + 1:
+				arc.fit_from.append(origin.y + points[i].y)
+			var top := minf(h_in - 1.0, points[0].y)
+			if top < points[0].y:
+				points = points.duplicate()
+				for i in n:
+					points[i].y = lerpf(top, points[n].y, float(i) / n)
 		var bigs: Array = a["big"]
 		for i in points.size():
 			var s := Star.new()
@@ -142,6 +167,39 @@ func add_piece(tile: int, kit_arcs: Array[Dictionary], origin: Vector3, zones: D
 		arcs.append(arc)
 
 
+## The pilot has reached the piece on `tile` and is on its high line (or not): the stars show the
+## line for its height. On the low line the high line's arcs go; on the high line the low line's
+## dim and no longer count (they can still be taken).
+func choose_line(tile: int, high: bool) -> void:
+	for arc in arcs:
+		if arc.tile != tile or arc.line == "":
+			continue
+		var mine := (arc.line == "high") == high
+		arc.alt = not mine
+		arc.hidden = not mine and not high
+		arc.dim = not mine and high
+
+
+## The pilot has entered the piece on `tile` at world height `y`: arcs that lead down from the
+## entry have their first stars (those not yet taken) slide to start a little below it if it came
+## in lower than they were laid for (never higher than laid), so they're in reach.
+func fit_to_entry(tile: int, y: float) -> void:
+	for arc in arcs:
+		if arc.tile != tile or arc.fit <= 0 or arc.fit_from.size() <= arc.fit:
+			continue
+		var n := arc.fit
+		var top := minf(y - 1.0, arc.fit_from[0])
+		for i in n:
+			var s := arc.stars[i]
+			if s.taken or s.missed:
+				continue
+			var want := lerpf(top, arc.fit_from[n], float(i) / n)
+			if absf(want - s.at.y) > 0.05:
+				s.shown_from = s.position()
+				s.slide = 0.0
+				s.at.y = want
+
+
 ## Forgets every star of the tiles before `tile` (left behind).
 func remove_before(tile: int) -> void:
 	arcs = arcs.filter(func(a: Arc) -> bool: return a.tile >= tile)
@@ -150,6 +208,16 @@ func remove_before(tile: int) -> void:
 		for s in arcs[i].stars:
 			s.arc = i
 			stars.append(s)
+
+
+## Everything has moved `by` toward +z (EndlessWorld.recentre()). A star's `at` is a world position
+## (one riding a thermal adds its drift on top), so every star moves by the same.
+func recentre(by: float) -> void:
+	for s in stars:
+		s.at.z += by
+		s.shown_from.z += by
+	for arc in arcs:
+		arc.end_z += by
 
 
 func clear() -> void:
@@ -172,7 +240,7 @@ func check(at: Vector3, velocity := Vector3.ZERO) -> Array[Pickup]:
 	var big_r := tuning.big_star_pickup_radius if tuning else 1.5
 	var spiral_r := tuning.spiral_pickup_radius if tuning else 3.0
 	for s in stars:
-		if s.taken:
+		if s.taken or arcs[s.arc].hidden:
 			continue
 		var p := s.position()
 		var reach := big_r if s.big else (spiral_r if not arcs[s.arc].spiral.is_empty() else small_r)
@@ -224,7 +292,7 @@ func check(at: Vector3, velocity := Vector3.ZERO) -> Array[Pickup]:
 					if not arc.alt:
 						missed_total += 1
 					arc.broken = true
-			if arc.broken and not was_broken:
+			if arc.broken and not was_broken and not arc.hidden:
 				closed_broken.append(arc)
 	return out
 
@@ -248,7 +316,7 @@ func _watch_spiral(arc: Arc, at: Vector3, velocity: Vector3) -> void:
 	if arc.spiral.has("heading"):
 		arc.spiral["turned"] = float(arc.spiral.get("turned", 0.0)) + wrapf(heading - float(arc.spiral["heading"]), -PI, PI)  # signed: weaving cancels out
 	arc.spiral["heading"] = heading
-	if absf(float(arc.spiral.get("turned", 0.0))) >= SPIRAL_TURN:
+	if absf(float(arc.spiral.get("turned", 0.0))) >= SPIRAL_TURN and off.length() >= SPIRAL_FROM_MIDDLE:  # (not while crossing its middle)
 		arc.anchored = true
 		_lay_spiral(arc, at, velocity)
 
@@ -295,7 +363,7 @@ func _lay_spiral(arc: Arc, at: Vector3, velocity: Vector3) -> void:
 	var moves := 0.0
 	for i in left.size():
 		var a := off.angle() + dir * (lead + step * i)
-		var spot := Vector3(home.x + cos(a) * radius, minf(first + rise * i, maxf(top - 2.5, first)), home.z + sin(a) * radius)
+		var spot := Vector3(home.x + cos(a) * radius, minf(first + rise * i, top - 2.5), home.z + sin(a) * radius)  # (never above where climbs end)
 		spots.append(spot)
 		moves = maxf(moves, spot.distance_to((left[i] as Star).at))
 	if moves <= 1.0:
@@ -315,7 +383,7 @@ func _lay_spiral(arc: Arc, at: Vector3, velocity: Vector3) -> void:
 func break_current() -> bool:
 	for i in range(arcs.size() - 1, -1, -1):
 		var arc := arcs[i]
-		if arc.closed or arc.broken:
+		if arc.closed or arc.broken or arc.hidden:
 			continue
 		if arc.stars.any(func(s: Star) -> bool: return s.taken):
 			arc.broken = true
@@ -343,7 +411,7 @@ func _place(delta: float) -> void:
 	var big := 0
 	var spin := Basis(Vector3.UP, _time * SPIN)
 	for s in stars:
-		if s.taken:
+		if s.taken or arcs[s.arc].hidden:
 			continue
 		var mm := _big.multimesh if s.big else _small.multimesh
 		var i := big if s.big else small
@@ -354,7 +422,7 @@ func _place(delta: float) -> void:
 			s.slide = minf(s.slide + delta / 0.5, 1.0)
 			at = s.shown_from.lerp(at, smoothstep(0.0, 1.0, s.slide))
 		mm.set_instance_transform(i, Transform3D(spin.rotated(Vector3.UP, s.phase), at))
-		mm.set_instance_color(i, DIM if s.missed or arcs[s.arc].broken else Color.WHITE)  # a broken line dims
+		mm.set_instance_color(i, DIM if s.missed or arcs[s.arc].broken or arcs[s.arc].dim else Color.WHITE)  # a broken line dims
 		if s.big:
 			big += 1
 		else:

@@ -43,9 +43,11 @@ Rising air lifts you. When rising air is carrying you up, you hear soft beeps, f
 
 Warm air over the radiator, steam from the kettle, and sunbeams (through a window in the gallery, and through the skylight): a soft shimmer, drifting dust, or a shaft of light. Fly into them to climb.
 
-Thermals outdoors: warm air rising off sun-warmed ground (the hay field, the barn roof, the ploughed field, the chalk pit, the beach sand, the barley field). Look for drifting motes, a faint shimmering column, a fluffy cloud sitting on top, and birds circling near the top. To use one, keep turning in a circle inside it; you climb as you go round. Once you reach a thermal it starts to drift slowly with the breeze, so follow the beeps and keep re-centring. Its cloud thins once you have climbed it, a hint to go and find the next.
+Thermals outdoors: warm air rising off sun-warmed ground (the hay field, the barn roof, the ploughed field, the chalk pit, the beach sand; in Endless the barley field, the muck heap, the down by the standing stones and the island's sand). Look for drifting motes, a faint shimmering column, a fluffy cloud sitting on top, and birds circling near the top. To use one, keep turning in a circle inside it; you climb as you go round. Once you reach a thermal it starts to drift slowly with the breeze, so follow the beeps and keep re-centring. Its cloud thins once you have climbed it, a hint to go and find the next.
 
-Smoke: the bonfire's smoke and chimney smoke rise strongly. Fly through a plume for a quick lift.
+Smoke: the bonfire's smoke and chimney smoke rise strongly. Fly through a plume for a quick lift. A washing copper's steam (Endless) is wide enough to circle in, like a thermal.
+
+Low warm air (Endless): close over the pasture and the cottage gardens the sun-warmed air holds you up, so skimming low you hardly sink. A little higher and it's gone.
 
 Ridges: where the wind blows up a hillside (the long ridge on the left of the valley, and the bluff above the lake) the air rises all along the slope. Dandelion seeds float up it. Fly along the slope, a little way out from it, and you climb as you go. Don't touch it: in Endless, landing on a hillside ends the run. A gull may come and fly beside you.
 
@@ -57,7 +59,7 @@ Sinking air pushes you down. It is useful for a quick dive, but costly when you 
 
 The stair hall has a cool downdraft: pale wisps falling. Diving with it is fast.
 
-Over the lake the air sinks gently. Low ticks tell you, faster the stronger it sinks. Crossing the water costs some height, so go over it high.
+Over the lake (and Endless's Mere) the air sinks gently. Low ticks tell you, faster the stronger it sinks. Crossing the water costs some height, so go over it high.
 
 Outdoors, when you fly out of the side of rising air you hear a soft sigh: you have lost the lift, so turn back into it.
 
@@ -77,7 +79,7 @@ A tink: a star. Each star in a row along a line rings a note higher.
 
 A bell: through a kite ring.
 
-A flutter: a kite ring snagged you.
+A flutter: a kite ring or the washing snagged you.
 
 A tap: a bump.
 
@@ -97,7 +99,7 @@ A flight ends when you come to rest or crash. Come to rest outdoors once, withou
 
 # Endless
 
-Endless starts in the air beyond the lake, above a country that never ends. A breeze behind you carries you along. Stay up as long as you can: the run ends the moment you touch the ground, or crash. (Turning round and flying back past the start ends it too.)
+Endless starts in the air beyond the lake, above a country that never ends. A breeze behind you carries you along, and it freshens the further you go, so the country comes at you faster. Stay up as long as you can: the run ends the moment you touch the ground, or crash. (Turning round and flying back past the start ends it too.)
 
 The bar on the left shows your height above the ground. It turns coral and pulses when you are very low.
 
@@ -109,7 +111,17 @@ Kite rings: fly through for a bell. Touching a ring snags you: you lose some spe
 
 The viaduct's wall is solid stone: dive through an arch (the middle one holds a big star) or go over the top. At speed you will hear the rush of it.
 
+Hedges, poplars, the barn and the standing stones are solid. Skim low and fast over the hedges; thread the one gap in the row of poplars; fly in one barn door and out of the other (or over the roof); weave in through the stones past the big star in the middle.
+
+Washing lines: duck under the sheets, or fly over them. Touching the washing snags you, and a sock may fly off.
+
+The stars show the line for your height: come in low and they lead through the door (or under the washing, or into the stones); come in high and they lead over the top.
+
+Over the Mere the cool air sinks: make for the island's thermal and spiral up. Coming down on the water is a splashdown, and ends the run.
+
 Thermals here drift with the breeze, and fade once they have drifted a while. Climb, then move on.
+
+Bunting across the valley marks where your best run ended. Fly past it for a cheer.
 
 Bumps and snags break the line of stars you are on, but the run goes on.
 

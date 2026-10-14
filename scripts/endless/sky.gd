@@ -97,6 +97,16 @@ func remove_before(tile: int) -> void:
 	birds = birds.filter(func(b: Bird) -> bool: return b.tile >= tile)
 
 
+## Everything has moved `by` toward +z (EndlessWorld.recentre()).
+func recentre(by: float) -> void:
+	for c in clouds:
+		c.centre.z += by
+		for p in c.puffs:
+			p["at"] += Vector3(0.0, 0.0, by)
+	for b in birds:
+		b.centre.z += by
+
+
 func clear() -> void:
 	clouds.clear()
 	birds.clear()

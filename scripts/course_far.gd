@@ -166,17 +166,23 @@ static func _island(c: Course) -> void:
 
 ## A small sailboat circling slowly on the lake, heeled away from the breeze.
 static func _sailboat(c: Course) -> void:
+	var mover := PropMotion.new()
+	mover.name = "Sailboat"
+	mover.mesh = boat_mesh()
+	mover.sail_round(Vector3(BOAT_CIRCLE.x, Course.LAKE_Y, BOAT_CIRCLE.y), BOAT_RADIUS, BOAT_SPEED, deg_to_rad(10.0))
+	c.add_child(mover)
+
+
+## The sailboat's mesh (nose toward -Z; the material must be double-sided for the sail). Endless's
+## Mere has one too.
+static func boat_mesh() -> ArrayMesh:
 	var m := Art.Builder.new()
 	m.box(Vector3(0.0, 0.2, 0.0), Vector3(1.1, 0.5, 3.2), Course.TRIM)
 	m.box(Vector3(0.0, 0.05, 0.0), Vector3(1.15, 0.15, 3.25), Color("a9c8e8"))
 	m.cylinder(Vector3(0.0, 0.4, -0.3), 0.05, 0.05, 3.6, Color("7a6a5e"), 6)
 	m.triangle(Vector3(0.0, 0.6, -0.2), Vector3(0.0, 3.9, -0.25), Vector3(0.0, 0.7, 1.4), Color("fbf8f1"))  # the sail (the material is double-sided)
 	m.box(Vector3(-0.3, 4.0, -0.3), Vector3(0.6, 0.15, 0.03), Color("f19e8f"))  # the pennant
-	var mover := PropMotion.new()
-	mover.name = "Sailboat"
-	mover.mesh = m.commit()
-	mover.sail_round(Vector3(BOAT_CIRCLE.x, Course.LAKE_Y, BOAT_CIRCLE.y), BOAT_RADIUS, BOAT_SPEED, deg_to_rad(10.0))
-	c.add_child(mover)
+	return m.commit()
 
 
 ## The boathouse on the far shore, with a jetty out over the water (the jetty isn't solid).

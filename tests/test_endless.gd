@@ -14,7 +14,7 @@ func _endless() -> EndlessGame:
 
 # --- The generator (mark 4) -------------------------------------------------------------
 
-## 10,000 sequences of 30 pieces from random seeds, across difficulty 0 to 1: a good pilot always
+## 10,000 sequences of 45 pieces from random seeds, across difficulty 0 to 1: a good pilot always
 ## enters a piece at least the margin above what it needs; no piece comes back too soon; never too
 ## many pieces without lift in a row; a rest piece often enough; every run starts Rim, Street.
 func test_ten_thousand_sequences_keep_every_rule() -> void:
@@ -26,7 +26,7 @@ func test_ten_thousand_sequences_keep_every_rule() -> void:
 	for run in 10000:
 		var g := EndlessGenerator.new(tune, rng.randi())
 		var seq: Array[EndlessGenerator.Placement] = []
-		for i in 30:
+		for i in 45:
 			seq.append(g.next())
 		if seq[0].id != &"rim" or seq[1].id != &"street":
 			bad.append("run %d opens %s, %s" % [run, seq[0].id, seq[1].id])
@@ -202,20 +202,20 @@ func test_stars_in_a_thermal_ride_its_drift_and_a_spiral_forms_round_the_pilot()
 	# just ahead, out of reach, the way the pilot turns, at its radius.
 	var at := Vector3.ZERO
 	var velocity := Vector3.ZERO
-	for deg in range(0, 100, 5):
+	for deg in range(0, 40, 5):
 		var a := deg_to_rad(deg)
 		at = Vector3(8.0 * cos(a), 5.0 + deg * 0.02, 8.0 * sin(a))
 		velocity = Vector3(-sin(a), 0.0, cos(a)) * 7.0 + Vector3(0, 2.0, 0)  # round with the angle rising
 		stars.check(at, velocity)
-	check(not stars.arcs[0].anchored, "not after under 120 degrees")
-	for deg in range(100, 160, 5):
+	check(not stars.arcs[0].anchored, "not after under 45 degrees")
+	for deg in range(40, 80, 5):
 		var a := deg_to_rad(deg)
 		at = Vector3(8.0 * cos(a), 5.0 + deg * 0.02, 8.0 * sin(a))
 		velocity = Vector3(-sin(a), 0.0, cos(a)) * 7.0 + Vector3(0, 2.0, 0)
 		stars.check(at, velocity)
 		if stars.arcs[0].anchored:
 			break
-	check(stars.arcs[0].anchored, "laid once the pilot has circled 120 degrees")
+	check(stars.arcs[0].anchored, "laid once the pilot has circled 45 degrees")
 	var next: EndlessStars.Star = stars.arcs[0].stars.filter(func(s: EndlessStars.Star) -> bool: return not s.taken)[0]
 	var first := next.at
 	check(absf(Vector2(first.x, first.z).length() - 8.0) < 0.1 and first.y > at.y - 0.01, "at the pilot's radius, no lower (%s)" % first)
@@ -227,10 +227,9 @@ func test_stars_in_a_thermal_ride_its_drift_and_a_spiral_forms_round_the_pilot()
 
 ## At 1.5 u/s of wind, a hands-off glide covers about 12.2 u for each unit of height lost (9.7 still).
 func test_the_tailwind_stretches_the_glide() -> void:
+	EndlessGame.debug_wind = 1.5
 	var game := await _endless()
 	game.plane.autopilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
-	game.world.wind = 1.5
-	game.plane.air_drift = Vector3(0, 0, -1.5)
 	game.plane.launch(EndlessWorld.START + Vector3(0, 30, 0), 0.0)
 	game.plane.held = false
 	await physics_frames(240)  # settle into the glide
@@ -238,6 +237,7 @@ func test_the_tailwind_stretches_the_glide() -> void:
 	await physics_frames(360)
 	var b := game.plane.global_position
 	var ratio := Vector2(b.x - a.x, b.z - a.z).length() / maxf(a.y - b.y, 0.01)
+	EndlessGame.debug_wind = -1.0
 	check_between(ratio, 11.9, 12.5, "glide ratio in the wind")
 
 
