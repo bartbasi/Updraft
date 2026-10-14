@@ -357,3 +357,51 @@ func test_the_breeze_freshens_at_its_marks() -> void:
 	game._physics_process(1.0 / 60.0)
 	EndlessGame.debug_wind = -1.0
 	check(notes.size() == 3, "not in a steady wind chosen on the card")
+
+
+## Shapes are scaled from cached unit shapes rather than asked of the renderer each time (a phone
+## stalled ~100 ms a piece): the triangles that have any area match the meshes' own.
+func test_cached_shapes_match_the_meshes() -> void:
+	var cases: Array[PrimitiveMesh] = []
+	for size in [Vector3(1.0, 2.0, 3.0), Vector3(0.24, 6.5, 0.6)]:
+		var b := BoxMesh.new()
+		b.size = size
+		cases.append(b)
+	for c in [[0.4, 0.3, 4.0, 5], [2.6, 0.0, 7.0, 6], [0.0, 1.5, 2.0, 8], [1.0, 1.0, 1.5, 10]]:
+		var m := CylinderMesh.new()
+		m.bottom_radius = c[0]
+		m.top_radius = c[1]
+		m.height = c[2]
+		m.radial_segments = c[3]
+		m.rings = 0
+		cases.append(m)
+	for c in [[2.5, 5.0, 6, 3], [0.7, 1.4, 7, 5], [1.0, 3.0, 9, 5]]:
+		var s := SphereMesh.new()
+		s.radius = c[0]
+		s.height = c[1]
+		s.radial_segments = c[2]
+		s.rings = c[3]
+		cases.append(s)
+	var solid := func(tris: PackedVector3Array) -> PackedVector3Array:
+		var out := PackedVector3Array()
+		for t in range(0, tris.size(), 3):
+			var a := tris[t]
+			var b := tris[t + 1]
+			var c := tris[t + 2]
+			if not (a.is_equal_approx(b) or b.is_equal_approx(c) or a.is_equal_approx(c)):
+				out.append_array([a, b, c])
+		return out
+	for mesh in cases:
+		var arrays := mesh.get_mesh_arrays()
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var all := PackedVector3Array()
+		for i: int in arrays[Mesh.ARRAY_INDEX]:
+			all.append(verts[i])
+		var want: PackedVector3Array = solid.call(all)
+		var got: PackedVector3Array = solid.call(Art.triangles(mesh))
+		var same := got.size() == want.size()
+		for i in mini(got.size(), want.size()):
+			same = same and got[i].distance_to(want[i]) < 1e-4
+		if mesh is CylinderMesh and (mesh.top_radius == 0.0 or mesh.bottom_radius == 0.0):
+			check(Art.triangles(mesh).size() < all.size(), "a cone leaves out its triangles that come to nothing")
+		check(same, "%s %s: %d triangles as the mesh's %d" % [mesh.get_class(), mesh.get_mesh_arrays()[Mesh.ARRAY_VERTEX].size(), got.size() / 3, want.size() / 3])

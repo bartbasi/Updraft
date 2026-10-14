@@ -41,6 +41,113 @@ static func soft_dot() -> GradientTexture2D:
 	return _soft_dot
 
 
+## Unit shapes' triangles (see triangles()), by kind and segments.
+static var _units := {}
+
+
+## A primitive mesh's triangles, a vertex per corner, as get_mesh_arrays() and its indices give
+## them, but without asking the renderer: get_mesh_arrays() builds the mesh on the rendering server
+## and reads it back, a round trip that costs a phone milliseconds a shape. Boxes, cylinders (no
+## rings) and spheres are scaled from a unit shape made once; tori are made once per size; anything
+## else is made each time.
+static func triangles(mesh: PrimitiveMesh) -> PackedVector3Array:
+	if mesh is BoxMesh and mesh.subdivide_width == 0 and mesh.subdivide_height == 0 and mesh.subdivide_depth == 0:
+		return box_triangles(mesh.size)
+	if mesh is CylinderMesh and mesh.rings == 0 and mesh.cap_top and mesh.cap_bottom:
+		return cylinder_triangles(mesh.bottom_radius, mesh.top_radius, mesh.height, mesh.radial_segments)
+	if mesh is SphereMesh and not mesh.is_hemisphere:
+		return sphere_triangles(mesh.radius, mesh.height, mesh.radial_segments, mesh.rings)
+	if mesh is TorusMesh:
+		return torus_triangles(mesh.inner_radius, mesh.outer_radius, mesh.rings, mesh.ring_segments)
+	return _expand(mesh)
+
+
+static func box_triangles(size: Vector3) -> PackedVector3Array:
+	var out := _unit(&"box", 0, 0).duplicate()
+	for i in out.size():
+		out[i] *= size
+	return out
+
+
+## Side and caps, as CylinderMesh makes them; a cap of no radius is left out, as are the side's
+## triangles that come to nothing at a point.
+static func cylinder_triangles(bottom_radius: float, top_radius: float, height: float, segments: int) -> PackedVector3Array:
+	var unit := _unit(&"cylinder", segments, 0)
+	var out := PackedVector3Array()
+	out.resize(unit.size())
+	var n := 0
+	var corner: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+	for t in range(0, unit.size(), 3):
+		for c in 3:
+			var v := unit[t + c]
+			var r := top_radius if v.y > 0.0 else bottom_radius
+			corner[c] = Vector3(v.x * r, v.y * height, v.z * r)
+		if corner[0] == corner[1] or corner[1] == corner[2] or corner[0] == corner[2]:
+			continue
+		for c in 3:
+			out[n] = corner[c]
+			n += 1
+	out.resize(n)
+	return out
+
+
+## A torus is made once for each size (making a mesh at all asks the renderer). The array returned
+## is the cached one: read it, never change it.
+static func torus_triangles(inner_radius: float, outer_radius: float, rings: int, ring_segments: int) -> PackedVector3Array:
+	var key := "torus:%s:%s:%d:%d" % [inner_radius, outer_radius, rings, ring_segments]
+	if not _units.has(key):
+		var m := TorusMesh.new()
+		m.inner_radius = inner_radius
+		m.outer_radius = outer_radius
+		m.rings = rings
+		m.ring_segments = ring_segments
+		_units[key] = _expand(m)
+	return _units[key]
+
+
+static func sphere_triangles(radius: float, height: float, segments: int, rings: int) -> PackedVector3Array:
+	var out := _unit(&"sphere", segments, rings).duplicate()
+	var scale := Vector3(radius, height * 0.5, radius)
+	for i in out.size():
+		out[i] *= scale
+	return out
+
+
+## A unit box (size 1), cylinder (radii 1, height 1) or sphere (radius 1, height 2).
+static func _unit(kind: StringName, segments: int, rings: int) -> PackedVector3Array:
+	var key := "%s:%d:%d" % [kind, segments, rings]
+	if not _units.has(key):
+		var m: PrimitiveMesh
+		match kind:
+			&"box":
+				m = BoxMesh.new()
+				m.size = Vector3.ONE
+			&"cylinder":
+				m = CylinderMesh.new()
+				m.top_radius = 1.0
+				m.bottom_radius = 1.0
+				m.height = 1.0
+				m.radial_segments = segments
+				m.rings = 0
+			&"sphere":
+				m = SphereMesh.new()
+				m.radius = 1.0
+				m.height = 2.0
+				m.radial_segments = segments
+				m.rings = rings
+		_units[key] = _expand(m)
+	return _units[key]
+
+
+static func _expand(mesh: PrimitiveMesh) -> PackedVector3Array:
+	var arrays := mesh.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var out := PackedVector3Array()
+	for i: int in arrays[Mesh.ARRAY_INDEX]:
+		out.append(verts[i])
+	return out
+
+
 ## Packs shapes into one flat-shaded mesh. Colours are sRGB and stored per vertex.
 class Builder:
 	var st := SurfaceTool.new()
@@ -51,38 +158,26 @@ class Builder:
 		st.set_smooth_group(-1)
 
 	func add(mesh: PrimitiveMesh, xform: Transform3D, color: Color, solid := false) -> void:
-		var arrays := mesh.get_mesh_arrays()
-		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		add_triangles(Art.triangles(mesh), xform, color, solid)
+
+	## Triangles, a vertex per corner (see Art.triangles()).
+	func add_triangles(tris: PackedVector3Array, xform: Transform3D, color: Color, solid := false) -> void:
 		st.set_color(color)
-		for i in indices:
-			var v := xform * verts[i]
+		for v0 in tris:
+			var v := xform * v0
 			st.add_vertex(v)
 			if solid:
 				faces.append(v)
 
 	func box(center: Vector3, size: Vector3, color: Color, basis := Basis.IDENTITY) -> void:
-		var m := BoxMesh.new()
-		m.size = size
-		add(m, Transform3D(basis, center), color)
+		add_triangles(Art.box_triangles(size), Transform3D(basis, center), color)
 
 	## Cylinder or cone standing on `base` (bottom centre).
 	func cylinder(base: Vector3, bottom_radius: float, top_radius: float, height: float, color: Color, segments := 10, basis := Basis.IDENTITY) -> void:
-		var m := CylinderMesh.new()
-		m.bottom_radius = bottom_radius
-		m.top_radius = top_radius
-		m.height = height
-		m.radial_segments = segments
-		m.rings = 0
-		add(m, Transform3D(basis, base + basis * Vector3(0.0, height * 0.5, 0.0)), color)
+		add_triangles(Art.cylinder_triangles(bottom_radius, top_radius, height, segments), Transform3D(basis, base + basis * Vector3(0.0, height * 0.5, 0.0)), color)
 
 	func sphere(center: Vector3, radius: float, color: Color, stretch := Vector3.ONE, segments := 9, rings := 5) -> void:
-		var m := SphereMesh.new()
-		m.radius = radius
-		m.height = radius * 2.0
-		m.radial_segments = segments
-		m.rings = rings
-		add(m, Transform3D(Basis.from_scale(stretch), center), color)
+		add_triangles(Art.sphere_triangles(radius, radius * 2.0, segments, rings), Transform3D(Basis.from_scale(stretch), center), color)
 
 	## Godot treats clockwise triangles as front-facing.
 	func triangle(a: Vector3, b: Vector3, c: Vector3, color: Color, solid := false) -> void:

@@ -662,46 +662,25 @@ static func _solid_box(look: Art.Builder, solid: PackedVector3Array, centre: Vec
 
 
 static func _box_faces(solid: PackedVector3Array, centre: Vector3, size: Vector3, basis := Basis.IDENTITY) -> void:
-	var m := BoxMesh.new()
-	m.size = size
-	_mesh_faces(solid, m, Transform3D(basis, centre))
+	_faces(solid, Art.box_triangles(size), Transform3D(basis, centre))
 
 
 static func _solid_cylinder(look: Art.Builder, solid: PackedVector3Array, base: Vector3, r_bottom: float, r_top: float, height: float, color: Color, segments := 8) -> void:
 	look.cylinder(base, r_bottom, r_top, height, color, segments)
-	var m := CylinderMesh.new()
-	m.bottom_radius = r_bottom
-	m.top_radius = r_top
-	m.height = height
-	m.radial_segments = segments
-	m.rings = 0
-	_mesh_faces(solid, m, Transform3D(Basis.IDENTITY, base + Vector3(0.0, height * 0.5, 0.0)))
+	_faces(solid, Art.cylinder_triangles(r_bottom, r_top, height, segments), Transform3D(Basis.IDENTITY, base + Vector3(0.0, height * 0.5, 0.0)))
 
 
 static func _cone_faces(solid: PackedVector3Array, base: Vector3, radius: float, height: float) -> void:
-	var m := CylinderMesh.new()
-	m.bottom_radius = radius
-	m.top_radius = 0.0
-	m.height = height
-	m.radial_segments = 6
-	m.rings = 0
-	_mesh_faces(solid, m, Transform3D(Basis.IDENTITY, base + Vector3(0.0, height * 0.5, 0.0)))
+	_faces(solid, Art.cylinder_triangles(radius, 0.0, height, 6), Transform3D(Basis.IDENTITY, base + Vector3(0.0, height * 0.5, 0.0)))
 
 
 static func _sphere_faces(solid: PackedVector3Array, centre: Vector3, radius: float) -> void:
-	var m := SphereMesh.new()
-	m.radius = radius
-	m.height = radius * 2.0
-	m.radial_segments = 6
-	m.rings = 3
-	_mesh_faces(solid, m, Transform3D(Basis.IDENTITY, centre))
+	_faces(solid, Art.sphere_triangles(radius, radius * 2.0, 6, 3), Transform3D(Basis.IDENTITY, centre))
 
 
-static func _mesh_faces(solid: PackedVector3Array, mesh: PrimitiveMesh, xform: Transform3D) -> void:
-	var arrays := mesh.get_mesh_arrays()
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	for i: int in arrays[Mesh.ARRAY_INDEX]:
-		solid.append(xform * verts[i])
+static func _faces(solid: PackedVector3Array, tris: PackedVector3Array, xform: Transform3D) -> void:
+	for v in tris:
+		solid.append(xform * v)
 
 
 ## A gabled cottage or tent, ridge along z: walls, gable ends and roof, all solid.
@@ -779,15 +758,10 @@ static func _barley(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: flo
 	for at in [Vector2(c.x - 12.0, -32.0), Vector2(c.x + 12.0, -32.0), Vector2(c.x - 12.0, -56.0), Vector2(c.x + 12.0, -56.0)]:
 		var base := Vector3(at.x, grid_height(&"barley", at.x, at.y), at.y)
 		var roll := Basis(Vector3.BACK, PI * 0.5)
-		var bale := CylinderMesh.new()
-		bale.top_radius = 1.0
-		bale.bottom_radius = 1.0
-		bale.height = 1.5
-		bale.radial_segments = 10
-		bale.rings = 0
+		var bale := Art.cylinder_triangles(1.0, 1.0, 1.5, 10)
 		var xf := Transform3D(roll, base + Vector3(0.0, 1.0, 0.0))
-		look.add(bale, xf, Color("e9c98a"))
-		_mesh_faces(solid, bale, xf)
+		look.add_triangles(bale, xf, Color("e9c98a"))
+		_faces(solid, bale, xf)
 	var radius := lerpf(12.0, 10.0, d)
 	var top := lerpf(26.0, 23.0, d)
 	var floor_y := ground(&"barley", c.x, c.y)
@@ -993,17 +967,12 @@ static func _viaduct_wall(look: Art.Builder, solid: PackedVector3Array, span: fl
 	# Each inner pier's rounded cutwater on its upstream face, so a clipped pier glances off.
 	for i in range(2, edges.size() - 2, 2):
 		var r: float = (edges[i + 1] - edges[i]) * 0.5
-		var m := CylinderMesh.new()
-		m.top_radius = r
-		m.bottom_radius = r
-		m.height = springing - down
-		m.radial_segments = 10
-		m.rings = 0
+		var m := Art.cylinder_triangles(r, r, springing - down, 10)
 		var xf := Transform3D(Basis.IDENTITY, Vector3((edges[i] + edges[i + 1]) * 0.5, (springing + down) * 0.5, z0))
 		if drawn:
-			look.add(m, xf, STONE_DARK)
+			look.add_triangles(m, xf, STONE_DARK)
 		else:
-			_mesh_faces(solid, m, xf)
+			_faces(solid, m, xf)
 	if drawn:
 		for i in range(0, faces.size(), 3):  # both ways round: these faces are seen from both sides
 			look.triangle(faces[i], faces[i + 1], faces[i + 2], STONE)
@@ -1033,15 +1002,10 @@ static func _hedge(k: Kit, look: Art.Builder, solid: PackedVector3Array, z: floa
 			var r := HEDGE_THICK * 0.5
 			var box_top := top - r
 			_solid_box(look, solid, Vector3((x0 + x1) * 0.5, (g - 0.8 + box_top) * 0.5, z), Vector3(x1 - x0, box_top - g + 0.8, HEDGE_THICK), HEDGE_DARK)
-			var cap := CylinderMesh.new()  # the rounded top, along x
-			cap.top_radius = r
-			cap.bottom_radius = r
-			cap.height = x1 - x0
-			cap.radial_segments = 8
-			cap.rings = 0
+			var cap := Art.cylinder_triangles(r, r, x1 - x0, 8)  # the rounded top, along x
 			var xf := Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3((x0 + x1) * 0.5, box_top, z))
-			look.add(cap, xf, HEDGE)
-			_mesh_faces(solid, cap, xf)
+			look.add_triangles(cap, xf, HEDGE)
+			_faces(solid, cap, xf)
 	for side in [-1.0, 1.0]:  # the gate's posts
 		var x: float = gate_x + side * (gate * 0.5 + 0.15)
 		_solid_box(look, solid, Vector3(x, grid_height(k.id, x, z) + 0.6, z), Vector3(0.3, 2.0, 0.3), CREAM)
@@ -1185,13 +1149,8 @@ static func _poplars(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: fl
 		var mid := (POPLAR_CROWN.x + POPLAR_CROWN.y) * 0.5
 		var half := (POPLAR_CROWN.y - POPLAR_CROWN.x) * 0.5
 		look.sphere(base + Vector3(0, mid, 0), POPLAR_R, LEAF[int(absf(tx)) % 3], Vector3(1.0, half / POPLAR_R, 1.0), 7, 5)
-		var crown := CylinderMesh.new()
-		crown.top_radius = POPLAR_HIT_R * 0.6
-		crown.bottom_radius = POPLAR_HIT_R
-		crown.height = POPLAR_CROWN.y - POPLAR_CROWN.x - 0.5
-		crown.radial_segments = 6
-		crown.rings = 0
-		_mesh_faces(solid, crown, Transform3D(Basis.IDENTITY, base + Vector3(0, POPLAR_CROWN.x + crown.height * 0.5, 0)))
+		var crown_h := POPLAR_CROWN.y - POPLAR_CROWN.x - 0.5
+		_faces(solid, Art.cylinder_triangles(POPLAR_HIT_R, POPLAR_HIT_R * 0.6, crown_h, 6), Transform3D(Basis.IDENTITY, base + Vector3(0, POPLAR_CROWN.x + crown_h * 0.5, 0)))
 	var strength := lerpf(0.36, 0.32, d)
 	for street in [["StreetIn", -24.0, 32.0], ["StreetOut", -76.0, 32.0]]:
 		k.zones.append({"name": street[0], "shape": Thermal.Shape.BOX, "at": Vector3(POPLAR_GAP_X, 0.0, street[1]), "size": Vector3(10.0, 24.0, street[2]),
@@ -1269,21 +1228,11 @@ static func _door_edges(look: Art.Builder, solid: PackedVector3Array, door: Vect
 	var t := 0.5  # wall thickness
 	for zc in [BARN_Z.x - t * 0.5, BARN_Z.y + t * 0.5]:
 		for side in [-1.0, 1.0]:
-			var jamb := CylinderMesh.new()
-			jamb.top_radius = DOOR_ROUND
-			jamb.bottom_radius = DOOR_ROUND
-			jamb.height = hole.y + DOOR_ROUND + 0.8
-			jamb.radial_segments = 8
-			jamb.rings = 0
-			_mesh_faces(solid, jamb, Transform3D(Basis.IDENTITY, Vector3(side * (hole.x * 0.5 + DOOR_ROUND), (hole.y + DOOR_ROUND - 0.8) * 0.5, zc)))
+			var jamb := Art.cylinder_triangles(DOOR_ROUND, DOOR_ROUND, hole.y + DOOR_ROUND + 0.8, 8)
+			_faces(solid, jamb, Transform3D(Basis.IDENTITY, Vector3(side * (hole.x * 0.5 + DOOR_ROUND), (hole.y + DOOR_ROUND - 0.8) * 0.5, zc)))
 			look.box(Vector3(side * (door.x * 0.5 + 0.12), door.y * 0.5, zc), Vector3(0.24, door.y, t + 0.1), CREAM)
-		var lintel := CylinderMesh.new()
-		lintel.top_radius = DOOR_ROUND
-		lintel.bottom_radius = DOOR_ROUND
-		lintel.height = hole.x + DOOR_ROUND * 2.0
-		lintel.radial_segments = 8
-		lintel.rings = 0
-		_mesh_faces(solid, lintel, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, hole.y + DOOR_ROUND, zc)))
+		var lintel := Art.cylinder_triangles(DOOR_ROUND, DOOR_ROUND, hole.x + DOOR_ROUND * 2.0, 8)
+		_faces(solid, lintel, Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, hole.y + DOOR_ROUND, zc)))
 		look.box(Vector3(0.0, door.y + 0.12, zc), Vector3(door.x + 0.48, 0.24, t + 0.1), CREAM)
 
 
@@ -1504,13 +1453,8 @@ static func _lowest(id: StringName, at: Vector2, size: Vector3) -> float:
 ## A ring kite: a torus facing along `axis`. It never collides; touching it snags, which the game
 ## checks.
 static func _hoop_mesh(look: Art.Builder, centre: Vector3, axis: Vector3, radius: float, color: Color) -> void:
-	var m := TorusMesh.new()
-	m.inner_radius = radius
-	m.outer_radius = radius + HOOP_TUBE * 2.0
-	m.rings = 20
-	m.ring_segments = 6
 	var basis := Basis(Quaternion(Vector3.UP, axis.normalized()))  # the torus's hole looks along its local y
-	look.add(m, Transform3D(basis, centre), color)
+	look.add_triangles(Art.torus_triangles(radius, radius + HOOP_TUBE * 2.0, 20, 6), Transform3D(basis, centre), color)
 
 
 ## A bow-tied ribbon tail hanging below a hoop, blowing a little downwind.

@@ -441,3 +441,26 @@ Fun review 6 re-check: approved, with revised marks (hands-off median 45-150 s, 
 past 12 pieces, none past 20; first stars recorded, each arc full in calibration from need and 18).
 Step 3 follow-ups from it: the Standing Stones' 0-of-9 run after a spiral across the join, and the
 Mere's middle stars.
+
+## Endless on the phone: the piece stutter (2026-10-14)
+
+The first phone probe of Endless (Galaxy Z Fold5, cover screen, 120 Hz, the skilled pilot, seed 3)
+averaged 117 fps but stalled 80-140 ms each time a piece was built, every 13-25 s. The kit builds
+run a step at a time, but single steps took far longer on the phone than the PC's 3.3 ms: a
+piece's own content up to 607 ms (Pasture; Poplars 119, Viaduct 104), four trees 25-48 ms.
+
+The cause was every shape asking the renderer: `PrimitiveMesh.new()` makes a mesh on the
+rendering server and `get_mesh_arrays()` builds it there and reads it back, a round trip per box,
+cylinder and sphere. Headless runs use a dummy renderer, which hid it (Pasture's content 6 ms
+headless, 114 ms on the PC with the real renderer). Now `Art.triangles()` scales boxes, cylinders
+and spheres from unit shapes made once (and tori once per size), and the kits never make a mesh
+per shape; the Course's buildings share the same Builder and load faster too. A test checks the
+cached shapes against the meshes' own triangles. `tools/kit_times.gd` times each kit's steps
+(run it without --headless to see the renderer's cost).
+
+| Phone, after | |
+|---|---|
+| Frames over 30 ms after the first second | none in 90 s (one of 25 ms) |
+| Longest build step | 16.6 ms (Pasture's content), the rest 11 ms or less |
+| Placing a piece (its thermals) | 5-7 ms (was 15-18) |
+| Average | 119 fps |
