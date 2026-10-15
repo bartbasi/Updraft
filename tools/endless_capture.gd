@@ -4,7 +4,7 @@ extends SceneTree
 ## Flies Endless with a skilled test pilot in a real window, from the look back over the bowl,
 ## and saves screenshots along the way (and the end card, if the run ends).
 ##   godot --path . -s res://tools/endless_capture.gd -- --out=<folder> [--times=0.3,1.0,...]
-##     [--seed=S] [--look=plane] [--wind=W] [--max=SECONDS] [--piece=ID [--d=D] [--h=H]]
+##     [--seed=S] [--look=plane] [--wind=W] [--max=SECONDS] [--piece=ID [--d=D] [--h=H]] [--road=low|high]
 ## --piece starts the flight at that piece's entry (at difficulty D, height H above the floor),
 ## followed by two Cloud Streets, as tools/endless_log.gd --calibrate flies it.
 
@@ -18,12 +18,16 @@ var _shot := 0
 var _piece := ""
 var _d := 0.0
 var _h := 18.0
+var _road := "alt"
+var _pilot: Autopilot  ## (held: a Callable doesn't keep its pilot alive)
 
 
 func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			_out = arg.trim_prefix("--out=")
+		elif arg.begins_with("--road="):
+			_road = arg.trim_prefix("--road=")
 		elif arg.begins_with("--times="):
 			_times.clear()
 			for t in arg.trim_prefix("--times=").split(","):
@@ -52,7 +56,8 @@ func _initialize() -> void:
 	EndlessGame.looked_back = false
 	_game = load(EndlessGame.SCENE).instantiate()
 	_game.next_seed = _seed
-	Autopilot.fly_endless(_game, "skilled", _seed)
+	_pilot = Autopilot.fly_endless(_game, "skilled", _seed)
+	_pilot.road_mode = _road
 	if _piece != "":
 		EndlessGame.looked_back = true
 		_game.calibration = {"pieces": [StringName(_piece), &"street", &"street"], "d": _d, "h": _h}

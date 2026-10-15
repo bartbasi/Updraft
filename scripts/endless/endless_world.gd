@@ -186,7 +186,11 @@ func water_level(x: float, z: float) -> float:
 	if p == null or p.kit == null or p.kit.water.is_empty():
 		return -INF
 	var w := p.kit.water
-	var reach := ((Vector2(x, z - p.origin.z) - (w["centre"] as Vector2)) / (w["radii"] as Vector2)).length()
+	var local_z := z - p.origin.z
+	if w.has("river"):  # a fork's river: a strip along its low road
+		var on := -local_z >= float(w["from"]) and -local_z <= float(w["to"]) and absf(x - EndlessForks.road_x(p.placement.id, "low", local_z)) < float(w["half"])
+		return p.origin.y + float(w["y"]) if on else -INF
+	var reach := ((Vector2(x, local_z) - (w["centre"] as Vector2)) / (w["radii"] as Vector2)).length()
 	return p.origin.y + float(w["y"]) if reach < 1.0 else -INF
 
 
@@ -212,6 +216,17 @@ func line_for(p: Piece) -> PackedVector3Array:
 ## y), low, high}; otherwise empty.
 func line_choice(p: Piece) -> Dictionary:
 	var k := p.kit
+	if not k.fork.is_empty():  # a fork: both roads ({z, fork: true, low, high})
+		var roads := {"z": p.origin.z, "fork": true, "high_from": INF}
+		var keep := k.line_points.duplicate()
+		for road in ["low", "high"]:
+			k.line_points.assign(k.fork["lines"][road])
+			var out := PackedVector3Array()
+			for q in k.line(p.placement.h_in):
+				out.append(p.origin + q)
+			roads[road] = out
+		k.line_points = keep
+		return roads
 	if k.high_points.is_empty():
 		return {}
 	var both := {"z": p.origin.z, "high_from": p.origin.y + k.high_from}
@@ -229,7 +244,7 @@ func orbits_for(p: Piece) -> Array[Dictionary]:
 	for o in p.kit.orbits:
 		var c: Vector2 = o["centre"]
 		out.append({"centre": Vector2(c.x, c.y + p.origin.z), "zone": zone_name(p, o["zone"]), "radius": o["radius"],
-			"to_y": float(o["to_y"]) + FLOOR_Y, "up": o["up"], "max_time": o["max_time"]})
+			"to_y": float(o["to_y"]) + FLOOR_Y, "up": o["up"], "max_time": o["max_time"], "road": o.get("road", ""), "fork_z": p.origin.z})
 	return out
 
 

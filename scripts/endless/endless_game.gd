@@ -29,6 +29,12 @@ signal note(text: String)
 signal arc_closed(arc: EndlessStars.Arc)
 ## A run is starting at `start` (before its first pieces are placed): a test pilot starts afresh.
 signal run_started(start: Vector3)
+## A two-line piece (its entry at world z `entry_z`) has chosen the line its stars show: at its
+## choice point (see CHOICE_IN), by the height the flyer really has there. Test pilots follow it.
+signal line_chosen(entry_z: float, high: bool)
+## The road taken at the fork entered at `entry_z` ("low" or "high"), once the spine is between the
+## roads (EndlessForks.road_at()).
+signal road_chosen(entry_z: float, road: String)
 
 ## Debug builds: a steady wind chosen on the card for this session (negative: the rising wind).
 static var debug_wind := -1.0
@@ -95,8 +101,29 @@ var _overlay_lines: ImmediateMesh
 var _overlay_label: Label
 var _run_time := 0.0
 var _piece_tile := -1  ## The furthest piece entered (its first tile).
+## A two-line piece entered whose line isn't chosen yet (it is at its choice point), or null.
+var _choosing: EndlessWorld.Piece
+## Roads taken at forks this run, by the fork's first tile ("low" or "high"); and how many of each
+## (for step 7's missions; not saved yet).
+var roads := {}
+var roads_low := 0
+var roads_high := 0
+## The first fork of a session explains itself (as the look back plays once a session).
+static var fork_explained := false
+## How far into a two-line piece its line is chosen: this far in and heading on (within
+## CHOICE_HEADING of straight down the valley), or the second distance in whatever the flyer is
+## doing. Not at the join: a pilot circling a thermal across it decides once it straightens out,
+## at the height it really has (fun review 6: the Standing Stones' 0 of 9).
+const CHOICE_IN := Vector2(6.0, 24.0)
+const CHOICE_HEADING := 60.0
+const FORK_FIT_BY := 12.0
+## A flyer pinned against the ground this long (bumping, or under GROUND_HOLD over it) has touched
+## down: nothing may hold a run in a trough for minutes.
+const GROUND_HOLD_TIME := 3.0
+const GROUND_HOLD := 0.6
 var _graze := 0.0  ## Seconds touching ground lately (a long slide is a touchdown).
 var _graze_wait := 0.0  ## Seconds until a graze may nudge you off again.
+var _pinned := 0.0  ## Seconds in touch with the ground in a row (see GROUND_HOLD_TIME).
 var _wrong_way_hint := 0.0  ## Seconds until the "fly on" hint may show again.
 var _run_id := 0  ## Counts runs, so a card timer from an earlier run shows nothing.
 ## Pieces entered this run after the Rim.
@@ -184,8 +211,13 @@ func start_run(look_back: bool) -> void:
 	_arch_side.clear()
 	_run_time = 0.0
 	_piece_tile = -1
+	_choosing = null
+	roads.clear()
+	roads_low = 0
+	roads_high = 0
 	_graze = 0.0
 	_graze_wait = 0.0
+	_pinned = 0.0
 	_wrong_way_hint = 0.0
 	pieces_entered = 0
 	daily = daily_next
@@ -319,6 +351,7 @@ func _physics_process(delta: float) -> void:
 		_recentre()
 	_set_wind(EndlessWorld.metres(furthest_z) + start_m)
 	var at := plane.global_position
+	plane.air_drift.x = _split_breeze(at)
 	world.update(at, delta)
 	var lifts := world.ridge_lifts()
 	if lifts != gull.lifts:
@@ -353,17 +386,27 @@ func _physics_process(delta: float) -> void:
 	if p != null and p.spawned and p.placement.tile > _piece_tile:  # only onward (circling over a join doesn't count)
 		_piece_tile = p.placement.tile
 		piece_name = p.title()
-		world.stars.fit_to_entry(p.placement.tile, at.y)
-		if not p.kit.high_points.is_empty():  # the stars show the line for your height
-			var high := p.kit.takes_high(at - p.origin)
-			world.stars.choose_line(p.placement.tile, high)
-			note.emit("%s line" % ("high" if high else "low"))
+		if p.kit.high_points.is_empty() and p.kit.fork.is_empty():
+			world.stars.fit_to_entry(p.placement.tile, at.y)
+		else:
+			_choosing = p  # the stars show the line for your height (or a fork's fit it), chosen a little way in
+		for q in world.pieces:  # the height a fork was left at, by road (for logs)
+			if q.kit != null and not q.kit.fork.is_empty() and q.placement.tile + EndlessPieces.tiles(q.placement.id) == p.placement.tile:
+				note.emit("fork out: %s road h %.1f" % [roads.get(q.placement.tile, "?"), at.y - q.origin.y])
+		if not p.kit.fork.is_empty() and not fork_explained:
+			fork_explained = true
+			show_hint("Two ways: low road for stars, high road for height", 2.5)
 		if p.placement.id != &"rim":
 			pieces_entered += 1
 		note.emit("enter %s (d %.2f, h %.1f)" % [piece_name, p.placement.d, p.placement.h_in])
+	_choose_line(at)
+	_choose_road(at)
 	_check_close_call(delta)
 	_tick_sounds(delta)
 	_graze_wait = maxf(_graze_wait - delta, 0.0)
+	_pinned = _pinned + delta if plane.model.grounded or at.y - world.terrain_height(at.x, at.z) < GROUND_HOLD else 0.0
+	if _pinned >= GROUND_HOLD_TIME and not _ended:
+		_finish("Touchdown", plane.tuning.endless_card_delay_touchdown, "pinned to the ground over %s" % piece_name)
 	if plane.model.grounded:
 		# Flat ground (or a long slide) is a touchdown; a graze of a slope nudges you off, like a bump.
 		_graze += delta
@@ -389,6 +432,72 @@ func _physics_process(delta: float) -> void:
 			_wrong_way_hint = 4.0
 			show_hint("The breeze is behind you: fly on!", 2.0)
 	_wrong_way_hint = maxf(_wrong_way_hint - delta, 0.0)
+
+
+## At a fork, once the spine stands between the roads (EndlessForks.road_at()), the road taken:
+## the other road's stars dim and stop counting, a pop-up names it, and the wind swells.
+func _choose_road(at: Vector3) -> void:
+	for p in world.pieces:
+		if p.kit == null or p.kit.fork.is_empty() or roads.has(p.placement.tile) or not p.spawned:
+			continue
+		var local := at - p.origin
+		if local.z > 0.0 or local.z < -EndlessForks.LENGTH:
+			continue
+		var road := EndlessForks.road_at(p.placement.id, local)
+		if road == "":
+			continue
+		roads[p.placement.tile] = road
+		if road == "low":
+			roads_low += 1
+		else:
+			roads_high += 1
+		world.stars.choose_road(p.placement.tile, road)
+		show_popup("Low road!" if road == "low" else "High road!", road == "low")
+		swell(2.0, 0.6)
+		note.emit("fork %s: %s road (z %.0f, h %.1f)" % [EndlessPieces.NAMES[p.placement.id], road, local.z, local.y])
+		road_chosen.emit(p.origin.z, road)
+
+
+## At a fork's nose the breeze splits round the hill: a flyer heading straight for it is eased
+## toward the nearer road (it would otherwise bump off the nose and drift back down the valley).
+func _split_breeze(at: Vector3) -> float:
+	var p := world.piece_at(at.z)
+	if p == null or p.kit == null or p.kit.fork.is_empty():
+		return 0.0
+	var local := at - p.origin
+	var near := smoothstep(16.0, 34.0, -local.z) * (1.0 - smoothstep(70.0, 90.0, -local.z))
+	var side := signf(local.x) if absf(local.x) > 0.5 else -EndlessForks.low_side(p.placement.id)  # (dead centre: the high road)
+	return side * EndlessForks.SPLIT_BREEZE * near * (1.0 - smoothstep(4.0, 16.0, absf(local.x)))
+
+
+## Where on a piece the flyer is, for the card ("in the Gorge"); a fork's before the road is taken
+## is "at the fork".
+func where(p: EndlessWorld.Piece) -> String:
+	if p.kit != null and not p.kit.fork.is_empty() and roads.has(p.placement.tile):
+		return p.kit.fork["where"][roads[p.placement.tile]]
+	return EndlessPieces.WHERE[p.placement.id]
+
+
+## At a two-line piece's choice point (CHOICE_IN), fits its entry stars to the height the flyer
+## has and shows the line for that height.
+func _choose_line(at: Vector3) -> void:
+	if _choosing == null:
+		return
+	var p := _choosing
+	var into := p.origin.z - at.z
+	var flat := Vector2(plane.model.velocity.x, plane.model.velocity.z)
+	var onward := flat.length() > 0.5 and flat.normalized().dot(Vector2(0.0, -1.0)) >= cos(deg_to_rad(CHOICE_HEADING))
+	var latest := FORK_FIT_BY if not p.kit.fork.is_empty() else CHOICE_IN.y  # (a fork's first signpost star is at -16)
+	if not (into >= latest or (into >= CHOICE_IN.x and onward)):
+		return
+	_choosing = null
+	world.stars.fit_to_entry(p.placement.tile, at.y)
+	if p.kit.high_points.is_empty():
+		return  # a fork: its signposts and dives fitted to the height you really have, a little way in
+	var high := p.kit.takes_high(at - p.origin)
+	world.stars.choose_line(p.placement.tile, high)
+	note.emit("%s line" % ("high" if high else "low"))
+	line_chosen.emit(p.origin.z, high)
 
 
 ## Moves the whole world (and the flyer, camera and gull with it) a whole number of tiles back
@@ -516,7 +625,7 @@ func _check_arches() -> void:
 					var half: float = o["half_span"]
 					if absf(dx) < half and y < float(o["springing"]) + sqrt(maxf(half * half - dx * dx, 0.0)):
 						note.emit("through the arch at x %.1f, %.1f u/s" % [at.x, plane.model.velocity.length()])
-						if plane.model.velocity.length() >= tune.arch_pass_speed:
+						if plane.model.velocity.length() >= float(a.get("pass_speed", tune.arch_pass_speed)):
 							swell(5.0, 0.5)
 							_whoosh.play()
 							camera.kick_fov(tune.arch_pass_fov_kick)
@@ -592,7 +701,7 @@ func _finish(title: String, delay: float, why: String) -> void:
 	_vario_beep.stop()
 	var where_piece := world.piece_at(plane.global_position.z)
 	if where_piece != null and title != "Wrong way!":
-		title = "%s %s" % [title, EndlessPieces.WHERE[where_piece.placement.id]]  # "Touchdown in the Hamlet"
+		title = "%s %s" % [title, where(where_piece)]  # "Touchdown in the Hamlet"
 	var metres := int(EndlessWorld.metres(furthest_z))
 	var score := metres * POINTS_PER_METRE + stars_run * plane.tuning.points_per_star
 	var progress := Progress.load_all()

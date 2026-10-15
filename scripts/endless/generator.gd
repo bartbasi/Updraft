@@ -6,8 +6,11 @@ extends RefCounted
 ## pilot who flew every ideal line so far is guaranteed when the last piece ends, and only places a
 ## piece whose need (the lowest entry height that flies it with room to spare) is at least
 ## `margin` below h, so lift is always in reach. It also never repeats a piece too soon, never runs
-## too many pieces without lift in a row, and brings a rest piece round often enough. Pure logic:
-## no nodes, so it can be run thousands of times in tests.
+## too many pieces without lift in a row, and brings a rest piece round often enough. Forks (two
+## roads round a hill: docs/forks-plan.md §4) come every FORK_GAP placements from FORK_FIRST_M on,
+## as soon as one is fair; a fork's follower (F2's Viaduct) comes straight after it. Pure logic: no
+## nodes, so it can be run thousands of times in tests; and the flight never feeds back into it,
+## so a seed (the daily flight's) gives the same country whatever road is flown.
 
 ## A placed piece: which one, the tile it starts on, the difficulty it was placed at, and the
 ## guaranteed heights going in and coming out.
@@ -37,6 +40,10 @@ const LOOK_AHEAD := 2
 ## A piece whose bold line dives to a low opening is this much less likely when a good pilot will
 ## come in too high for it.
 const HIGH_ENTRY_WEIGHT := 0.25
+## The first fork is due at the first place at or after this many metres; then the next is due this
+## many placements after each fork (a seeded draw, made when the fork is placed).
+const FORK_FIRST_M := 120.0
+const FORK_GAP := Vector2i(6, 10)
 
 var tuning: Tuning
 var placed: Array[Placement] = []
@@ -52,6 +59,11 @@ var forced_h := 0.0
 var metres_offset := 0.0
 var _next_tile := 0
 var _seen := {}  ## Piece ids placed so far this run.
+## The placement index at which a fork is due (-1: not yet), the piece that must follow the fork
+## just placed (or none), and the last fork placed.
+var _fork_due := -1
+var _follower: StringName = &""
+var _last_fork: StringName = &""
 
 
 func _init(p_tuning: Tuning, p_seed: int) -> void:
@@ -95,6 +107,9 @@ func next() -> Placement:
 			d = forced_d
 	elif placed.size() < OPENING.size():
 		id = OPENING[placed.size()]
+	elif _follower != &"":
+		id = _follower
+		_follower = &""
 	else:
 		id = _choose(metres, d)
 	var info := EndlessPieces.info(id)
@@ -115,6 +130,9 @@ func next_tile() -> int:
 
 func _choose(metres: float, _d: float) -> StringName:
 	var ids := _placed_ids()
+	var fork := _fork(ids, metres)
+	if fork != &"":
+		return fork
 	var pool := _fair(ids, h, metres)
 	if pool.is_empty():
 		return RESCUE
@@ -138,6 +156,52 @@ func _choose(metres: float, _d: float) -> StringName:
 			return pick
 		options.erase(pick)
 	return pool[rng.randi() % pool.size()]
+
+
+## A fork, if one is due and fair now (and then the next one's due place is drawn, and its
+## follower is queued); otherwise none, and it stays due.
+func _fork(ids: Array[StringName], metres: float) -> StringName:
+	if metres >= FORK_FIRST_M and _fork_due < 0:
+		_fork_due = placed.size()
+	if _fork_due < 0 or placed.size() < _fork_due:
+		return &""
+	var d := difficulty(metres)
+	if _since_rest(ids) >= rest_every(d) - 1:
+		return &""  # a rest piece that is due comes first
+	var recent := ids.slice(maxi(ids.size() - no_repeat(d), 0))
+	var fair: Array[StringName] = []
+	for id: StringName in EndlessPieces.ids():
+		var info := EndlessPieces.info(id)
+		if not bool(info.get("fork", false)) or float(info["min_m"]) > metres or recent.has(id):
+			continue
+		if EndlessPieces.need_in(id, d) > h - margin(d):
+			continue
+		var out := EndlessPieces.out(id, d, h)
+		var after := ids.duplicate()
+		after.append(id)
+		var on_m := metres + EndlessPieces.tiles(id) * TILE_METRES
+		var follower: StringName = info.get("follower", &"")
+		if follower != &"":
+			if EndlessPieces.need_in(follower, difficulty(on_m)) > out - margin(difficulty(on_m)):
+				continue  # the follower must be fair after the fork,
+			if after.slice(maxi(after.size() - no_repeat(difficulty(on_m)), 0)).has(follower):
+				continue  # not one of the last few,
+			if _since_rest(ids) + 2 >= rest_every(d):
+				continue  # and leave room for the rest piece that will be due
+			after.append(follower)
+			out = EndlessPieces.out(follower, difficulty(on_m), out)
+			on_m += EndlessPieces.tiles(follower) * TILE_METRES
+		if _way_on(after, out, on_m, LOOK_AHEAD):
+			fair.append(id)
+	if fair.is_empty():
+		return &""
+	if fair.size() > 1 and fair.has(_last_fork):
+		fair.erase(_last_fork)  # not the same fork twice running when the other is fair
+	var pick: StringName = fair[0] if fair.size() == 1 else fair[rng.randi() % fair.size()]
+	_last_fork = pick
+	_follower = EndlessPieces.info(pick).get("follower", &"")
+	_fork_due = placed.size() + (2 if _follower != &"" else 1) + rng.randi_range(FORK_GAP.x, FORK_GAP.y)
+	return pick
 
 
 ## Whether, after the pieces `ids` leaving a good pilot at height `at_h`, `metres` along, there is
@@ -167,8 +231,8 @@ func _fair(ids: Array[StringName], at_h: float, metres: float) -> Array[StringNa
 	var pool: Array[StringName] = []
 	for id: StringName in EndlessPieces.ids():
 		var info := EndlessPieces.info(id)
-		if bool(info.get("fixed", false)) or float(info["min_m"]) > metres or recent.has(id):
-			continue
+		if bool(info.get("fixed", false)) or bool(info.get("fork", false)) or float(info["min_m"]) > metres or recent.has(id):
+			continue  # (forks come only as forks: see _fork(); the look-ahead never counts on one)
 		if (lift_due and not bool(info["lift"])) or (rest_due and not bool(info["rest"])):
 			continue
 		if EndlessPieces.need_in(id, d) <= room:

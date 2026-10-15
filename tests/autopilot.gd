@@ -35,6 +35,15 @@ var naive_orbits := false
 ## of lines the pilot takes one, and the steepest dive (height lost per unit along) it will try
 ## to get down to a low line's lowest point.
 var _parts: Array[Dictionary] = []
+## Pieces where the line this pilot planned wasn't the one the game chose (see follow_choice()).
+var line_mismatches := 0
+## At a fork, which road to take (docs/forks-plan.md §7): "alt" (low and high in turn, starting by
+## the seed, so every batch flies both), "low", "high", or "height" (low if it comes in at 18 or
+## more, as a sensible human might). Forks where the game's road wasn't the one planned are counted.
+var road_mode := "alt"
+var road_mismatches := 0
+var roads_flown := PackedStringArray()
+var _forks_met := 0
 const CHOOSE_AHEAD := 10.0
 const STEEPEST_DIVE := 0.35
 var _orbit := 0  ## The next circle to fly.
@@ -64,6 +73,8 @@ static func fly_endless(game: EndlessGame, kind: String, p_seed: int) -> Autopil
 	game.run_started.connect(pilot.restart)
 	world.placed.connect(func(p: EndlessWorld.Piece) -> void: pilot.extend(world.line_for(p), world.orbits_for(p), world.line_choice(p)))
 	world.recentred.connect(pilot.shift)
+	game.line_chosen.connect(pilot.follow_choice)
+	game.road_chosen.connect(pilot.follow_road)
 	return pilot
 
 
@@ -82,6 +93,8 @@ func shift(by: float) -> void:
 			part["z"] = float(part["z"]) + by
 	for o in orbits:
 		o["centre"] = (o["centre"] as Vector2) + Vector2(0.0, by)
+		if o.has("fork_z"):
+			o["fork_z"] = float(o["fork_z"]) + by
 
 
 ## Starts afresh at `from`, heading on (toward -Z), with no line ahead yet and no circles to fly.
@@ -94,6 +107,8 @@ func restart(from: Vector3) -> void:
 	_orbiting = false
 	_orbit_time = 0.0
 	_segment = -1
+	_forks_met = 0
+	roads_flown.clear()
 
 
 ## Endless: more line to follow (and circles to fly on it) as the next piece is placed. Points
@@ -121,6 +136,10 @@ func _choose_lines(at: Vector3) -> void:
 		if not part.has("z") or part.has("chosen") or at.z > float(part["z"]) + CHOOSE_AHEAD:
 			continue
 		part["chosen"] = true
+		if part.has("fork"):
+			_take_road(part, _road_for(at))
+			changed = true
+			continue
 		var want: PackedVector3Array = part["high"] if at.y >= float(part["high_from"]) or _too_steep(at, part["low"]) else part["low"]
 		if want != part["points"]:
 			part["points"] = want
@@ -131,6 +150,67 @@ func _choose_lines(at: Vector3) -> void:
 			line = _join(line, part["points"])
 		lengths = Scoring.arc_lengths(line)
 		_segment = -1
+
+
+## The game has chosen the line of the piece entered at `entry_z` (at its choice point): fly that
+## one, whatever the pilot planned. Counts the times its plan differed (the mark is none).
+func follow_choice(entry_z: float, high: bool) -> void:
+	for part in _parts:
+		if not part.has("z") or absf(float(part["z"]) - entry_z) > 1.0:
+			continue
+		var want: PackedVector3Array = part["high" if high else "low"]
+		if part.has("chosen") and want != part["points"]:
+			line_mismatches += 1
+		part["chosen"] = true
+		if want != part["points"]:
+			part["points"] = want
+			line = PackedVector3Array()
+			for each in _parts:
+				line = _join(line, each["points"])
+			lengths = Scoring.arc_lengths(line)
+			_segment = -1
+		return
+
+
+## The road this pilot takes at the next fork (see road_mode).
+func _road_for(at: Vector3) -> String:
+	match road_mode:
+		"low", "high":
+			return road_mode
+		"height":
+			return "low" if at.y - EndlessWorld.FLOOR_Y >= 18.0 else "high"
+	return "low" if (_forks_met + rng.seed) % 2 == 0 else "high"
+
+
+## Flies `road` through the fork `part`: its line, and its circles (the other road's are skipped).
+func _take_road(part: Dictionary, road: String) -> void:
+	if not part.has("road"):
+		_forks_met += 1
+		roads_flown.append(road.left(1).to_upper())
+	part["road"] = road
+	part["points"] = part[road]
+	for o in orbits:
+		if o.get("road", "") != "" and absf(float(o.get("fork_z", INF)) - float(part["z"])) < 1.0:
+			o["skip"] = o["road"] != road
+
+
+## The game has decided the road taken at the fork entered at `entry_z`: fly that one.
+func follow_road(entry_z: float, road: String) -> void:
+	for part in _parts:
+		if not part.has("fork") or absf(float(part["z"]) - entry_z) > 1.0:
+			continue
+		if part.get("road", road) != road:
+			road_mismatches += 1
+			roads_flown[roads_flown.size() - 1] = road.left(1).to_upper() + "!"
+		if part.get("road", "") != road:
+			part["chosen"] = true
+			_take_road(part, road)
+			line = PackedVector3Array()
+			for each in _parts:
+				line = _join(line, each["points"])
+			lengths = Scoring.arc_lengths(line)
+			_segment = -1
+		return
 
 
 ## A test pilot for Endless: "skilled" (steady hands), "shaky" (a skilled line with wobbly hands and
@@ -324,6 +404,8 @@ static func novice(p_line: PackedVector3Array, p_seed: int) -> Autopilot:
 func _orbit_aim(plane: Flyer) -> Vector3:
 	var p := plane.global_position
 	_orbit_time += 1.0 / 60.0
+	while _orbit < orbits.size() and orbits[_orbit].get("skip", false):
+		_orbit += 1  # a fork's other road
 	if _orbit >= orbits.size():
 		return p
 	var o := orbits[_orbit]

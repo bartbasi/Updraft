@@ -58,16 +58,21 @@ const TABLE := {
 	&"poplars": {"tiles": 1, "lift": true, "rest": false, "min_m": 100.0, "need": Vector2(10.0, 10.0), "add": Vector2(INF, INF), "cap": Vector2(15.0, 13.0)},
 	&"barn": {"tiles": 1, "lift": true, "rest": false, "min_m": 120.0, "need": Vector2(10.0, 10.0), "add": Vector2(INF, INF), "cap": Vector2(20.5, 19.5), "high_line": true},
 	&"stones": {"tiles": 1, "lift": true, "rest": false, "min_m": 120.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(20.0, 19.5), "high_line": true},
+	# Forks (docs/forks-plan.md): need is the higher road's, out the lower road's (so the generator
+	# never needs to know which road is flown); "out_high" is the high road's, for logs and tests.
+	&"gorge_down": {"tiles": 3, "lift": true, "rest": false, "min_m": 120.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(16.6, 16.1), "fork": true, "out_high": Vector2(22.3, 22.5)},
+	&"river_rail": {"tiles": 3, "lift": true, "rest": false, "min_m": 400.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(16.5, 17.0), "fork": true, "out_high": Vector2(22.0, 22.5), "follower": &"viaduct"},
+	&"warm_down": {"tiles": 2, "lift": true, "rest": false, "min_m": 250.0, "need": Vector2(10.0, 11.0), "add": Vector2(INF, INF), "cap": Vector2(18.5, 17.8)},
 	&"mere": {"tiles": 1, "lift": true, "rest": false, "min_m": 200.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(18.0, 19.0)},
 }
 ## Where a run ended, for the end card ("Touchdown in the Hamlet").
 const WHERE := {&"rim": "on the Rim", &"street": "under Cloud Street", &"barley": "in the Barley Field", &"ridge": "on the Long Ridge",
 	&"hamlet": "in the Hamlet", &"kites": "in Kite Meadow", &"viaduct": "at the Viaduct", &"pasture": "in the Pasture",
 	&"washing": "among the Washing Lines", &"poplars": "at Poplar Row", &"barn": "at the Dutch Barn", &"stones": "at the Standing Stones",
-	&"mere": "on the Mere"}
+	&"mere": "on the Mere", &"warm_down": "on the Warm Down", &"gorge_down": "at the fork", &"river_rail": "at the fork"}
 const NAMES := {&"rim": "The Rim", &"street": "Cloud Street", &"barley": "Barley Field", &"ridge": "Long Ridge",
 	&"hamlet": "Hamlet", &"kites": "Kite Meadow", &"viaduct": "Viaduct", &"pasture": "Pasture", &"washing": "Washing Lines",
-	&"poplars": "Poplar Row", &"barn": "Dutch Barn", &"stones": "Standing Stones", &"mere": "Mere"}
+	&"poplars": "Poplar Row", &"barn": "Dutch Barn", &"stones": "Standing Stones", &"mere": "Mere", &"warm_down": "Warm Down", &"gorge_down": "Gorge or Down", &"river_rail": "River or Rail"}
 
 ## The Barley Field's thermal: centre x from d 0 to d 1, and its middle along the tile.
 const BARLEY_X := Vector2(4.0, 12.0)
@@ -144,6 +149,17 @@ const STONE_RING := 14.0
 const STONE_SIZE := Vector2(2.0, 1.0)
 const STONE_THROUGH := 5.5
 const STONE_THERMAL_AT := 26.0
+## P13 Warm Down: the down's height and where it rises (its near face), tops out and falls (the
+## lee), along the piece; and its saddle, the low way over (x, half-width at the bottom, where it
+## rises back to the full height).
+const DOWN_TOP := 14.0
+const DOWN_Z := [50.0, 78.0, 86.0, 116.0]
+const SADDLE := Vector3(-10.0, 6.0, 14.0)  # (wide: the thermal's drift may carry you a little left of it)
+const SADDLE_FLOOR := 10.0
+const SUN_TRAP := Vector2(-12.0, -44.0)
+const HAYRICK := Vector2(10.0, -142.0)
+
+
 ## The Mere: the water's middle, radii and level, the bed under it, the island and the lake's
 ## sinking air (strength at difficulty 0 and 1: 0.4 to 0.6 u/s at the default downdraft strength).
 const MERE_CENTRE := Vector2(0.0, -50.0)
@@ -220,6 +236,8 @@ static func rim_base(x: float) -> float:
 
 ## The ground of piece `id` (as a smooth curve; the drawn and solid ground is the grid through it).
 static func ground(id: StringName, x: float, z: float) -> float:
+	if bool(TABLE[id].get("fork", false)):
+		return EndlessForks.ground(id, x, z) + rolls(x, z, length(id))
 	var h := standard(x)
 	match id:
 		&"rim":
@@ -236,12 +254,22 @@ static func ground(id: StringName, x: float, z: float) -> float:
 			# The barn's floor and yard are flat.
 			var yard := (1.0 - smoothstep(BARN_HALF + 2.0, BARN_HALF + 8.0, absf(x))) * (1.0 - smoothstep(14.0, 20.0, absf(z - (BARN_Z.x + BARN_Z.y) * 0.5)))
 			return h + rolls(x, z, length(id)) * (1.0 - yard)
+		&"warm_down":
+			return maxf(h, down_height(x, z)) + rolls(x, z, length(id))
 		&"mere":
 			var normal := h + rolls(x, z, length(id))
 			var lake := lerpf(MERE_BED, normal, smoothstep(0.8, 1.15, mere_reach(x, z)))
 			var island := lerpf(0.8, MERE_BED, smoothstep(3.5, MERE_ISLAND_R + 1.0, Vector2(x, z).distance_to(MERE_ISLAND)))
 			return maxf(lake, island)
 	return h + rolls(x, z, length(id))
+
+
+## The Warm Down's hill at (x, z): up its near face, over the crest (lower at the saddle) and
+## down its lee.
+static func down_height(x: float, z: float) -> float:
+	var along := smoothstep(DOWN_Z[0], DOWN_Z[1], -z) * (1.0 - smoothstep(DOWN_Z[2], DOWN_Z[3], -z))
+	var saddle := 1.0 - smoothstep(SADDLE.y, SADDLE.z, absf(x - SADDLE.x))
+	return lerpf(DOWN_TOP, SADDLE_FLOOR, saddle) * along
 
 
 ## The ground as drawn and as it collides: the triangle grid through ground(), split as the
@@ -253,13 +281,31 @@ static func grid_height(id: StringName, x: float, z: float) -> float:
 	var za := -floorf(v) * STEP
 	u -= floorf(u)
 	v -= floorf(v)
-	var h00 := ground(id, xa, za)
-	var h10 := ground(id, xa + STEP, za)
-	var h01 := ground(id, xa, za - STEP)
-	var h11 := ground(id, xa + STEP, za - STEP)
+	var h00 := _corner(id, xa, za)
+	var h10 := _corner(id, xa + STEP, za)
+	var h01 := _corner(id, xa, za - STEP)
+	var h11 := _corner(id, xa + STEP, za - STEP)
 	if u + v <= 1.0:
 		return h00 + u * (h10 - h00) + v * (h01 - h00)
 	return h11 + (1.0 - u) * (h01 - h11) + (1.0 - v) * (h10 - h11)
+
+
+## Each piece's ground at its grid's points (id -> heights, row by row from its entry), kept once a
+## kit's grid is built: placing things on the ground then reads them instead of working out the
+## curve again (a fork's took 10 ms a step on the PC).
+static var _heights := {}
+
+
+## The ground at a grid point: kept, if the piece's grid is, or worked out.
+static func _corner(id: StringName, x: float, z: float) -> float:
+	var kept: PackedFloat32Array = _heights.get(id, PackedFloat32Array())
+	if not kept.is_empty():
+		var ix := roundi((x + HALF) / STEP)
+		var iz := roundi(-z / STEP)
+		var cols := int(HALF * 2.0 / STEP) + 1
+		if ix >= 0 and ix < cols and iz >= 0 and iz * cols + ix < kept.size():
+			return kept[iz * cols + ix]
+	return ground(id, x, z)
 
 
 # --- Kits ---------------------------------------------------------------------------
@@ -302,6 +348,22 @@ class Kit:
 	## to get down to it, so the ideal line is `high_points` instead (over the top).
 	var high_points: Array[Dictionary] = []
 	var high_from := INF
+	## A fork (EndlessForks): {low_side (-1 or 1), lines: {low, high} (line points, as line_points),
+	## orbits: {low, high}, where: {low, high} (the card's "in the Gorge")}; else empty. Its
+	## line_points are its low road's, and its arcs and orbits carry "road".
+	var fork := {}
+	## Kittens in their windows (docs/hazards-plan.md §1): {at (the sill's middle), yaw, coat}.
+	var kittens: Array[Dictionary] = []
+
+	## Every line through the piece (both roads of a fork), for keeping trees and sheep off them.
+	func all_lines(h_in: float) -> PackedVector3Array:
+		var out := line(h_in)
+		if not fork.is_empty():
+			var keep := line_points.duplicate()
+			line_points.assign(fork["lines"]["high"])
+			out.append_array(line(h_in))
+			line_points = keep
+		return out
 
 	## Whether a pilot at `at` (piece-local, near the entry) is on the high line: at or above
 	## high_from, or too high to dive to the low line's lowest point ahead at STEEPEST_DIVE.
@@ -393,12 +455,13 @@ static func clear_kits() -> void:
 	_kits.clear()
 
 
-## One kit being built, a step at a time: the piece's own things, then the ground a few rows at a
+## One kit being built, a step at a time: the ground's heights, then the piece's own things, then the ground a few rows at a
 ## time, then where the trees go and the sheep, then the trees a few at a time, then the mesh, then
 ## the collision shapes a chunk at a time.
 class KitBuild:
 	const ROWS_PER_STEP := 4
 	const TREES_PER_STEP := 4
+	const GRID_ROWS_PER_STEP := 16
 	const FACES_PER_SHAPE := 4500  ## vertices: 1500 triangles a collision shape
 	var kit := Kit.new()
 	var look := Art.Builder.new()  ## drawn
@@ -408,6 +471,8 @@ class KitBuild:
 	var _spots: Array[Dictionary] = []
 	var _step := 0
 	var _row := 0
+	var _part := 0  ## A fork's content part (EndlessForks.content_part()).
+	var _grid_row := 0
 	var _next := 0  ## the next tree, or the next face for a collision shape
 
 	func _init(id: StringName, d: float) -> void:
@@ -420,11 +485,25 @@ class KitBuild:
 		var cells_z := int(EndlessPieces.length(kit.id) / STEP)
 		match _step:
 			0:
-				EndlessPieces._content(kit, look, solid)
-				_step += 1
+				var to := mini(_grid_row + GRID_ROWS_PER_STEP, cells_z + 1)  # the ground's heights, a few rows at a time
+				_grid.append_array(EndlessPieces._ground_grid(kit.id, _grid_row, to))
+				_grid_row = to
+				if _grid_row > cells_z:
+					if not EndlessPieces._heights.has(kit.id):  # (kept: the content then reads them)
+						var kept := PackedFloat32Array()
+						for p in _grid:
+							kept.append(p.y)
+						EndlessPieces._heights[kit.id] = kept
+					_step += 1
 			1:
-				_grid = EndlessPieces._ground_grid(kit.id)
-				_step += 1
+				if bool(EndlessPieces.info(kit.id).get("fork", false)):  # a fork's content comes in parts
+					EndlessForks.content_part(kit, look, solid, kit.d, _part)
+					_part += 1
+					if _part >= EndlessForks.PARTS:
+						_step += 1
+				else:
+					EndlessPieces._content(kit, look, solid)
+					_step += 1
 			2:
 				var to := mini(_row + ROWS_PER_STEP, cells_z)
 				EndlessPieces._ground_rows(kit, look, solid, _grid, _row, to, _paint_rng)
@@ -479,6 +558,8 @@ static func _content(k: Kit, look: Art.Builder, solid: PackedVector3Array) -> vo
 		&"hamlet": _hamlet(k, look, solid, k.d)
 		&"kites": _kites(k, look, solid, k.d)
 		&"viaduct": _viaduct(k, look, solid, k.d)
+		&"warm_down": _warm_down(k, look, solid, k.d)
+		&"gorge_down", &"river_rail": EndlessForks.content(k, look, solid, k.d)
 		&"pasture": _pasture(k, look, solid, k.d)
 		&"washing": _washing(k, look, solid, k.d)
 		&"poplars": _poplars(k, look, solid, k.d)
@@ -488,11 +569,12 @@ static func _content(k: Kit, look: Art.Builder, solid: PackedVector3Array) -> vo
 
 
 ## The ground's corners: every one once, (cells across + 1) per row, (cells along + 1) rows.
-static func _ground_grid(id: StringName) -> PackedVector3Array:
+## The ground's heights at the grid's points, rows `from` to `to` (exclusive; all rows by default).
+static func _ground_grid(id: StringName, from := 0, to := -1) -> PackedVector3Array:
 	var cells_z := int(length(id) / STEP)
 	var cells_x := int(HALF * 2.0 / STEP)
 	var grid := PackedVector3Array()
-	for iz in cells_z + 1:
+	for iz in range(from, cells_z + 1 if to < 0 else to):
 		for ix in cells_x + 1:
 			var x := -HALF + ix * STEP
 			var z := -iz * STEP
@@ -540,6 +622,16 @@ static func _paint(k: Kit, x: float, z: float, rng: RandomNumberGenerator) -> Co
 		&"viaduct":
 			if Vector2(x, z).distance_to(SHINGLE) < 10.0:
 				return Color("e6ddcf").darkened(rng.randf() * 0.05)  # the shingle bank
+		&"gorge_down":
+			var walls := EndlessForks.gorge_walls(z)
+			var u := absf(x - EndlessForks.road_x(k.id, "low", z))
+			if walls > 0.3 and u <= 6.0:
+				return Color("e6d6a8").darkened(rng.randf() * 0.04)  # the gorge's sand floor
+			if walls > 0.3 and u <= 16.0:
+				return Color("cfc7b4").darkened(rng.randf() * 0.05)  # its chalk walls
+		&"warm_down":
+			if z < -44.0 and z > -80.0 and absf(x) < FLOOR + 8.0:
+				return base.lerp(Color("e9d48a"), 0.35)  # the sun-warmed face
 		&"pasture":
 			if absf(x) < 18.0 and z < -26.0 and z > -86.0:
 				return base.lerp(Color("f4dc9b"), 0.4)  # warm air low over it
@@ -591,12 +683,13 @@ static func _strip(k: Kit, look: Art.Builder, centre: Callable, width: float, z0
 static func _tree_spots(k: Kit, rng: RandomNumberGenerator) -> Array[Dictionary]:
 	var spots: Array[Dictionary] = []
 	var count := rng.randi_range(8, 12) * tiles(k.id)
-	var line := k.line(20.0)
+	var line := k.all_lines(20.0)
+	var inner := 62.0 if not k.fork.is_empty() else 40.0  # a fork's roads run out to |x| 50
 	var tries := 0
 	while spots.size() < count and tries < count * 20:
 		tries += 1
 		var side := -1.0 if rng.randf() < 0.5 else 1.0
-		var x := side * rng.randf_range(40.0, 90.0)
+		var x := side * rng.randf_range(inner, 90.0)
 		var z := rng.randf_range(-length(k.id) + 4.0, -4.0)
 		if not _clear_of_air_and_line(k, line, x, z, 6.0):
 			continue
@@ -639,7 +732,7 @@ static func _clear_of_air_and_line(k: Kit, line: PackedVector3Array, x: float, z
 
 ## A few sheep grazing on the floor, off the line (looks only).
 static func _sheep(k: Kit, look: Art.Builder, rng: RandomNumberGenerator) -> void:
-	if k.id in [&"hamlet", &"viaduct", &"washing", &"mere"]:
+	if k.id in [&"hamlet", &"viaduct", &"washing", &"mere"] or not k.fork.is_empty():
 		return
 	var line := k.line(20.0)
 	for i in rng.randi_range(2, 5) * tiles(k.id):
@@ -1379,9 +1472,13 @@ static func _mere(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float
 	k.clouds.append({"at": Vector3(MERE_ISLAND.x, top + 4.0, MERE_ISLAND.y), "radius": radius * 0.7, "puffs": 4, "zone": "Island"})
 	k.birds.append({"zone": "Island", "below_top": 4.0})
 	k.movers.append({"kind": "sailboat", "centre": Vector3(MERE_ISLAND.x, MERE_WATER, MERE_ISLAND.y), "radius": 13.0, "speed": 1.2})
+	# Straight on for three stars, then a gentle turn (radius about 18) onto the island: a straight
+	# diagonal asked for a turn at the first star, in the lake's sink (fun review 6).
 	var across := PackedVector3Array()
+	var turn: Array[float] = [0.0, 0.0, 0.0, 0.1, 0.3, 0.55, 0.8]
+	var zs: Array[float] = [-22.0, -27.0, -32.0, -37.0, -41.5, -45.5, MERE_ISLAND.y + 9.0]
 	for i in 7:
-		across.append(Vector3(lerpf(0.0, MERE_ISLAND.x, i / 6.0), lerpf(15.0, 10.0, i / 6.0), lerpf(-22.0, MERE_ISLAND.y + 9.0, i / 6.0)))
+		across.append(Vector3(turn[i] * (MERE_ISLAND.x + 4.0), lerpf(15.0, 8.0, i / 6.0), zs[i]))  # to the island air's near side  # down as the lake's sinking air takes you
 	k.arcs.append({"name": "mere", "stars": across, "big": _no_big(7), "zone": "", "title": "Full arc!", "bonus": true, "from_entry": 6})
 	var helix := PackedVector3Array()
 	var rise := lerpf(2.5, 2.0, d)
@@ -1397,6 +1494,76 @@ static func _mere(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float
 	k.orbits.append({"centre": MERE_ISLAND, "zone": "Island", "radius": 6.0, "to_y": top - 2.0, "up": true, "max_time": 25.0})
 	k.line_points.append({"at": Vector3(MERE_ISLAND.x * 0.5, top - 4.0, -80.0)})
 	k.line_points.append({"at": Vector3(0.0, top - 5.0, -96.0)})
+
+
+## P13 Warm Down: a grassy hill across the valley. Climb the sun-trap thermal at its foot, cross
+## the low saddle for the big star, swoop down the lee and catch the thermal by the hayrick.
+static func _warm_down(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: float) -> void:
+	# The warm face: gorse in flower and a chalk track up it (looks), sheep on the crest.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 131
+	for i in 26:
+		var x := rng.randf_range(-40.0, 40.0)
+		var z := rng.randf_range(-74.0, -54.0)
+		if absf(x - SADDLE.x) < 10.0:
+			continue  # clear of the saddle and its track
+		look.sphere(Vector3(x, grid_height(&"warm_down", x, z) + 0.2, z), rng.randf_range(0.6, 1.0), Color("e9c33c") if i % 3 else Color("7f9a5c"), Vector3(1.3, 0.6, 1.0), 6, 3)
+	for i in 10:  # the chalk track, zigzagging up the face into the saddle: the low way over
+		var z0 := -50.0 - i * 3.6
+		var z1 := z0 - 3.6
+		var x0 := lerpf(-1.0, SADDLE.x, i / 10.0) + (1.5 if i % 2 else -1.5)
+		var x1 := lerpf(-1.0, SADDLE.x, (i + 1) / 10.0) + (-1.5 if i % 2 else 1.5)
+		var a := Vector3(x0, grid_height(&"warm_down", x0, z0) + PAINT_LIFT, z0)
+		var b := Vector3(x1, grid_height(&"warm_down", x1, z1) + PAINT_LIFT, z1)
+		var side := Vector3(0.6, 0.0, 0.0)
+		look.triangle(a - side, b - side, a + side, Color("f4efe6"))
+		look.triangle(a + side, b - side, b + side, Color("f4efe6"))
+	for at in [Vector2(-30.0, -82.0), Vector2(-26.0, -84.0), Vector2(26.0, -80.0), Vector2(30.0, -83.0)]:
+		var base := Vector3(at.x, grid_height(&"warm_down", at.x, at.y), at.y)
+		look.sphere(base + Vector3(0, 0.75, 0), 0.7, WOOL, Vector3(1.0, 0.8, 1.35), 6, 3)
+		look.sphere(base + Vector3(0.0, 0.85, -0.95), 0.32, DARK, Vector3.ONE, 5, 3)
+	# A lone hawthorn on the crest (it gives the hill its size), and the hayrick (both solid).
+	_tree(look, solid, {"base": Vector3(-28.0, grid_height(&"warm_down", -28.0, -82.0), -82.0), "s": 0.65, "pine": false, "leaf": LEAF[1]})
+	var rick := Vector3(HAYRICK.x, grid_height(&"warm_down", HAYRICK.x, HAYRICK.y) - 0.3, HAYRICK.y)
+	_solid_cylinder(look, solid, rick, 2.5, 2.3, 3.4, Color("e9c98a"), 10)
+	look.cylinder(rick + Vector3(0, 3.4, 0), 2.3, 0.3, 1.6, Color("dcb877"), 10)
+	_faces(solid, Art.cylinder_triangles(2.3, 0.3, 1.6, 10), Transform3D(Basis.IDENTITY, rick + Vector3(0, 4.2, 0)))
+	# The sun-trap thermal at the face's foot, and the hayrick's beyond the lee.
+	var thermals := [["SunTrap", SUN_TRAP, lerpf(12.0, 10.0, d), lerpf(0.9, 0.8, d), lerpf(26.0, 24.0, d), 4],
+		["Hayrick", HAYRICK, lerpf(11.0, 10.0, d), lerpf(0.85, 0.75, d), lerpf(25.0, 23.0, d), 6]]
+	for t: Array in thermals:
+		var c: Vector2 = t[1]
+		var floor_y := ground(&"warm_down", c.x, c.y)
+		k.zones.append({"name": t[0], "shape": Thermal.Shape.CYLINDER, "at": Vector3(c.x, floor_y, c.y), "radius": t[2],
+			"height": float(t[4]) - floor_y, "look": Thermal.Look.WARM_AIR, "strength": t[3], "pitch": 1.0 if t[0] == "SunTrap" else 1.04, "drifts": true})
+		k.clouds.append({"at": Vector3(c.x, float(t[4]) + 4.0, c.y), "radius": float(t[2]) * 0.7, "puffs": 4, "zone": t[0]})
+		k.birds.append({"zone": t[0], "below_top": 4.0})
+		_spiral(k, "sun-trap spiral" if t[0] == "SunTrap" else "hayrick spiral", t[0], c, 9.0, t[4], t[5], d)
+	# Over the saddle (a big star in it, 3.5 over its floor) and down the lee as speed builds.
+	# Straight down from the climb, into the saddle (it lies where the thermal sends you).
+	var over := PackedVector3Array([Vector3(-12.0, 16.0, -73.0), Vector3(-11.5, 14.8, -78.0),
+		Vector3(-11.5, SADDLE_FLOOR + 3.5, -84.0)])  # (where pilots cross: the saddle is flat 6 u either side)
+	k.arcs.append({"name": "saddle", "stars": over, "big": [false, false, true], "zone": "", "title": "Full arc!", "bonus": true})
+	var lee := PackedVector3Array([Vector3(-9.5, 10.5, -99.0), Vector3(-7.0, 8.0, -106.0), Vector3(-4.8, 6.7, -113.0)])
+	k.arcs.append({"name": "lee", "stars": lee, "big": _no_big(3), "zone": "", "title": "Full arc!", "bonus": true})
+	# The saddle counts as an opening: crossing it fast gives the rush and the wider view.
+	k.arches.append({"z": -84.0, "depth": 8.0, "openings": [{"x": SADDLE.x, "half_span": 8.0, "springing": SADDLE_FLOOR + 8.0}]})
+	# The line: down to the sun-trap's near edge, climb (leaving early: the saddle is the point),
+	# over the saddle and down the lee, then up the hayrick's thermal and on.
+	k.line_points.append({"x": 0.0, "z": -8.0, "dy": 0.0})
+	k.line_points.append({"at": Vector3(SUN_TRAP.x, 9.0, SUN_TRAP.y + 6.0)})
+	k.orbits.append({"centre": SUN_TRAP, "zone": "SunTrap", "radius": 6.0, "to_y": lerpf(20.0, 19.0, d), "up": true, "max_time": 25.0})
+	for p in over:
+		k.line_points.append({"at": p})
+	k.line_points.append({"at": Vector3(SADDLE.x, 13.8, -91.0)})  # held up until the lee falls away
+	for p in lee:
+		k.line_points.append({"at": p})
+	k.line_points.append({"at": Vector3(3.0, 7.5, -126.0)})
+	k.line_points.append({"at": Vector3(HAYRICK.x, 9.0, HAYRICK.y + 6.0)})
+	var hay_top := lerpf(25.0, 23.0, d)
+	k.orbits.append({"centre": HAYRICK, "zone": "Hayrick", "radius": 6.0, "to_y": hay_top - 2.0, "up": true, "max_time": 25.0})
+	k.line_points.append({"at": Vector3(6.0, hay_top - 4.0, -172.0)})
+	k.line_points.append({"at": Vector3(2.0, hay_top - 5.0, -192.0)})
 
 
 ## How far out into the Mere a point is (piece-local x, z): under 1 inside the water's edge.

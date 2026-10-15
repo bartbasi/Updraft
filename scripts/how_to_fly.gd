@@ -88,7 +88,7 @@ The Gap and the lake: through the notch in the far hills a bowl opens with a lak
 
 ## Endless, place by place
 
-New places turn up the further you fly. The Mere only appears after 200 m.
+New places turn up the further you fly: the first fork at about 120 m, the Mere after 200 m, the Warm Down after 250 m and the River or the Railway after 400 m.
 
 Cloud Street: a line of clouds over a long band of rising air. Fly along underneath.
 
@@ -113,6 +113,14 @@ Dutch Barn: fly in one door and out of the other, or over the roof. The muck hea
 Standing Stones: weave in through the stones, past the big star in the middle. A thermal rises off the down beyond.
 
 Mere: a lake where the air sinks. Make for the island and spiral up its thermal.
+
+Warm Down: a grassy hill across the valley. Climb the thermal at its foot, cross the low saddle for the big star, swoop down the far side and catch the thermal by the hayrick.
+
+Forks: now and then a wooded hill rises in the middle of the valley and splits it in two. A signpost and two short lines of stars show both ways: the gold arm points to the low road, the blue arm to the high road. The low road has far more stars and tighter flying. The high road starts with a big thermal and leaves you higher. Pick a side before the hill: it is too tall to fly over. The two ways meet again beyond it.
+
+The Gorge or the High Down: dive into the gorge and fly under its three footbridges, with a big star under the middle one. The lime kiln's smoke lifts you out, and a thermal rises off the quarry beyond. Or take the high down: a thermal by the white scar, lift along the brow (the gull may join you), and another thermal on the knoll.
+
+The River or the Railway: skim the river under three stone bridges, with warm air rising off the cliff beside it, and a thermal over the water meadow. Or follow the railway, through the brickworks' smoke and up the engine's steam. They meet at the viaduct.
 
 # Controls
 
@@ -148,6 +156,8 @@ A gentle touch on a wall, the floor or a hillside bounces you off or slides you 
 
 In Endless, kite rings and the washing never crash you: touching one snags you and costs some speed.
 
+A fork's hill is too steep and tall to cross. Fly into it gently and it bumps you off.
+
 # Updrafts
 
 Rising air lifts you. When it is carrying you up you hear soft beeps, faster and higher the stronger the lift. Each kind looks different.
@@ -158,7 +168,7 @@ The radiator's shimmer, the kettle's steam, and the sunbeams through the gallery
 
 ## Thermals
 
-Warm air rising off sun-warmed ground. In the Course: the hay field, the barn roof, the ploughed field, the chalk pit and the beach sand. In Endless: the barley field, the shingle by the viaduct, the muck heap by the barn, the down past the standing stones and the island's sand.
+Warm air rising off sun-warmed ground. In the Course: the hay field, the barn roof, the ploughed field, the chalk pit and the beach sand. In Endless: the barley field, the shingle by the viaduct, the muck heap by the barn, the down past the standing stones, the island's sand, the white scar, the quarry and the knoll at the Gorge or Down, the cinder yard and the water meadow at the River or Rail, and the Warm Down's sun-trap and hayrick.
 
 How to spot one: drifting motes, a faint shimmering column, a fluffy cloud sitting on top, and birds circling near the top.
 
@@ -166,11 +176,11 @@ How to use one: fly in and keep turning in a steady circle inside it. You climb 
 
 ## Smoke and steam
 
-The Course's bonfire smoke is a wide column: circle in it like a thermal. In Endless, the Hamlet's chimney plumes and the Pasture's bonfire are narrow and strong, so fly through them for a quick lift. The washing copper's steam is wide enough to circle in.
+The Course's bonfire smoke is a wide column: circle in it like a thermal. In Endless, the Hamlet's chimney plumes and the Pasture's bonfire are narrow and strong, so fly through them for a quick lift. The washing copper's steam is wide enough to circle in. The lime kiln and the brickworks chimney are narrow: fly through. The engine's steam is wide enough to circle in.
 
 ## Ridges
 
-Where the wind blows up a hillside, the air rises all along the slope: the long ridge on the left of the valley, the bluff above the lake, and Endless's Long Ridge. Dandelion seeds float up it, and the wind swells as you arrive. Fly along the slope, a little way out from it, and you climb as you go. A gull may come and fly beside you. Don't touch the slope. In Endless a graze bumps you off and breaks your line of stars, and sliding on it ends the run.
+Where the wind blows up a hillside, the air rises all along the slope: the long ridge on the left of the valley, the bluff above the lake, Endless's Long Ridge, the High Down's brow, and the warm cliff along the river. Dandelion seeds float up it, and the wind swells as you arrive. Fly along the slope, a little way out from it, and you climb as you go. A gull may come and fly beside you. Don't touch the slope. In Endless a graze bumps you off and breaks your line of stars, and sliding on it ends the run.
 
 ## Cloud streets
 
@@ -178,7 +188,7 @@ In Endless, a straight line of clouds marks a long band of gentle rising air: Cl
 
 ## Low warm air
 
-In Endless, close over the Pasture and the cottage gardens by the Washing Lines, the sun-warmed air holds you up, so skimming low you hardly sink. A little higher and it is gone.
+In Endless, close over the Pasture and the cottage gardens by the Washing Lines, the sun-warmed air holds you up, so skimming low you hardly sink. A little higher and it is gone. In the gorge, air drawn up between the walls holds you up low in the same way.
 
 # Downdrafts
 
@@ -194,7 +204,7 @@ In the Course's stair hall, cool air pours down the first flight of stairs. You 
 
 ## Over the water
 
-Over the Course's lake and Endless's Mere the air sinks gently. Low ticks tell you, coming faster the stronger it sinks. Crossing the water costs height, so go over it high. In Endless, make for the island's thermal and spiral up.
+Over the Course's lake and Endless's Mere the air sinks gently. Low ticks tell you, coming faster the stronger it sinks. Crossing the water costs height, so go over it high. In Endless, make for the island's thermal and spiral up. Touching the river is a splashdown too.
 
 ## Losing the lift
 
@@ -231,11 +241,11 @@ The end card adds it up: distance, style (and how many of the ten moments you sc
 
 Score: 10 points for every metre and 10 for every star.
 
-Stars: 1 each, and big stars are worth 10 (that's 100 points). Stars lie in lines along the best way through each place, so they show you where to fly. Take every star of a line for a bonus (+5), worth 50 points. The bonus pops up with the line's name: Full arc!, Full spiral!, Hoop run!, Hedge-hop!, Under the washing!, Threaded! or Through the stones!
+Stars: 1 each, and big stars are worth 10 (that's 100 points). Stars lie in lines along the best way through each place, so they show you where to fly. Take every star of a line for a bonus (+5), worth 50 points. The bonus pops up with the line's name: Full arc!, Full spiral!, Hoop run!, Hedge-hop!, Under the washing!, Threaded!, Through the stones! or Under the bridges!
 
 Missing a star breaks its line, and the rest of it dims. A bump or a snag breaks the line you are on too. You keep the stars you have already caught, and the run goes on.
 
-The line follows your height. Come in low and the stars lead through the barn door, under the washing or into the stones. Come in high and they lead over the top.
+The line follows your height. Come in low and the stars lead through the barn door, under the washing or into the stones. Come in high and they lead over the top. At a fork, the stars of the road you didn't take stop counting once the hill is between you.
 
 Your bank: every star you catch, bonuses included, goes into your bank when the run ends, however it ends, even if you leave it for the title. The end card shows this run's stars and your bank. Spend it in the Hangar.
 
@@ -304,6 +314,8 @@ In Endless, follow the stars. They lead into rising air and through the safe way
 For the island: come through the Gap high, ride the thermal over the beach sand, then glide out over the water with height to spare and settle gently on the island.
 
 Fly the daily flight a few times: it is the same all day, so you can learn its line.
+
+At a fork, take the high road when you are low or shaky: it leaves you higher for what comes next. Take the low road for stars.
 
 Style points come from smooth, early lines. Start each turn before you need it, and stay in the middle of doors and arches.
 """

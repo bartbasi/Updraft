@@ -511,3 +511,80 @@ changes (docs/hangar-review.md). 238 tests.
 - **Gradients for CPU particles** are built with set_color/add_point: assigning offsets and colours
   as arrays drew newborn particles black.
 - Not yet measured on the phone: the frame rate with each trail (the phone was disconnected).
+
+## Endless step 3: forks and the Warm Down (2026-10-15)
+
+Built from docs/forks-plan.md.
+
+- **Forks** (scripts/endless/forks.gd): F1 Gorge or Down (from 120 m) and F2 River or Rail (from
+  400 m, always followed by the Viaduct), each one 3-tile piece holding both roads round a wooded
+  spine (38 u, crowned with trees). The game decides your road by the side you're on once the
+  spine is too tall to cross from your height (or at -100 at the latest); the other road's stars
+  then dim, close quietly and stop counting. A pop-up names the road, the first fork of a session
+  explains itself, and the card names where ("in the Gorge"). Generator: a fork is due from 120 m
+  and then every 6-10 placements, placed as soon as it (and its follower) is fair, never the same
+  fork twice running when the other is fair; its random draws (the gap, and which fork when both
+  are fair) are the generator's own seeded ones, at placement, so the daily flight's country
+  doesn't depend on the road flown (a test checks no global RNG is used).
+- **Calibrated** (tools/endless_log.gd --calibrate, both roads in turn): every road flown from
+  need, 18 and 26 at d 0 / 0.5 / 1 with no touchdown, crash or splashdown; the high roads leave
+  4.9-6.4 over the low (after raising the knoll's and the steam's tops); outs within ±1.3 of the
+  table, which is set a little under them. Stars taken (skilled): Gorge 22-29 of 29, High Down
+  6-9 of 9, River 22-28 of 28, Railway 6-12 of 12 (the misses: a signpost star, and at d 1 the
+  start of the dives). Changes from the plan: the dives into the gorge and the river fit the
+  entry height (from 4 under it); the river's bank stars at 5.5 (7 was out of reach); the line
+  along the railway 20.5 → 18; the kiln's stars rise less steeply at higher d; signposts at
+  (3, -16), (7, -23), (11, -30), a gentler lean.
+- **P13 Warm Down** (2 tiles, from 250 m): calibrated; the saddle's first star and the lee's
+  first star dropped (never taken: the first sat off the sun-trap climb's exit, the second above
+  the big star before it), and the line held up at (8, 13.8, -91) until the lee falls away
+  (3.2-3.5 over the ground); 13-17 of 17 stars; out 18.9 / 18.8 / 18.0.
+- **The breeze splits round a fork's nose** (EndlessForks.SPLIT_BREEZE, up to 1.6 u/s sideways
+  from 16 to 90 u in, near the middle): hands-off runs had bounced off the nose head-on and drifted
+  back down the valley to "Wrong way!" (up to 100 s of nothing); now none do. Hands-off median
+  105 s; one of 20 crashed into the High Down's outer wall (a drift, as on any piece).
+- **The signposts follow your real entry height** (each star 0.5 lower than the last, from 1
+  under it): laid for the generator's height they were taken 52-61% by the skilled pilot; now
+  71-90%. Skilled ×14 (both roads in turn): 85-95% of stars, no crashes; fork outs low 17.2-18.1,
+  high 22.7-22.9. Star-chasers always take the low road (the nearest stars); 19 of 20 flew 20
+  pieces; 3 ended low after the Gorge (median out 13.2 for them).
+- **Fun review 6 follow-ups:** two-line pieces choose their line (and fit their entry stars) at a
+  choice point, 6 u in heading on or 24 u in at the latest, and tell the test pilots (line_chosen),
+  who follow it: the Standing Stones went from a 0-of-9 run to 5 of 7 full. The Mere's across-arc
+  holds the middle for three stars, turns gently to the island's near side, and descends with the
+  lake's sink (to 8): full in 5 of 9 calibration passes, stars 3-4 in all.
+- **Spirals re-form** ahead of a circling pilot when their next star hasn't been taken for 0.75 s
+  (a circle drifting wide of a fast-drifting thermal's stars used to leave them for good).
+- **Kits build in smaller steps:** the ground's heights first (16 rows a step), kept per piece so
+  everything placed on the ground reads them rather than working the curve out again; a fork's
+  content in five parts. A fork's worst step on the PC: about 4-5 ms (its content was 14.8 ms);
+  the Pasture's content step (older) varies 4-10 ms between runs and is the next to split.
+- **Test pilots:** --road=alt|low|high|height (alt by default, so batches fly both roads);
+  replanned lines and roads are counted (the game's choice is followed); the middle-flyer takes
+  a side at a fork's spine. Not built: the Viaduct deck's drawn rails (with step 4's train).
+- **After fun review 7** (docs/fun-review-7.md, sent back): the High Down's brow ramp meets the
+  spine (no trough that could pin a flyer), and any flyer touching the ground for 3 s in a row
+  has touched down (a guard: nothing may hold a run for minutes); a fork's signposts and dives
+  are fitted at the choice point (6 u in heading on, 12 u at the latest), not at the join; the
+  Warm Down's saddle moved to x -10, where the sun-trap's thermal sends you (wider: flat ±6, full
+  at ±14), with its stars straight down from the climb, the chalk track zigzagging into it, the
+  hawthorn on its west shoulder at -28; the gorge's walls rise over 40 u (about 42 degrees at the
+  mouth, not 66), with a sand floor, chalk walls and boulders; the high roads lead on (two more
+  signpost stars toward the thermal) and end with short spirals (knoll 3 from 14, steam 3 from
+  21); footbridges whoosh from 6.3 u/s; the fingerpost stands 11 tall at -40 (it hid behind the
+  flyer); the kiln's, brickworks' and railway line's stars re-laid where pilots fly them; the
+  Mere's turn eased again (stars 6-7 at x -3.3, -4.8); the spine's crowns staggered (x 3..8),
+  the river cliff banded with bushes on top, the humpbacks no longer striped. Info: "far more
+  stars" (the low road's share counts the stars taken).
+- Recalibrated: Gorge 24-29 of 29, High Down 10-14 of 14, River 22-28 of 28, Railway 11-16 of
+  17; high outs 22.2-23.2 against low 16.6-17.7; Warm Down 13-17 of 17, lowest 2.7 (d 1, from
+  18, crossing the saddle's shoulder) and 3.7-3.9 otherwise.
+- **Re-check (fun review 7, approved):** the saddle's stars moved to where pilots cross, the
+  first dropped (now 2 + the big star at x -11.5); the high roads' closing spirals start at 20
+  (knoll) and 19.5 (steam). Skilled ×10 (seeds 21-30): 89-94% of stars, no crashes; lee arc full
+  6 of 6, knoll spiral 8 of 8. **Still short of the marks:** the saddle arc (its approach stars
+  0 of 6, the big star 3 of 6 in full runs, though full in calibration: in a full run the pilot
+  leaves the sun-trap low and cuts across), and the steam spiral's third star (0 of 4). Both to
+  revisit with step 4's lee rotor. The middle-flyer, now steering down its road at forks, gets
+  further and meets Poplar Row, where it crashes (it never aims for the gap: the test pilot's).
+

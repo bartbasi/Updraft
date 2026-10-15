@@ -60,10 +60,19 @@ class Arc:
 	var line := ""
 	var hidden := false
 	var dim := false
+	## A fork's road ("low" or "high"), else "". Until the game decides the road (choose_road())
+	## its arcs can't close or have stars marked missed: the pilot may still be on either.
+	var road := ""
+	var waiting := false
+	var not_taken_road := false  ## The other road of a fork, once decided: its stars no longer pay.
 	## Arcs whose first `fit` stars lead down from the entry: their heights as laid (world y); see
 	## fit_to_entry().
 	var fit := 0
 	var fit_from := PackedFloat32Array()
+	var fit_below := 1.0  ## How far under the entry the first fitted star starts.
+	## Arcs that follow the entry all the way (a fork's signposts): each star this much lower than
+	## the last, starting fit_below under the entry, never above where it was laid; or 0.
+	var follow := 0.0
 
 
 ## What happened at one pickup check.
@@ -96,6 +105,10 @@ const SPIRAL_FROM_MIDDLE := 3.5
 const SPIRAL_LEAD := 4.5
 ## At most one spiral star in this many physics ticks (0.25 s).
 const SPIRAL_GAP_TICKS := 15
+## A laid spiral whose next star hasn't been taken in this many ticks (0.75 s) forms afresh ahead
+## of the pilot, if it is still circling in the air: a circle that drifts wide of its stars (in a
+## fast-drifting thermal) would otherwise leave them behind for good.
+const SPIRAL_RELAY_TICKS := 45
 
 
 func _ready() -> void:
@@ -129,6 +142,8 @@ func add_piece(tile: int, kit_arcs: Array[Dictionary], origin: Vector3, zones: D
 		arc.bonus = a["bonus"]
 		arc.alt = a.get("alt", false)
 		arc.line = a.get("line", "")
+		arc.road = a.get("road", "")
+		arc.waiting = arc.road != ""
 		if arc.line == "high":
 			arc.alt = true
 		arc.tile = tile
@@ -142,12 +157,18 @@ func add_piece(tile: int, kit_arcs: Array[Dictionary], origin: Vector3, zones: D
 			points = points.duplicate()
 			for i in points.size():
 				points[i].y = minf(float(a["entry_top"]), h_in - 1.0 + float(a["entry_rise"]) * i)
+		if a.has("follow_entry"):
+			arc.follow = float(a["follow_entry"])
+			arc.fit = points.size()
+			for i in points.size():
+				arc.fit_from.append(origin.y + points[i].y)
 		if a.has("from_entry"):  # its first stars start from a low entry lower (and fit_to_entry() fits them again on arrival)
 			var n := mini(int(a["from_entry"]), points.size() - 1)
 			arc.fit = n
+			arc.fit_below = float(a.get("fit_below", 1.0))
 			for i in n + 1:
 				arc.fit_from.append(origin.y + points[i].y)
-			var top := minf(h_in - 1.0, points[0].y)
+			var top := minf(h_in - arc.fit_below, points[0].y)
 			if top < points[0].y:
 				points = points.duplicate()
 				for i in n:
@@ -180,15 +201,47 @@ func choose_line(tile: int, high: bool) -> void:
 		arc.dim = not mine and high
 
 
+## The game has decided the road taken at the fork on `tile`: the other road's arcs dim and close
+## without a word (never counted as missed), and stars already taken on them stop counting in the
+## share; the chosen road's arcs are then checked as usual.
+func choose_road(tile: int, road: String) -> void:
+	for arc in arcs:
+		if arc.tile != tile or arc.road == "":
+			continue
+		arc.waiting = false
+		if arc.road == road:
+			continue
+		if not arc.alt:
+			taken_total -= arc.stars.filter(func(s: Star) -> bool: return s.taken).size()
+			missed_total -= arc.stars.filter(func(s: Star) -> bool: return s.missed).size()  # (a bump while it waited)
+		arc.not_taken_road = true
+		arc.alt = true
+		arc.dim = true
+		arc.closed = true
+		for s in arc.stars:
+			if not s.taken:
+				s.missed = true
+
+
 ## The pilot has entered the piece on `tile` at world height `y`: arcs that lead down from the
 ## entry have their first stars (those not yet taken) slide to start a little below it if it came
 ## in lower than they were laid for (never higher than laid), so they're in reach.
 func fit_to_entry(tile: int, y: float) -> void:
 	for arc in arcs:
-		if arc.tile != tile or arc.fit <= 0 or arc.fit_from.size() <= arc.fit:
+		if arc.tile != tile or arc.fit <= 0 or (arc.follow <= 0.0 and arc.fit_from.size() <= arc.fit):
 			continue
 		var n := arc.fit
-		var top := minf(y - 1.0, arc.fit_from[0])
+		if arc.follow > 0.0:
+			for i in arc.stars.size():
+				var s := arc.stars[i]
+				if not s.taken and not s.missed:
+					var want := minf(arc.fit_from[i], y - arc.fit_below - arc.follow * i)
+					if absf(want - s.at.y) > 0.05:
+						s.shown_from = s.position()
+						s.slide = 0.0
+						s.at.y = want
+			continue
+		var top := minf(y - arc.fit_below, arc.fit_from[0])
 		for i in n:
 			var s := arc.stars[i]
 			if s.taken or s.missed:
@@ -234,13 +287,17 @@ func check(at: Vector3, velocity := Vector3.ZERO) -> Array[Pickup]:
 	closed_now.clear()
 	_ticks += 1
 	for arc in arcs:
-		if not arc.spiral.is_empty() and not arc.anchored:
+		if not arc.spiral.is_empty() and not arc.anchored and not arc.closed:
 			_watch_spiral(arc, at, velocity)
+		elif arc.anchored and not arc.closed and _ticks - int(arc.spiral.get("laid_at", 0)) > SPIRAL_RELAY_TICKS:
+			var zone := arc.stars[0].zone
+			if is_instance_valid(zone) and Vector2(at.x - zone.global_position.x, at.z - zone.global_position.z).length() <= zone.radius and at.y < float(arc.spiral["top"]) - 3.0:
+				_lay_spiral(arc, at, velocity)
 	var small_r := tuning.star_pickup_radius if tuning else 1.4
 	var big_r := tuning.big_star_pickup_radius if tuning else 1.5
 	var spiral_r := tuning.spiral_pickup_radius if tuning else 3.0
 	for s in stars:
-		if s.taken or arcs[s.arc].hidden:
+		if s.taken or arcs[s.arc].hidden or arcs[s.arc].not_taken_road:
 			continue
 		var p := s.position()
 		var reach := big_r if s.big else (spiral_r if not arcs[s.arc].spiral.is_empty() else small_r)
@@ -266,7 +323,7 @@ func check(at: Vector3, velocity := Vector3.ZERO) -> Array[Pickup]:
 			for other in arc.stars:  # an earlier star of this arc left behind breaks it
 				if other == s:
 					break
-				if not other.taken and not other.missed:
+				if not other.taken and not other.missed and not arc.waiting:
 					other.missed = true
 					if not arc.alt:
 						missed_total += 1
@@ -282,7 +339,7 @@ func check(at: Vector3, velocity := Vector3.ZERO) -> Array[Pickup]:
 	for arc in arcs:
 		# (an arc in a drifting thermal moves with it, and so does a pilot circling there)
 		var drift := arc.stars[0].zone.drift_offset.z if not arc.stars.is_empty() and is_instance_valid(arc.stars[0].zone) else 0.0
-		if not arc.closed and at.z < arc.end_z + drift - CLOSE_PAST:
+		if not arc.closed and not arc.waiting and at.z < arc.end_z + drift - CLOSE_PAST:
 			arc.closed = true
 			closed_now.append(arc)
 			var was_broken := arc.broken
@@ -344,6 +401,7 @@ func _lay_spiral(arc: Arc, at: Vector3, velocity: Vector3) -> void:
 	if not is_instance_valid(zone):
 		return
 	var left := arc.stars.filter(func(s: Star) -> bool: return not s.taken and not s.missed)
+	arc.spiral["laid_at"] = _ticks
 	if left.is_empty():
 		return
 	var top: float = arc.spiral["top"]
@@ -383,8 +441,8 @@ func _lay_spiral(arc: Arc, at: Vector3, velocity: Vector3) -> void:
 func break_current() -> bool:
 	for i in range(arcs.size() - 1, -1, -1):
 		var arc := arcs[i]
-		if arc.closed or arc.broken or arc.hidden:
-			continue
+		if arc.closed or arc.broken or arc.hidden or arc.waiting:
+			continue  # (a fork's road not yet decided: nothing is marked missed on it)
 		if arc.stars.any(func(s: Star) -> bool: return s.taken):
 			arc.broken = true
 			for s in arc.stars:

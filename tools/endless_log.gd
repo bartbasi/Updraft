@@ -15,6 +15,8 @@ extends SceneTree
 ##   --quiet                        only each run's summary and the totals
 ##   --calibrate                    fly each piece alone instead (see _calibrate())
 ##   --piece=ID                     with --calibrate, only this piece
+##   --road=alt|low|high|height     at forks (default alt: low and high in turn)
+##   --trace                        with --calibrate: the flyer's place twice a second
 ## Each flight logs pieces entered, lift, stars, arcs, hoops, arches, snags, bumps, the gull and
 ## the ending with its cause, and any stretch of more than 5 s with none of those ("dead air").
 
@@ -29,6 +31,11 @@ var _from := 0.0
 var _quiet := false
 var _calibrate_mode := false
 var _piece := ""  ## --piece=ID: calibrate only this piece.
+var _road := "alt"
+var _cal_road := ""  ## The fork road being calibrated (both are, in turn).
+var _trace := false
+## For each fork and road ("Gorge or Down low"): the heights it was left at.
+var _fork_outs := {}
 ## For each arc's name: [stars taken, stars, full arcs, arcs], over every flight.
 var _arc_stats := {}
 
@@ -37,6 +44,10 @@ func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--pilot="):
 			_pilot_kind = arg.trim_prefix("--pilot=")
+		elif arg == "--trace":
+			_trace = true
+		elif arg.begins_with("--road="):
+			_road = arg.trim_prefix("--road=")
 		elif arg.begins_with("--runs="):
 			_runs = maxi(1, int(arg.trim_prefix("--runs=")))
 		elif arg.begins_with("--seed="):
@@ -84,6 +95,16 @@ func fly(run_seed: int, kind: String, verbose: bool) -> Dictionary:
 	var plane := game.plane
 	var first_timer := FirstTimer.KINDS.has(kind)
 	var pilot := Autopilot.fly_endless(game, "novice" if kind == "handsoff" or first_timer else kind, run_seed)
+	pilot.road_mode = _road if kind != "novice" or _road != "alt" else "height"
+	var fork_name := [""]
+	game.note.connect(func(text: String) -> void:
+		if text.begins_with("fork ") and text.contains(": ") and not text.begins_with("fork out"):
+			fork_name[0] = text.trim_prefix("fork ").get_slice(":", 0)
+		elif text.begins_with("fork out: "):
+			var key := "%s %s" % [fork_name[0], text.trim_prefix("fork out: ").get_slice(" ", 0)]
+			var outs: Array = _fork_outs.get(key, [])
+			outs.append(float(text.get_slice(" h ", 1)))
+			_fork_outs[key] = outs)
 	if kind == "handsoff":
 		game.test_pilot = func(_p: Flyer) -> Vector2: return Vector2.ZERO
 	var _first: FirstTimer = FirstTimer.fly_endless(game, kind, run_seed) if first_timer else null  # (kept: a Callable doesn't keep its pilot alive)
@@ -143,14 +164,15 @@ func fly(run_seed: int, kind: String, verbose: bool) -> Dictionary:
 		"ending": game.ending if game._ended else "still flying", "crashed": plane.model.crashed,
 		"tiles": EndlessWorld.tile_at(game.furthest_z), "dead": state["dead"], "pieces": game.pieces_entered,
 		"star_share": float(game.world.stars.taken_total) / maxf(game.world.stars.taken_total + game.world.stars.missed_total, 1.0),
-		"median_gap": gaps[gaps.size() / 2] if not gaps.is_empty() else 0.0}
+		"median_gap": gaps[gaps.size() / 2] if not gaps.is_empty() else 0.0, "mismatches": pilot.line_mismatches + pilot.road_mismatches,
+		"roads": " ".join(pilot.roads_flown)}
 	if verbose:
 		print("\n--- %s pilot, seed %d, wind %.1f ---" % [kind, run_seed, game.world.wind])
 		for line in log:
 			print(line)
-	print("seed %3d  %6.1f s  %4d m  pieces %2d  stars %3d (%2.0f%% taken)  arcs %2d  snags %d  bumps %d  gaps median %.1f, longest %.1f  %s" % [
+	print("seed %3d  %6.1f s  %4d m  pieces %2d  stars %3d (%2.0f%% taken)  arcs %2d  snags %d  bumps %d  gaps median %.1f, longest %.1f  replanned %d  roads [%s]  %s" % [
 		run_seed, result["time"], result["metres"], result["pieces"], result["stars"], 100.0 * result["star_share"], result["arcs"],
-		result["snags"], result["bumps"], result["median_gap"], result["dead"], result["ending"]])
+		result["snags"], result["bumps"], result["median_gap"], result["dead"], result["mismatches"], result["roads"], result["ending"]])
 	game.queue_free()
 	await process_frame
 	return result
@@ -164,6 +186,15 @@ stars by arc:")
 	for arc_name in names:
 		var row: Array = _arc_stats[arc_name]
 		print("  %-16s %3.0f%% of stars, %2d of %2d full   taken by star: %s" % [arc_name, 100.0 * row[0] / maxf(row[1], 1.0), row[2], row[3], row[4] if row.size() > 4 else []])
+	if not _fork_outs.is_empty():
+		print("
+forks left at (median, lowest, by road):")
+		var keys := _fork_outs.keys()
+		keys.sort()
+		for key in keys:
+			var outs: Array = _fork_outs[key]
+			outs.sort()
+			print("  %-20s %d  median %.1f  lowest %.1f" % [key, outs.size(), outs[outs.size() / 2], outs[0]])
 	if results.size() < 2:
 		return
 	var times := []
@@ -210,12 +241,18 @@ func _calibrate() -> void:
 		for d in [0.0, 0.5, 1.0]:
 			var tune := Tuning.new()
 			var wind := _wind if _wind >= 0.0 else EndlessGame.wind_at(tune, d * tune.endless_full_distance_m)
-			for h_in in [EndlessPieces.need_in(id, d), 18.0, 26.0]:
+			for case in _cases(id, d):
+				var h_in: float = case[0]
+				_cal_road = case[1]
 				var r: Dictionary = await _calibrate_one(id, d, wind, h_in)
 				var table := EndlessPieces.out(id, d, h_in)
+				if _cal_road == "high":
+					var high: Vector2 = EndlessPieces.info(id)["out_high"]
+					table = lerpf(high.x, high.y, d)
 				var diff: float = r["out"] - table
-				print("%-9s %.1f  %.1f  %4.1f  %4.1f (%4.1f)  %+5.1f  %5.1f  %6.1f  %2d/%-2d  %s" % [id, d, wind, h_in, r["out"], table, diff,
-					r["lowest"], r["nearest"], r["taken"], r["stars"], r["events"]])
+				var low_at: Vector3 = r["lowest_at"]
+				print("%-9s %.1f  %.1f  %4.1f  %4.1f (%4.1f)  %+5.1f  %5.1f  %6.1f  %2d/%-2d  lowest at (%.0f, %.0f, %.0f)  %s" % [String(id) + (" " + _cal_road if _cal_road != "" else ""), d, wind, h_in, r["out"], table, diff,
+					r["lowest"], r["nearest"], r["taken"], r["stars"], low_at.x, low_at.y, low_at.z, r["events"]])
 				var w: Dictionary = worst.get(id, {"diff": 0.0, "lowest": INF, "nearest": INF})
 				if absf(diff) > absf(w["diff"]):
 					w["diff"] = diff
@@ -228,12 +265,22 @@ func _calibrate() -> void:
 		print("  %-9s %+5.1f  %5.1f  %5.1f" % [id, w["diff"], w["lowest"], w["nearest"]])
 
 
+## The entries calibrated: [height, road] (both roads of a fork).
+func _cases(id: StringName, d: float) -> Array:
+	var out := []
+	for road in (["low", "high"] if bool(EndlessPieces.info(id).get("fork", false)) else [""]):
+		for h_in in [EndlessPieces.need_in(id, d), 18.0, 26.0]:
+			out.append([h_in, road])
+	return out
+
+
 func _calibrate_one(id: StringName, d: float, wind: float, h_in: float) -> Dictionary:
 	EndlessGame.debug_wind = wind
 	var game: EndlessGame = load(EndlessGame.SCENE).instantiate()
 	root.add_child(game)
 	var plane := game.plane
 	var pilot := Autopilot.fly_endless(game, "skilled", 1)
+	pilot.road_mode = _cal_road if _cal_road != "" else _road
 	game.calibration = {"pieces": [id, &"street", &"street"], "d": d, "h": h_in}
 	game.start_run(false)
 	var events := PackedStringArray()
@@ -245,6 +292,7 @@ func _calibrate_one(id: StringName, d: float, wind: float, h_in: float) -> Dicti
 			events.append(text.get_slice(" (", 0)))
 	var end_z := EndlessWorld.tile_origin(0).z - EndlessPieces.length(id)
 	var lowest := INF
+	var lowest_at := Vector3.ZERO  ## Where the lowest was, piece-local.
 	var nearest := INF
 	var query := PhysicsShapeQueryParameters3D.new()
 	var ball := SphereShape3D.new()
@@ -258,7 +306,13 @@ func _calibrate_one(id: StringName, d: float, wind: float, h_in: float) -> Dicti
 		if plane.held:
 			continue
 		var at := plane.global_position
-		lowest = minf(lowest, at.y - game.world.terrain_height(at.x, at.z))
+		if _trace and frames % 30 == 0:
+			var spirals := game.world.stars.arcs.filter(func(arc: EndlessStars.Arc) -> bool: return not arc.spiral.is_empty() and arc.anchored).size()
+			print("    %5.1f  (%5.1f, %5.1f, %6.1f)%s  spirals laid %d" % [plane.flight_time, at.x, at.y - EndlessWorld.FLOOR_Y, at.z - EndlessWorld.tile_origin(0).z, "  circling" if pilot._orbiting else "", spirals])
+		var over := at.y - game.world.terrain_height(at.x, at.z)
+		if over < lowest:
+			lowest = over
+			lowest_at = Vector3(at.x, at.y - EndlessWorld.FLOOR_Y, at.z - EndlessWorld.tile_origin(0).z)
 		if frames % 6 == 0:  # how close is the nearest solid? (grow a ball until it touches; ground excluded by the ray check above)
 			var space := plane.get_world_3d().direct_space_state
 			for r in [1.0, 2.0, 3.0, 4.0]:
@@ -275,7 +329,7 @@ func _calibrate_one(id: StringName, d: float, wind: float, h_in: float) -> Dicti
 			total += arc.stars.size()
 			taken += arc.stars.filter(func(s: EndlessStars.Star) -> bool: return s.taken).size()
 	var out := plane.global_position.y - EndlessWorld.FLOOR_Y
-	var result := {"out": out, "lowest": lowest, "nearest": nearest, "taken": taken, "stars": total, "events": ", ".join(events)}
+	var result := {"out": out, "lowest": lowest, "nearest": nearest, "taken": taken, "stars": total, "events": ", ".join(events), "lowest_at": lowest_at}
 	game.queue_free()
 	await process_frame
 	EndlessGame.debug_wind = -1.0 if _wind < 0.0 else _wind

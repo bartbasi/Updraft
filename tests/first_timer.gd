@@ -9,7 +9,8 @@ extends RefCounted
 ##              1.5 s); dives for the middle arch when it sees the viaduct's wall; otherwise drifts
 ##              toward the middle.
 ##   nocircle : as chaser, but never circles.
-##   middle   : never chases stars or circles; flies the valley's middle; dives for the arch.
+##   middle   : never chases stars or circles; flies the valley's middle; dives for the arch, and
+##              takes a side at a fork's spine.
 ## Each draws its own reaction time, wobble, steering and eyesight from its seed.
 
 const KINDS: Array[String] = ["chaser", "nocircle", "middle"]
@@ -135,11 +136,20 @@ func _star_target(p: Vector3) -> Variant:
 
 
 ## Seeing the viaduct's wall ahead while between its middle arch's crown and the deck: dive for
-## that arch.
+## that arch. Seeing a fork's spine rise ahead: steer to its side of the valley's middle (by the
+## seed, if right in the middle).
 func _wall_aim(p: Vector3) -> Variant:
 	for piece in game.world.pieces:
-		if piece.kit == null or piece.kit.arches.is_empty():
-			continue
+		if piece.kit != null and not piece.kit.fork.is_empty():
+			var into := piece.origin.z - p.z
+			if into > -react_wall and into < EndlessForks.LENGTH - 30.0:  # (the whole way down its road)
+				var side := signf(p.x) if absf(p.x) >= 1.0 else (1.0 if rng.seed % 2 == 0 else -1.0)
+				var road := "low" if side == EndlessForks.low_side(piece.placement.id) else "high"
+				var ahead := p.z - 30.0 - piece.origin.z
+				return Vector3(EndlessForks.road_x(piece.placement.id, road, ahead), p.y, p.z - 30.0)  # down the middle of its road
+	for piece in game.world.pieces:
+		if piece.kit == null or piece.placement.id != &"viaduct":
+			continue  # (other pieces' openings are bridges and a saddle: no wall to dive through)
 		var a: Dictionary = piece.kit.arches[0]
 		var face_z: float = piece.origin.z + float(a["z"]) + float(a["depth"]) * 0.5
 		var dist := p.z - face_z
