@@ -62,6 +62,8 @@ var _fly_again: Button
 var _swap_look: Button
 var _settings_button: Button
 var _menu: Button
+var _hangar_button: Button  ## On the card once Endless is unlocked.
+var _hangar: HangarPanel  ## Built the first time it is opened.
 var _settings_panel: Control
 var _sensitivity: HSlider
 var _sensitivity_value: Label
@@ -374,6 +376,7 @@ func show_card(title: String, lines: PackedStringArray, focus: Button = null, no
 	_card_note.text = note
 	_card_note.visible = note != ""
 	_card.visible = true
+	_hangar_button.visible = Progress.load_all()["unlocked"]
 	_card.modulate.a = 0.0
 	create_tween().tween_property(_card, "modulate:a", 1.0, 0.25)
 	(focus if focus else _fly_again).grab_focus()
@@ -423,7 +426,9 @@ func _notification(what: int) -> void:
 ## in flight, the first Back shows a hint and a second within LEAVE_WINDOW_MSEC goes to the title
 ## (so a thumb brushing the edge-swipe doesn't end a run).
 func handle_back() -> bool:
-	if _settings_panel and _settings_panel.visible:
+	if _hangar and _hangar.visible:
+		_hangar.go_back()
+	elif _settings_panel and _settings_panel.visible:
 		show_settings(false)
 	elif _card and _card.visible:
 		go_to_title()
@@ -433,6 +438,25 @@ func handle_back() -> bool:
 		_leave_until_msec = Time.get_ticks_msec() + LEAVE_WINDOW_MSEC
 		show_hint(LEAVE_HINT_PC if OS.has_feature("pc") else LEAVE_HINT, LEAVE_WINDOW_MSEC / 1000.0)
 	return true
+
+
+## The Hangar, over the card; closing it puts on whatever is worn now, so Fly again flies it.
+func show_hangar() -> void:
+	if _hangar == null:
+		_hangar = HangarPanel.new()
+		_hangar.closed.connect(_on_hangar_closed)
+		_ui.add_child(_hangar)
+	_card.visible = false
+	_hangar.open()
+
+
+func _on_hangar_closed() -> void:
+	settings = PlayerSettings.load_all()
+	plane.set_look(settings["look"])
+	plane.set_wear(Progress.load_all()["wear"])
+	_swap_look.text = "Fly the paper plane" if plane.balloon else "Fly the balloon"
+	_card.visible = true
+	_hangar_button.grab_focus()
 
 
 func show_settings(on: bool) -> void:
@@ -450,6 +474,7 @@ func _setup_flight(hint: String) -> void:
 	process_physics_priority = 10  # after the plane has moved this tick
 	settings = PlayerSettings.load_all()
 	plane.set_look(settings["look"])
+	plane.set_wear(Progress.load_all()["wear"])
 	apply_settings()
 	_setup_world()
 	_setup_post_fx()
@@ -645,7 +670,13 @@ func _setup_ui(hint: String) -> void:
 	_menu.custom_minimum_size = Vector2(160, 64)
 	_menu.add_theme_font_size_override("font_size", 26)
 	_menu.pressed.connect(go_to_title)
+	_hangar_button = Button.new()
+	_hangar_button.text = "Hangar"
+	_hangar_button.custom_minimum_size = Vector2(200, 64)
+	_hangar_button.add_theme_font_size_override("font_size", 26)
+	_hangar_button.pressed.connect(show_hangar)
 	row.add_child(_swap_look)
+	row.add_child(_hangar_button)
 	row.add_child(_settings_button)
 	row.add_child(_menu)
 	box.add_child(row)
@@ -775,4 +806,9 @@ static func make_theme() -> Theme:
 		theme.set_stylebox(state, "Button", sb)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		theme.set_color(c, "Button", INK)
+	var off := StyleBoxFlat.new()  # a button that can't be pressed yet: pale, its words still readable
+	off.bg_color = Color("f3e6ec")
+	off.set_corner_radius_all(48)
+	theme.set_stylebox("disabled", "Button", off)
+	theme.set_color("font_disabled_color", "Button", Color(INK, 0.6))
 	return theme

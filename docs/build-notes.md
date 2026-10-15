@@ -485,3 +485,29 @@ the designer's plan, docs/title-plan.md.
 - Tests: tests/test_title.gd (PLAY and its caption in each progress state, Back at every level,
   Menu, the guide's sections, its numbers and names computed from the game, every character in
   the font, Info's fill). tools/title_shots.gd saves pictures of the screens at a window size.
+
+## Endless step 5: the Hangar and the daily flight (2026-10-15)
+
+Built from docs/hangar-plan.md; code review approved after one blocker (the rainbow ribbon cost
+2.7 ms a frame on the PC; now one textured strip, 0.04 ms) and fun review approved after ten
+changes (docs/hangar-review.md). 238 tests.
+
+- **Save** (Progress): owned ids, what's worn, the daily's date/best/paid day/streak; a backup of
+  the last good file (`progress.json.bak`), loaded when the main one is damaged, never made from
+  a damaged one. Old five-field saves load unchanged. Stars only go down through buy()/spend(),
+  which save before anything changes.
+- **Catalogue** (HangarCatalogue, 23 looks, 13,200 stars) and **Looks** (balloon colours, bands,
+  gores and painted patterns; paper colours and printed designs with UVs; all painted once in
+  code and cached). Looks never change flying: a test flies every look on both flyers.
+- **Trails** (Trail): ribbon and rainbow ribbon (a camera-facing strip), paper confetti and
+  blossom petals (CPU particles, 13-14). Deviations: CPU particles have no emission ratio, so a
+  dive quickens the whole stream (speed_scale); petals drift rather than flutter.
+- **Hangar** (HangarPanel) on the title (HANGAR) and the end card, with a live preview
+  (LookPreview, which pauses while hidden); the title's flyer is the same preview, in its looks.
+- **Daily flight** (Daily): FNV-1a of the date seeds the run; 100 m pays 100 + 20 a day of streak
+  (to 200), once a day, with the run's stars (also when leaving mid-run); a missed day costs one
+  step. Its bunting marks today's best, or 100 m while the bonus is unpaid, and the distance is
+  gold until then. DAILY on the title (a +N badge while unpaid), Daily +N on the Endless card.
+- **Gradients for CPU particles** are built with set_color/add_point: assigning offsets and colours
+  as arrays drew newborn particles black.
+- Not yet measured on the phone: the frame rate with each trail (the phone was disconnected).

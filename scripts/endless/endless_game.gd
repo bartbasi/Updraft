@@ -44,6 +44,14 @@ var gull: Gull
 var test_pilot := Callable()
 ## Seed for the next run (tests set it; otherwise random).
 var next_seed := -1
+## The next run (and, when set before the scene opens, the first) is the daily flight.
+static var daily_next := false
+## This run is the daily flight: today's country (Daily), its own best, and its bonus.
+var daily := false
+var daily_date := ""  ## The day this daily run began (a run crossing midnight keeps its day).
+var daily_best_m := 0  ## Today's best, before this run.
+var daily_reached := false  ## This run reached Daily.GOAL_M.
+var _daily_pays := {}  ## Daily.reward() as this run began.
 ## For calibrating one piece (tools/endless_log.gd --calibrate): {"pieces": [ids], "d": d, "h": entry
 ## height}. The run then starts at the first piece's entry, at that height.
 var calibration := {}
@@ -74,6 +82,10 @@ var _bar_track: ColorRect
 var _bar_fill: ColorRect
 var _fade: ColorRect
 var _course: Button
+var _daily_button: Button
+var _endless_button: Button
+var _day_button: Button
+var _daily_tag: Label
 var _wind_button: Button
 var _hoop_side := {}  ## Hoop key -> which side of its ring the flyer was last tick.
 var _hoop_snag := {}  ## Hoop key -> seconds until it may snag again.
@@ -176,11 +188,21 @@ func start_run(look_back: bool) -> void:
 	_graze_wait = 0.0
 	_wrong_way_hint = 0.0
 	pieces_entered = 0
-	_best_at_start = best_m
+	daily = daily_next
+	daily_next = false
+	daily_reached = false
+	if daily:
+		daily_date = Daily.today()
+		var progress := Progress.load_all()
+		daily_best_m = int(progress["daily_best_m"]) if progress["daily_date"] == daily_date else 0
+		_daily_pays = Daily.reward(progress, daily_date)
+	_best_at_start = daily_best_m if daily else best_m
+	if daily and _daily_pays["pays"] and daily_best_m < Daily.GOAL_M:
+		_best_at_start = Daily.GOAL_M  # while the bonus is unpaid, the bunting marks its goal
 	passed_best = false
 	_freshened = FRESHENING_AT.filter(func(m: float) -> bool: return m <= start_m).size()  # (tools may start further on)
 	reset_flight_sounds()
-	run_seed = next_seed if next_seed >= 0 else randi()
+	run_seed = Daily.seed_for(daily_date) if daily else (next_seed if next_seed >= 0 else randi())
 	next_seed = -1
 	_set_wind(start_m)
 	plane.air_drift_ground_fade = tune.endless_wind_ground_fade
@@ -215,7 +237,15 @@ func start_run(look_back: bool) -> void:
 		camera.snap()
 		_fade.color.a = 1.0
 		create_tween().tween_property(_fade, "color:a", 0.0, tune.endless_retry_fade)
-	show_hint("Stay up as long as you can", 2.5)
+	if daily:
+		show_hint("Today's flight: the same country for everyone today", 2.5)
+		if _daily_pays["pays"]:
+			get_tree().create_timer(2.6).timeout.connect(func() -> void:
+				if daily and not daily_reached and not _ended:
+					show_hint("Reach %d m for %d stars" % [Daily.GOAL_M, _daily_pays["stars"]], 2.0))
+	else:
+		show_hint("Stay up as long as you can", 2.5)
+	_daily_tag.visible = daily
 	_update_hud()
 
 
@@ -234,10 +264,6 @@ func section_name(at: Vector3) -> String:
 	return "tile %d %s" % [EndlessWorld.tile_at(at.z), p.title() if p else "-"]
 
 
-func _on_fly_again() -> void:
-	start_run(false)
-
-
 func _on_swap_look() -> void:
 	save_other_look()
 	plane.set_look(settings["look"])
@@ -245,8 +271,7 @@ func _on_swap_look() -> void:
 	start_run(false)
 
 
-## Back steps out of the settings and About as in the Course; with nothing open it closes the game.
-## (FlightGame handles the notification; nothing more to do here.)
+## Back: as in the Course (FlightGame handles it).
 
 
 # --- Each tick ------------------------------------------------------------------------
@@ -314,8 +339,16 @@ func _physics_process(delta: float) -> void:
 		_chime.pitch_scale = 1.5
 		_chime.volume_db = plane.tuning.chime_volume_db
 		_chime.play()
-		show_popup("Past your best!", true)
+		if not (daily and _best_at_start == Daily.GOAL_M and _daily_pays["pays"]):  # (the goal's own cheer follows)
+			show_popup("Past today's best!" if daily else "Past your best!", true)
 		note.emit("past your best (%d m)" % _best_at_start)
+	if daily and not daily_reached and EndlessWorld.metres(furthest_z) >= Daily.GOAL_M:
+		daily_reached = true
+		if _daily_pays["pays"]:
+			show_popup("Today's stars! +%d" % _daily_pays["stars"], true)
+			_style_perfect.play()
+			swell(3.0, 1.0)
+			note.emit("daily reached")
 	var p := world.piece_at(at.z)
 	if p != null and p.spawned and p.placement.tile > _piece_tile:  # only onward (circling over a join doesn't count)
 		_piece_tile = p.placement.tile
@@ -563,7 +596,15 @@ func _finish(title: String, delay: float, why: String) -> void:
 	var metres := int(EndlessWorld.metres(furthest_z))
 	var score := metres * POINTS_PER_METRE + stars_run * plane.tuning.points_per_star
 	var progress := Progress.load_all()
-	progress["stars"] = mini(int(progress["stars"]) + stars_run, Progress.MAX_STARS)
+	var bank_before := int(progress["stars"])
+	var paid := _bank_run(progress)
+	var new_daily_best := false
+	if daily:
+		if progress["daily_date"] != daily_date:
+			progress["daily_date"] = daily_date
+			progress["daily_best_m"] = 0
+		new_daily_best = metres > int(progress["daily_best_m"])
+		progress["daily_best_m"] = maxi(int(progress["daily_best_m"]), metres)
 	var new_best := metres > best_m
 	best_m = maxi(best_m, metres)
 	best_score = maxi(best_score, score)
@@ -572,31 +613,102 @@ func _finish(title: String, delay: float, why: String) -> void:
 	if not Progress.save_all(progress):
 		push_warning("Could not save the stars and bests; they last until the game closes.")
 	note.emit("ended: %s (%s) at %d m, %d stars" % [title, why, metres, stars_run])
-	get_tree().create_timer(delay).timeout.connect(_show_card.bind(title, metres, score, int(progress["stars"]), new_best, _run_id))
+	var news := {"bank": int(progress["stars"]), "new_best": new_best, "new_daily_best": new_daily_best, "paid": paid,
+		"daily_best": int(progress["daily_best_m"]), "afford": _newly_affordable(bank_before, int(progress["stars"]), progress["owned"])}
+	get_tree().create_timer(delay).timeout.connect(_show_card.bind(title, metres, score, news, _run_id))
+
+
+## Adds the run's stars to `progress` (not saved here), and the daily bonus if this daily run
+## reached its goal and the day hasn't been paid (checked afresh against the save). Returns the
+## bonus paid.
+func _bank_run(progress: Dictionary) -> int:
+	var paid := 0
+	if daily and daily_reached:
+		var pays := Daily.reward(progress, daily_date)
+		if pays["pays"]:
+			paid = pays["stars"]
+			progress["daily_paid"] = daily_date
+			progress["daily_steps"] = pays["steps"]
+	progress["stars"] = mini(int(progress["stars"]) + stars_run + paid, Progress.MAX_STARS)
+	return paid
+
+
+## The cheapest look not owned, if this run's banking has just made it affordable; otherwise "".
+static func _newly_affordable(before: int, after: int, owned: Array) -> String:
+	var id := HangarCatalogue.cheapest_unowned(owned)
+	if id != "" and before < HangarCatalogue.price(id) and after >= HangarCatalogue.price(id):
+		return id
+	return ""
 
 
 ## Leaving for the title mid-run still banks the run's stars (the guide promises every star is
 ## kept, however the run ends); the run's distance doesn't count.
 func go_to_title() -> void:
-	if not _ended and stars_run > 0:
+	if not _ended and (stars_run > 0 or (daily and daily_reached)):
 		var progress := Progress.load_all()
-		progress["stars"] = mini(int(progress["stars"]) + stars_run, Progress.MAX_STARS)
+		_bank_run(progress)
 		stars_run = 0  # banked once
+		daily_reached = false
 		if not Progress.save_all(progress):
 			push_warning("Could not save the stars; they last until the game closes.")
 	super()
 
 
-func _show_card(title: String, metres: int, score: int, bank: int, new_best: bool, run: int) -> void:
+func _show_card(title: String, metres: int, score: int, news: Dictionary, run: int) -> void:
 	if run != _run_id or not _ended:
 		return  # a new run has already started
 	var lines := PackedStringArray([
 		"%d m" % metres,
-		"Stars  %d   (bank %d)" % [stars_run, bank],
+		"Stars  %d   (bank %d)" % [stars_run, news["bank"]],
 		"Score  %d" % score,
-		"Best  %d m" % best_m,
 	])
-	show_card(title, lines, _fly_again, "New best!" if new_best else "")
+	var note := "New best!" if news["new_best"] else ""
+	if daily:
+		if news["paid"] > 0:
+			lines.append("Today's stars  +%d" % news["paid"])
+		elif _daily_pays["pays"]:
+			lines.append("Reach %d m for %d stars" % [Daily.GOAL_M, _daily_pays["stars"]])
+		else:
+			lines.append("Today's stars: paid today")
+		lines.append("Today's best  %d m" % news["daily_best"])
+		if note == "" and news["new_daily_best"]:
+			note = "Today's best!"
+	lines.append("Best  %d m" % best_m)
+	if news["afford"] != "":
+		lines.append("Enough for %s in the Hangar!" % HangarCatalogue.name_of(news["afford"]))
+	_refresh_card_buttons()
+	show_card(title, lines, _fly_again, note)
+
+
+## Today's flight while its bonus is unpaid (normal runs); from a daily run, back to Endless.
+func _refresh_card_buttons() -> void:
+	var pays := Daily.reward(Progress.load_all(), Daily.today())
+	_daily_button.text = "Daily +%d" % pays["stars"]
+	_daily_button.visible = not daily and pays["pays"]
+	_endless_button.visible = daily
+	_course.visible = not daily
+
+
+func _on_daily() -> void:
+	daily_next = true
+	start_run(false)
+
+
+func _on_endless() -> void:
+	start_run(false)
+
+
+func _on_fly_again() -> void:
+	daily_next = daily  # the daily's own card flies today's flight again
+	start_run(false)
+
+
+## Debug builds: the daily as if it were tomorrow.
+func _on_next_day() -> void:
+	var day := Daily.today()
+	Daily.today_override = Time.get_date_string_from_unix_time(Time.get_unix_time_from_datetime_string(day + "T00:00:00") + 86400)
+	_day_button.text = "Day +1 (%s)" % Daily.today_override.right(5)
+	_refresh_card_buttons()
 
 
 func _on_course() -> void:
@@ -617,8 +729,19 @@ func _wind_label() -> String:
 # --- Screens ------------------------------------------------------------------------
 
 func _setup_endless_ui() -> void:
+	_daily_button = card_button("Daily")
+	_daily_button.pressed.connect(_on_daily)
+	_endless_button = card_button("Endless")
+	_endless_button.pressed.connect(_on_endless)
 	_course = card_button("Course")
 	_course.pressed.connect(_on_course)
+	if OS.is_debug_build():
+		_day_button = Button.new()
+		_day_button.text = "Day +1"
+		_day_button.custom_minimum_size = Vector2(180, 64)
+		_day_button.add_theme_font_size_override("font_size", 26)
+		_day_button.pressed.connect(_on_next_day)
+		_menu.get_parent().add_child(_day_button)
 	if OS.is_debug_build():
 		_wind_button = Button.new()
 		_wind_button.text = _wind_label()
@@ -642,6 +765,14 @@ func _setup_endless_ui() -> void:
 	_star_label.add_theme_font_size_override("font_size", 22)
 	_star_label.add_theme_color_override("font_color", Color("b8862a"))
 	stars_row.add_child(_star_label)
+	_daily_tag = Label.new()  # under the stars, in a daily run
+	_daily_tag.text = "Daily"
+	_daily_tag.add_theme_font_size_override("font_size", 18)
+	_daily_tag.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_daily_tag.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_daily_tag.position += Vector2(-24, 70)
+	_daily_tag.visible = false
+	_ui.add_child(_daily_tag)
 	_bar_track = ColorRect.new()
 	_bar_track.color = Color(CREAM, 0.55)
 	_bar_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -667,6 +798,10 @@ func _setup_endless_ui() -> void:
 
 func _update_hud() -> void:
 	_hud.text = "%d m" % int(EndlessWorld.metres(furthest_z))
+	if daily and _daily_pays.get("pays", false) and not daily_reached:  # gold until the daily's goal
+		_hud.add_theme_color_override("font_color", Color("b8862a"))
+	else:
+		_hud.remove_theme_color_override("font_color")
 	_star_label.text = str(stars_run)
 
 

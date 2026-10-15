@@ -4,7 +4,7 @@ extends TestCase
 ## The title screen, Info (the player's guide) and the way back: what PLAY opens and says, Back at
 ## every level, Menu on the end card, and a guide that matches the game.
 
-const SECTIONS: Array[String] = ["Objectives", "Course and Endless", "Places", "Controls", "Updrafts", "Downdrafts", "Points and bonuses", "Sounds", "Tips"]
+const SECTIONS: Array[String] = ["Objectives", "Course and Endless", "Places", "Controls", "Updrafts", "Downdrafts", "Points and bonuses", "Hangar and daily flight", "Sounds", "Tips"]
 
 
 func _title() -> TitleScreen:
@@ -116,7 +116,7 @@ func test_the_end_card_has_menu_and_settings_have_no_about() -> void:
 ## The guide's sections are Info's rail, in order, and none is empty.
 func test_the_guide_has_infos_sections() -> void:
 	var sections := HowToFly.sections()
-	check(sections.map(func(s: Dictionary) -> String: return s["title"]) == SECTIONS, "the nine sections, in order: %s" % [sections.map(func(s: Dictionary) -> String: return s["title"])])
+	check(sections.map(func(s: Dictionary) -> String: return s["title"]) == SECTIONS, "the sections, in order: %s" % [sections.map(func(s: Dictionary) -> String: return s["title"])])
 	for s in sections:
 		check(not (s["paragraphs"] as Array).is_empty(), "%s has text" % s["title"])
 

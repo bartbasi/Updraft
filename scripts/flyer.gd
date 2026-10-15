@@ -85,6 +85,9 @@ var _lift_zone: Thermal  ## The zone giving the most lift this tick, or null.
 var _ground_y := -INF  ## The ground under the plane (the string never sinks below it).
 var _popped := false
 var _scraps: Array[MeshInstance3D] = []
+## What it wears from the Hangar (HangarCatalogue slot -> id); see set_wear().
+var wear := HangarCatalogue.STARTERS.duplicate()
+var trail: Trail  ## The worn trail, or null.
 
 
 func _ready() -> void:
@@ -126,6 +129,8 @@ func launch(at: Vector3, heading: float) -> void:
 	_popped = false
 	_balloon_body.visible = true
 	_ground_y = -INF
+	if trail:
+		trail.restart()
 	for scrap in _scraps:
 		scrap.queue_free()
 	_scraps.clear()
@@ -142,6 +147,32 @@ func set_look(look: String) -> void:
 	_balloon.visible = balloon
 	_string_mesh.visible = balloon
 	_reset_string()
+
+
+## Wears Hangar looks (slot -> id, as Progress keeps them): the balloon's and the paper's colours
+## and patterns, and a trail. Changes only the looks.
+func set_wear(p_wear: Dictionary) -> void:
+	for slot in HangarCatalogue.SLOTS:
+		var id: Variant = p_wear.get(slot)
+		wear[slot] = id if typeof(id) == TYPE_STRING and HangarCatalogue.slot_of(id) == slot else HangarCatalogue.STARTERS[slot]
+	_balloon_body.mesh = Looks.balloon_mesh(wear[HangarCatalogue.BALLOON])
+	_balloon_body.material_override = Looks.balloon_material(wear[HangarCatalogue.BALLOON])
+	_paper.mesh = Looks.paper_mesh(wear[HangarCatalogue.PAPER])
+	_paper.material_override = Looks.paper_material(wear[HangarCatalogue.PAPER])
+	var ball := Art.material().duplicate() as StandardMaterial3D
+	ball.albedo_color = Looks.paper_color(wear[HangarCatalogue.PAPER]) * Color(1.04, 1.04, 1.06)  # (the ball's own colour is a warm off-white)
+	_ball.material_override = ball
+	if trail:
+		trail.queue_free()
+		trail = null
+	if wear[HangarCatalogue.TRAIL] != "none":
+		trail = Trail.new(wear[HangarCatalogue.TRAIL])
+		add_child(trail)
+
+
+## Where a trail streams from: the balloon's knot, or the plane's tail.
+func trail_source() -> Vector3:
+	return knot_position() if balloon else _visual.global_transform * Vector3(0.0, 0.0, 0.4)
 
 
 func is_ended() -> bool:
@@ -301,6 +332,10 @@ func _update_visuals(delta: float) -> void:
 	_balloon.basis = Basis.from_euler(Vector3(model.pitch * tuning.balloon_pitch_lean, _visual_yaw, (-model.bank + jiggle) * tuning.balloon_bank_lean) + sway).scaled(size)
 	_update_shadow()
 	_update_string(delta)
+	if trail and delta > 0.0:
+		if model.crashed or _popped:
+			trail.stop()
+		trail.follow(trail_source(), model.velocity.length(), delta)
 
 
 ## A soft dark spot on whatever is below the plane, so you can judge height.
@@ -470,13 +505,16 @@ func _pop() -> void:
 	rng.seed = 11
 	var scrap := BoxMesh.new()
 	scrap.size = Vector3(0.12, 0.015, 0.09) * tuning.look_scale
-	var rubber := StandardMaterial3D.new()
-	rubber.albedo_color = BALLOON_RED
-	rubber.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var rubbers: Array[StandardMaterial3D] = []
+	for color in Looks.balloon_colors(wear[HangarCatalogue.BALLOON]):  # the scraps take the balloon's colours
+		var rubber := StandardMaterial3D.new()
+		rubber.albedo_color = color
+		rubber.cull_mode = BaseMaterial3D.CULL_DISABLED
+		rubbers.append(rubber)
 	for i in 8:
 		var piece := MeshInstance3D.new()
 		piece.mesh = scrap
-		piece.material_override = rubber
+		piece.material_override = rubbers[i % rubbers.size()]
 		piece.top_level = true
 		add_child(piece)
 		_scraps.append(piece)

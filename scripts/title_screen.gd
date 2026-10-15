@@ -3,10 +3,12 @@
 class_name TitleScreen
 extends Control
 ## The title screen the game opens on: a painted sky (clouds drifting, motes rising in an updraft
-## with the saved balloon or plane riding it), the name, and three buttons. PLAY flies the mode
+## with the flyer riding it, in the looks it wears), the name, and the buttons. PLAY flies the mode
 ## flown last (Boot.first_scene(); a caption under it says which), INFO opens the player's guide
-## and ABOUT the game's details, license and credits. The phone's Back steps out of Info or About,
-## and on the title itself closes the game; Escape only ever steps back.
+## and ABOUT the game's details, license and credits; once Endless is unlocked, DAILY flies
+## today's flight (a gold badge shows its bonus while unpaid) and HANGAR spends the stars. The
+## phone's Back steps out of whatever is open, and on the title itself closes the game; Escape
+## only ever steps back.
 
 const SCENE := "res://scenes/title.tscn"
 const TAGLINE := "Ride warm air through a house, down a valley and out over a lake."
@@ -17,8 +19,11 @@ const UPDRAFT_X := 0.82  ## Of the width: the column of motes, with the flyer on
 const FLYER_Y := 0.34  ## Of the height.
 
 var play: Button
+var daily: Button  ## DAILY and HANGAR: null until Endless is unlocked.
+var hangar: Button
 var info: Button
 var about: Button
+var daily_badge: Label
 var caption: Label
 ## Where PLAY went (a scene path), once pressed. Tests turn opens_scenes off to see it without
 ## leaving.
@@ -27,10 +32,11 @@ var opens_scenes := true
 var _menu: Control
 var _info: InfoPanel  ## Built the first time it is opened, as is About.
 var _about: AboutPanel
+var _hangar: HangarPanel
 var _backdrop: Control
 var _clouds: Array[Control] = []
 var _motes: Motes
-var _flyer: Flyer2D
+var _flyer: LookPreview
 var _whoosh: AudioStreamPlayer
 var _wind: AudioStreamPlayer
 var _time := 0.0
@@ -40,27 +46,53 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = FlightGame.make_theme()
 	var settings := PlayerSettings.load_all()
-	_build_sky(settings["look"] == PlayerSettings.BALLOON)
-	_build_menu()
-	caption.text = caption_for(Progress.load_all(), BestScore.load_best())
+	_build_sky()
+	_build_menu(Progress.load_all()["unlocked"])
+	_refresh()
 	_setup_sound(settings["sound"])
 	play.grab_focus()
+
+
+## The caption, the daily badge and the flyer's looks, from the saves.
+func _refresh() -> void:
+	var progress := Progress.load_all()
+	caption.text = caption_for(progress, BestScore.load_best())
+	_flyer.show_look(progress["wear"], PlayerSettings.load_all()["look"] == PlayerSettings.BALLOON)
+	if daily:
+		var pays := Daily.reward(progress, Daily.today())
+		daily_badge.text = "+%d" % pays["stars"]
+		daily_badge.visible = pays["pays"]
 
 
 ## What PLAY will fly, as the caption under it says it.
 static func caption_for(progress: Dictionary, course_best: int) -> String:
 	if Boot.first_scene_for(progress) == EndlessGame.SCENE:
 		return "Endless  ·  best %d m  ·  %d stars" % [progress["best_m"], progress["stars"]]
-	return "The Course" + ("  ·  best %d" % course_best if course_best > 0 else "")
+	var bank := "  ·  %d stars" % progress["stars"] if progress["unlocked"] else ""  # what the Hangar spends
+	return "The Course" + ("  ·  best %d" % course_best if course_best > 0 else "") + bank
 
 
 ## PLAY: flies the mode flown last, once (the button then says so while the flight loads).
 func on_play() -> void:
+	_launch(Boot.first_scene(), play)
+
+
+## DAILY: today's flight.
+func on_daily() -> void:
+	if launched_to == "":
+		EndlessGame.daily_next = true
+		Progress.note_mode(Progress.ENDLESS)
+	_launch(EndlessGame.SCENE, daily)
+
+
+func _launch(scene: String, pressed: Button) -> void:
 	if launched_to != "":
 		return
-	launched_to = Boot.first_scene()
-	play.disabled = true
-	play.text = "Taking off..."
+	launched_to = scene
+	for b in [play, daily, hangar, info, about]:
+		if b:
+			b.disabled = true
+	pressed.text = "Taking off..."
 	play.scale = Vector2.ONE
 	_whoosh.play()
 	if not opens_scenes:
@@ -77,6 +109,17 @@ func show_info() -> void:
 		add_child(_info)
 	_menu.visible = false
 	_info.open()
+
+
+func show_hangar() -> void:
+	if _hangar == null:
+		_hangar = HangarPanel.new()
+		_hangar.closed.connect(func() -> void:
+			_refresh()
+			_on_closed(hangar))
+		add_child(_hangar)
+	_menu.visible = false
+	_hangar.open()
 
 
 func show_about() -> void:
@@ -101,6 +144,9 @@ func handle_back() -> bool:
 		return true
 	if _about and _about.visible:
 		_about.go_back()
+		return true
+	if _hangar and _hangar.visible:
+		_hangar.go_back()
 		return true
 	return false
 
@@ -132,12 +178,11 @@ func _process(delta: float) -> void:
 		c.position.y = c.get_meta("y") * size.y
 	_motes.advance(delta)
 	_flyer.position = Vector2(UPDRAFT_X * w, FLYER_Y * size.y + 10.0 * sin(_time * TAU / 4.0)) - _flyer.size * 0.5
-	_flyer.rotation = deg_to_rad(3.0) * sin(_time * TAU / 4.0 + 0.8)
 
 
 # --- Building ----------------------------------------------------------------------
 
-func _build_sky(balloon: bool) -> void:
+func _build_sky() -> void:
 	_backdrop = Backdrop.new()
 	add_child(_backdrop)
 	var rng := RandomNumberGenerator.new()
@@ -154,12 +199,12 @@ func _build_sky(balloon: bool) -> void:
 	_motes.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_motes.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_motes)
-	_flyer = Flyer2D.new()
-	_flyer.balloon = balloon
+	_flyer = LookPreview.new(false)  # the flyer in its looks, bobbing on the updraft
+	_flyer.size = Vector2(150, 150)
 	add_child(_flyer)
 
 
-func _build_menu() -> void:
+func _build_menu(unlocked: bool) -> void:
 	_menu = Control.new()  # the column and the version, hidden together under Info and About
 	_menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -187,17 +232,39 @@ func _build_menu() -> void:
 	box.add_child(_gap(24))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 24)
-	info = _button("INFO", Vector2(260, 96), 38)
+	row.add_theme_constant_override("separation", 20 if unlocked else 24)
+	var size_ := Vector2(250, 96) if unlocked else Vector2(260, 96)
+	var font := 36 if unlocked else 38
+	if unlocked:
+		daily = _button("DAILY", size_, font)
+		daily.pressed.connect(on_daily)
+		daily_badge = _label("", 22)  # today's bonus, while unpaid
+		var pill := StyleBoxFlat.new()
+		pill.bg_color = Color("f4c84a")
+		pill.set_corner_radius_all(16)
+		pill.content_margin_left = 10
+		pill.content_margin_right = 10
+		daily_badge.add_theme_stylebox_override("normal", pill)
+		daily_badge.add_theme_constant_override("outline_size", 0)
+		daily_badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		daily_badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		daily_badge.position += Vector2(8, -14)
+		daily.add_child(daily_badge)
+		hangar = _button("HANGAR", size_, font)
+		hangar.pressed.connect(show_hangar)
+		row.add_child(daily)
+		row.add_child(hangar)
+	info = _button("INFO", size_, font)
 	info.pressed.connect(show_info)
-	about = _button("ABOUT", Vector2(260, 96), 38)
+	about = _button("ABOUT", size_, font)
 	about.pressed.connect(show_about)
 	row.add_child(info)
 	row.add_child(about)
 	box.add_child(row)
-	play.focus_neighbor_bottom = play.get_path_to(info)
-	info.focus_neighbor_top = info.get_path_to(play)
-	about.focus_neighbor_top = about.get_path_to(play)
+	var first: Button = daily if unlocked else info
+	play.focus_neighbor_bottom = play.get_path_to(first)
+	for b in row.get_children():
+		(b as Button).focus_neighbor_top = (b as Button).get_path_to(play)
 	var version := _label("Version %s" % AboutPanel.version(), 18)
 	version.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	version.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -345,30 +412,3 @@ class Motes:
 		for p in _at:
 			var y := lerpf(bottom, top, p.y)
 			draw_circle(Vector2(UPDRAFT_X * size.x + p.x * (1.0 - 0.4 * p.y), y), 3.0, Color(FlightGame.CREAM, 0.75 * (1.0 - p.y)))
-
-
-## The saved look, about 90 px tall: the red balloon on its string, or the paper plane.
-class Flyer2D:
-	extends Control
-	var balloon := true
-
-	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		size = Vector2(90, 100)
-		pivot_offset = size * 0.5
-
-	func _draw() -> void:
-		if balloon:
-			var red := Flyer.BALLOON_RED
-			draw_line(Vector2(45, 74), Vector2(41, 100), Flyer.STRING_COLOR, 2.0)
-			draw_colored_polygon(PackedVector2Array([Vector2(40, 72), Vector2(50, 72), Vector2(45, 64)]), red.darkened(0.15))
-			draw_set_transform(Vector2(45, 36), 0.0, Vector2(0.86, 1.0))
-			draw_circle(Vector2.ZERO, 34.0, red)
-			draw_set_transform(Vector2(45, 36), 0.0, Vector2(0.86, 1.0))
-			draw_circle(Vector2(-12, -12), 8.0, Color(1, 1, 1, 0.35))  # a soft shine
-			draw_set_transform(Vector2.ZERO)
-		else:
-			var white := Color("fbf8f1")
-			draw_colored_polygon(PackedVector2Array([Vector2(4, 56), Vector2(86, 40), Vector2(40, 62)]), white)
-			draw_colored_polygon(PackedVector2Array([Vector2(40, 62), Vector2(86, 40), Vector2(46, 72)]), Color("eee8dd"))
-			draw_line(Vector2(40, 62), Vector2(86, 40), Color("b8acc9"), 1.5)

@@ -30,11 +30,11 @@ Things to aim for, from your first flight to your hundredth:
 
 ## Endless
 
-Endless starts in the air beyond the lake, over a country that never ends and is made fresh every run. Stay up as long as you can, catch the stars, and fly past the bunting that marks your best distance. Every star you catch is kept in your bank.
+Endless starts in the air beyond the lake, over a country that never ends and is made fresh every run. Stay up as long as you can, catch the stars, and fly past the bunting that marks your best distance. Every star you catch is kept in your bank, to spend in the Hangar on new looks.
 
 ## Choosing a mode
 
-PLAY on the title opens the mode you flew last. To switch, finish a flight and press Course or Endless on the end card.
+PLAY on the title opens the mode you flew last. To switch, finish a flight and press Course or Endless on the end card. Once Endless is open, DAILY on the title flies today's flight, and HANGAR spends your stars.
 
 # Course and Endless
 
@@ -128,7 +128,7 @@ Level is however you are holding the phone when a flight starts, so get comforta
 
 Settings, on the end card, has tilt sensitivity (0.5x to 2x), sound on or off, and "Swap climb and dive" if you want it the other way round.
 
-The red balloon and the paper plane fly exactly the same. Swap between them on the end card.
+The balloon and the paper plane fly exactly the same, whatever they wear. Swap between them on the end card or in the Hangar.
 
 On a computer: Up or W dives, Down or S climbs, Left/Right or A/D turn, and Escape steps back.
 
@@ -237,9 +237,25 @@ Missing a star breaks its line, and the rest of it dims. A bump or a snag breaks
 
 The line follows your height. Come in low and the stars lead through the barn door, under the washing or into the stones. Come in high and they lead over the top.
 
-Your bank: every star you catch, bonuses included, goes into your bank when the run ends, however it ends, even if you leave it for the title. The end card shows this run's stars and your bank.
+Your bank: every star you catch, bonuses included, goes into your bank when the run ends, however it ends, even if you leave it for the title. The end card shows this run's stars and your bank. Spend it in the Hangar.
 
 Your best: your furthest distance. Bunting across the valley marks where your best run ended. Fly past it for a cheer and "Past your best!".
+
+# Hangar and daily flight
+
+## The Hangar
+
+Spend the stars in your bank on new looks: colours and patterns for the balloon, papers and designs for the plane, and trails that stream out behind you, longer the faster you go. Open it with HANGAR on the title or Hangar on the end card. It opens once Endless does.
+
+Tap anything to try it on. Buy it if you like it, and you are wearing it at once; Wear puts back on a look you already own. Wearing a balloon look flies the balloon, and a paper look flies the plane. A trail goes with both.
+
+Looks never change how you fly. Stars are only ever earned by flying: nothing in Updraft costs money.
+
+## The daily flight
+
+DAILY on the title flies today's flight: the same country, pieces and stars for everyone on the same day. Fly it as often as you like. Its bunting marks your best today, or 100 m while today's bonus is still to win, and the distance shows gold until you get there.
+
+The first time each day you reach 100 m, you earn bonus stars: 100, and 20 more for each day in a row you have done it, up to 200. Miss a day and the bonus drops back a step.
 
 # Sounds
 
@@ -286,6 +302,8 @@ Watch the clouds and the birds. They mark the rising air before you can feel it.
 In Endless, follow the stars. They lead into rising air and through the safe way.
 
 For the island: come through the Gap high, ride the thermal over the beach sand, then glide out over the water with height to spare and settle gently on the island.
+
+Fly the daily flight a few times: it is the same all day, so you can learn its line.
 
 Style points come from smooth, early lines. Start each turn before you need it, and stay in the middle of doors and arches.
 """

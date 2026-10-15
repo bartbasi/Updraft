@@ -140,7 +140,7 @@ func _build() -> void:
 	inner.add_child(columns)
 
 	var rail_box := VBoxContainer.new()
-	rail_box.add_theme_constant_override("separation", 8)
+	rail_box.add_theme_constant_override("separation", 6)
 	rail_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	columns.add_child(rail_box)
 	var group := ButtonGroup.new()
@@ -149,7 +149,7 @@ func _build() -> void:
 		b.text = _sections[i]["title"]
 		b.toggle_mode = true
 		b.button_group = group
-		b.custom_minimum_size = Vector2(280, 56)
+		b.custom_minimum_size = Vector2(280, 52)
 		b.add_theme_font_size_override("font_size", 24)
 		for state in ["pressed", "hover_pressed"]:
 			var lit := StyleBoxFlat.new()

@@ -6,6 +6,7 @@ extends TestCase
 
 func _fresh(best := 0) -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path + ".bak"))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
 	if best > 0:
 		BestScore.save_best(best)
@@ -25,7 +26,7 @@ func test_bad_progress_files_load_as_defaults() -> void:
 	for text: String in bad:
 		_write(text)
 		var p := Progress.load_all()
-		check(p == Progress.DEFAULTS, "%s loads as the defaults: %s" % [text.left(40), p])
+		check(p == Progress.clean({}), "%s loads as the defaults: %s" % [text.left(40), p])
 	_write("{\"stars\": 5, \"pad\": \"%s\"}" % "x".repeat(Progress.MAX_BYTES))
 	check(Progress.load_all()["stars"] == 0, "an oversized file is ignored")
 	_write("{\"stars\": 5, \"cheat\": true}")
@@ -36,7 +37,7 @@ func test_progress_saves_and_loads_back() -> void:
 	_fresh()
 	var p := {"unlocked": true, "stars": 1204, "best_m": 412, "best_score": 4750, "last_mode": Progress.ENDLESS}
 	check(Progress.save_all(p), "saved")
-	check(Progress.load_all() == p, "loads back exactly: %s" % Progress.load_all())
+	check(Progress.load_all() == Progress.clean(p), "loads back exactly: %s" % Progress.load_all())
 	Progress.note_mode(Progress.COURSE)
 	check(Progress.load_all()["last_mode"] == Progress.COURSE and Progress.load_all()["stars"] == 1204, "noting the mode keeps the rest")
 
