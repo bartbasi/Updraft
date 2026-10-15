@@ -62,6 +62,9 @@ const TABLE := {
 	# never needs to know which road is flown); "out_high" is the high road's, for logs and tests.
 	&"gorge_down": {"tiles": 3, "lift": true, "rest": false, "min_m": 120.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(16.6, 16.1), "fork": true, "out_high": Vector2(22.3, 22.5)},
 	&"river_rail": {"tiles": 3, "lift": true, "rest": false, "min_m": 400.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(16.5, 17.0), "fork": true, "out_high": Vector2(22.0, 22.5), "follower": &"viaduct"},
+	# Step 4 (docs/hazards-plan.md): "hazard" (no two in a row; two apart early on) and "kitten"
+	# (kitten pieces at least 3 places apart).
+	&"farmyard": {"tiles": 1, "lift": true, "rest": false, "min_m": 80.0, "need": Vector2(12.0, 11.0), "add": Vector2(INF, INF), "cap": Vector2(21.0, 19.5), "hazard": true, "kitten": true},
 	&"warm_down": {"tiles": 2, "lift": true, "rest": false, "min_m": 250.0, "need": Vector2(10.0, 11.0), "add": Vector2(INF, INF), "cap": Vector2(18.5, 17.8)},
 	&"mere": {"tiles": 1, "lift": true, "rest": false, "min_m": 200.0, "need": Vector2(12.0, 12.0), "add": Vector2(INF, INF), "cap": Vector2(18.0, 19.0)},
 }
@@ -69,10 +72,10 @@ const TABLE := {
 const WHERE := {&"rim": "on the Rim", &"street": "under Cloud Street", &"barley": "in the Barley Field", &"ridge": "on the Long Ridge",
 	&"hamlet": "in the Hamlet", &"kites": "in Kite Meadow", &"viaduct": "at the Viaduct", &"pasture": "in the Pasture",
 	&"washing": "among the Washing Lines", &"poplars": "at Poplar Row", &"barn": "at the Dutch Barn", &"stones": "at the Standing Stones",
-	&"mere": "on the Mere", &"warm_down": "on the Warm Down", &"gorge_down": "at the fork", &"river_rail": "at the fork"}
+	&"mere": "on the Mere", &"warm_down": "on the Warm Down", &"gorge_down": "at the fork", &"river_rail": "at the fork", &"farmyard": "in the Farmyard"}
 const NAMES := {&"rim": "The Rim", &"street": "Cloud Street", &"barley": "Barley Field", &"ridge": "Long Ridge",
 	&"hamlet": "Hamlet", &"kites": "Kite Meadow", &"viaduct": "Viaduct", &"pasture": "Pasture", &"washing": "Washing Lines",
-	&"poplars": "Poplar Row", &"barn": "Dutch Barn", &"stones": "Standing Stones", &"mere": "Mere", &"warm_down": "Warm Down", &"gorge_down": "Gorge or Down", &"river_rail": "River or Rail"}
+	&"poplars": "Poplar Row", &"barn": "Dutch Barn", &"stones": "Standing Stones", &"mere": "Mere", &"warm_down": "Warm Down", &"gorge_down": "Gorge or Down", &"river_rail": "River or Rail", &"farmyard": "Farmyard"}
 
 ## The Barley Field's thermal: centre x from d 0 to d 1, and its middle along the tile.
 const BARLEY_X := Vector2(4.0, 12.0)
@@ -354,6 +357,8 @@ class Kit:
 	var fork := {}
 	## Kittens in their windows (docs/hazards-plan.md §1): {at (the sill's middle), yaw, coat}.
 	var kittens: Array[Dictionary] = []
+	## Where homes may stand on the side slopes (EndlessHomes.slots()); which do is the run's.
+	var home_slots: Array[Dictionary] = []
 
 	## Every line through the piece (both roads of a fork), for keeping trees and sheep off them.
 	func all_lines(h_in: float) -> PackedVector3Array:
@@ -504,6 +509,8 @@ class KitBuild:
 				else:
 					EndlessPieces._content(kit, look, solid)
 					_step += 1
+				if _step == 2:
+					kit.home_slots = EndlessHomes.slots(kit)
 			2:
 				var to := mini(_row + ROWS_PER_STEP, cells_z)
 				EndlessPieces._ground_rows(kit, look, solid, _grid, _row, to, _paint_rng)
@@ -566,6 +573,7 @@ static func _content(k: Kit, look: Art.Builder, solid: PackedVector3Array) -> vo
 		&"barn": _barn(k, look, solid, k.d)
 		&"stones": _stones(k, look, solid, k.d)
 		&"mere": _mere(k, look, solid, k.d)
+		&"farmyard": EndlessFarmyard.content(k, look, solid, k.d)
 
 
 ## The ground's corners: every one once, (cells across + 1) per row, (cells along + 1) rows.
@@ -693,6 +701,8 @@ static func _tree_spots(k: Kit, rng: RandomNumberGenerator) -> Array[Dictionary]
 		var z := rng.randf_range(-length(k.id) + 4.0, -4.0)
 		if not _clear_of_air_and_line(k, line, x, z, 6.0):
 			continue
+		if k.home_slots.any(func(h: Dictionary) -> bool: return (h["at"] as Vector2).distance_to(Vector2(x, z)) < 14.0):
+			continue  # a home's slot (built or not: an empty one is a meadow)
 		var spot := {"base": Vector3(x, grid_height(k.id, x, z), z), "s": rng.randf_range(0.8, 1.3)}
 		spot["pine"] = rng.randf() < 0.45
 		if not spot["pine"]:
@@ -1546,6 +1556,12 @@ static func _warm_down(k: Kit, look: Art.Builder, solid: PackedVector3Array, d: 
 	k.arcs.append({"name": "saddle", "stars": over, "big": [false, false, true], "zone": "", "title": "Full arc!", "bonus": true})
 	var lee := PackedVector3Array([Vector3(-9.5, 10.5, -99.0), Vector3(-7.0, 8.0, -106.0), Vector3(-4.8, 6.7, -113.0)])
 	k.arcs.append({"name": "lee", "stars": lee, "big": _no_big(3), "zone": "", "title": "Full arc!", "bonus": true})
+	# Late in a run the air tumbles down behind the high tops (never the saddle's lee, the safe way
+	# down): falling wisps and the sink's ticks show it.
+	if d >= 0.75:
+		for rotor in [["RotorWest", -33.0, 14.0], ["RotorEast", 18.0, 20.0]]:
+			k.zones.append({"name": rotor[0], "shape": Thermal.Shape.BOX, "at": Vector3(rotor[1], 0.0, -103.0), "size": Vector3(rotor[2], 12.0, 30.0),
+				"look": Thermal.Look.DOWNDRAFT, "strength": lerpf(1.0, 1.2, (d - 0.75) * 4.0) / 3.5, "pitch": 0.8, "drifts": false})
 	# The saddle counts as an opening: crossing it fast gives the rush and the wider view.
 	k.arches.append({"z": -84.0, "depth": 8.0, "openings": [{"x": SADDLE.x, "half_span": 8.0, "springing": SADDLE_FLOOR + 8.0}]})
 	# The line: down to the sun-trap's near edge, climb (leaving early: the saddle is the point),

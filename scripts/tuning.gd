@@ -397,6 +397,11 @@ extends Resource
 @export var endless_retry_fade := 0.2
 ## Seconds from a touchdown (or splashdown) to the end card, so the slide shows.
 @export var endless_card_delay_touchdown := 0.6
+## Caught by a kitten: the card waits for the hug (docs/hazards-plan.md §1.6).
+@export var endless_card_delay_caught := 0.9
+## The kitten's chirps at their nearest (they fall 12 dB by 45 u); the purr and the catch's mew
+## are always this loud.
+@export var kitten_db := -6.0
 ## Stars: pickup radius from the flyer's centre (units), what a big star and a full arc are worth
 ## (in stars), points per star, the pickup sound's level, and how many semitones it can rise.
 @export var star_pickup_radius := 1.4

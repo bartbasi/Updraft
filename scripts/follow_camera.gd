@@ -16,6 +16,10 @@ var _intro_seconds := -1.0  ## The opening shot's length, if not Tuning's camera
 var _base_fov := 70.0  ## The field of view before any kick.
 var _kick := 0.0  ## Degrees of the current kick at its height.
 var _kick_time := -1.0  ## Seconds into the kick; negative when there is none.
+## Held still, looking at this (a kitten's hug), or null.
+var _hold_on: Node3D
+var _hold_time := 0.0
+var _hold_fov := 0.0
 
 
 func _ready() -> void:
@@ -61,8 +65,21 @@ func shift_by(offset: Vector3) -> void:
 	_intro_eye += offset
 
 
+## Stops following and holds still, turning to look at `on` over HOLD_TURN seconds and pushing in
+## by `fov_drop` degrees over HOLD_PUSH (held until snap()).
+func hold_and_look(on: Node3D, fov_drop: float) -> void:
+	_hold_on = on
+	_hold_time = 0.0
+	_hold_fov = fov_drop
+
+
+const HOLD_TURN := 0.4
+const HOLD_PUSH := 0.6
+
+
 ## Jumps straight to the resting spot behind the plane.
 func snap() -> void:
+	_hold_on = null
 	_base_fov = _wanted_fov()
 	fov = _base_fov
 	var p := target.global_position
@@ -96,6 +113,14 @@ func _process(delta: float) -> void:
 	var fov_span := absf(_t().camera_fov_outside - _t().camera_fov)
 	_base_fov = move_toward(_base_fov, _wanted_fov(), fov_span / maxf(_t().camera_fov_ease, 0.01) * delta) if fov_span > 0.0 else _wanted_fov()
 	fov = _base_fov + _kick_now(delta)
+	if is_instance_valid(_hold_on):
+		_hold_time += delta
+		fov = _base_fov - _hold_fov * smoothstep(0.0, 1.0, _hold_time / HOLD_PUSH)
+		_look = _look.lerp(_hold_on.global_position, smoothstep(0.0, 1.0, minf(_hold_time / HOLD_TURN, 1.0)))
+		_aim(0.0)
+		h_offset = 0.0
+		v_offset = 0.0
+		return
 	var p := target.get_global_transform_interpolated().origin
 	var want := _unblocked(p, _resting_spot(p))
 	_follow = _unblocked(p, _follow.lerp(want, 1.0 - exp(-_t().camera_follow_speed * delta)))

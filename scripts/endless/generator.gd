@@ -44,6 +44,8 @@ const HIGH_ENTRY_WEIGHT := 0.25
 ## many placements after each fork (a seeded draw, made when the fork is placed).
 const FORK_FIRST_M := 120.0
 const FORK_GAP := Vector2i(6, 10)
+## Pieces with a kitten on the line come at least this many places apart.
+const KITTEN_GAP := 3
 
 var tuning: Tuning
 var placed: Array[Placement] = []
@@ -226,6 +228,9 @@ func _fair(ids: Array[StringName], at_h: float, metres: float) -> Array[StringNa
 	var d := difficulty(metres)
 	var recent := ids.slice(maxi(ids.size() - no_repeat(d), 0))
 	var lift_due := _trailing_without_lift(ids) >= max_without_lift(d)
+	# No hazard piece straight after another (two apart early on), and kittens 3 places apart.
+	var hazard_near := ids.slice(maxi(ids.size() - (1 if d >= 0.5 else 2), 0)).any(func(id: StringName) -> bool: return bool(EndlessPieces.info(id).get("hazard", false)))
+	var kitten_near := ids.slice(maxi(ids.size() - KITTEN_GAP, 0)).any(func(id: StringName) -> bool: return bool(EndlessPieces.info(id).get("kitten", false)))
 	var rest_due := _since_rest(ids) >= rest_every(d) - 1
 	var room := at_h - margin(d)
 	var pool: Array[StringName] = []
@@ -234,6 +239,8 @@ func _fair(ids: Array[StringName], at_h: float, metres: float) -> Array[StringNa
 		if bool(info.get("fixed", false)) or bool(info.get("fork", false)) or float(info["min_m"]) > metres or recent.has(id):
 			continue  # (forks come only as forks: see _fork(); the look-ahead never counts on one)
 		if (lift_due and not bool(info["lift"])) or (rest_due and not bool(info["rest"])):
+			continue
+		if (hazard_near and bool(info.get("hazard", false))) or (kitten_near and bool(info.get("kitten", false))):
 			continue
 		if EndlessPieces.need_in(id, d) <= room:
 			pool.append(id)

@@ -75,6 +75,7 @@ var _wobble_time := 0.0
 var balloon := false
 var _balloon: Node3D
 var _balloon_body: MeshInstance3D
+var _hug: Tween  ## Drawing the flyer into a kitten's hug (caught()), or null.
 var _string_mesh: MeshInstance3D
 var _string: ImmediateMesh
 ## The string's points in world space, from the knot down, and where they were a tick ago.
@@ -118,6 +119,9 @@ func shift_by(offset: Vector3) -> void:
 
 
 func launch(at: Vector3, heading: float) -> void:
+	if _hug != null:
+		_hug.kill()
+		_hug = null
 	global_position = at
 	model.launch(at, heading, tuning.launch_speed)
 	distance = 0.0
@@ -254,6 +258,19 @@ func snag(keep: float) -> void:
 	_wobble = 0.8
 	touches += 1
 	snagged.emit()
+
+
+## Caught by a kitten (docs/hazards-plan.md §1.6): the flight ends with no crumple or pop, and the
+## flyer sits still at `at` (the kitten's hug), its string still dangling.
+func caught(at: Vector3) -> void:
+	if model.is_ended():
+		return
+	model.crashed = true
+	model.velocity = Vector3.ZERO
+	model.position = at
+	# Drawn into the hug (looks only: the run is already over).
+	_hug = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	_hug.tween_property(self, "global_position", at, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 ## The rising (or sinking) air at the plane as of this physics tick.

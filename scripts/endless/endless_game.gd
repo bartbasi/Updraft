@@ -110,6 +110,18 @@ var roads_low := 0
 var roads_high := 0
 ## The first fork of a session explains itself (as the look back plays once a session).
 static var fork_explained := false
+## The first kitten of a session explains itself.
+static var kitten_explained := false
+## Kittens met this run, and what they did (for test pilots' statistics).
+var kittens_met := 0
+var kitten_lunges := 0
+var kitten_misses := 0
+var kitten_bats := 0
+var _mrrp: AudioStreamPlayer
+var _mew: AudioStreamPlayer
+var _squeak: AudioStreamPlayer
+var _purr: AudioStreamPlayer
+var _met := {}  ## Kittens (by instance id) that have watched you this run.
 ## How far into a two-line piece its line is chosen: this far in and heading on (within
 ## CHOICE_HEADING of straight down the valley), or the second distance in whatever the flyer is
 ## doing. Not at the join: a pilot circling a thermal across it decides once it straightens out,
@@ -149,6 +161,10 @@ func _ready() -> void:
 	var tune := plane.tuning
 	_star = _player("res://audio/star.wav", tune.star_db)
 	_flutter = _player("res://audio/flutter.wav", -10.0)
+	_mrrp = _player("res://audio/mrrp.wav", tune.kitten_db)
+	_mew = _player("res://audio/mew.wav", tune.kitten_db)
+	_squeak = _player("res://audio/squeak.wav", tune.kitten_db)
+	_purr = _player("res://audio/purr.wav", tune.kitten_db)
 	plane.bumped.connect(_on_bumped)
 	plane.crashed.connect(_on_crashed)
 	plane.stopped.connect(_on_stopped)
@@ -200,6 +216,11 @@ func start_run(look_back: bool) -> void:
 	stars_run = 0
 	arcs_full = 0
 	snags = 0
+	kittens_met = 0
+	kitten_lunges = 0
+	kitten_misses = 0
+	kitten_bats = 0
+	_met.clear()
 	bumps = 0
 	ending = ""
 	piece_name = ""
@@ -366,6 +387,9 @@ func _physics_process(delta: float) -> void:
 	_check_hoops(delta)
 	_check_snags(delta)
 	_check_arches()
+	_step_kittens(delta)
+	if _ended:
+		return
 	furthest_z = minf(furthest_z, at.z)
 	if not passed_best and _best_at_start > 0 and EndlessWorld.metres(furthest_z) > _best_at_start:
 		passed_best = true
@@ -580,6 +604,75 @@ func _check_snags(delta: float) -> void:
 				plane.snag(plane.tuning.snag_speed_keep)
 				if s["sock"]:
 					_throw_sock(p, nearest)
+
+
+## Each kitten within Kitten.DRAW_RANGE watches, wiggles and lunges in the physics tick (the same
+## flight, the same outcome); further ones are hidden and still.
+func _step_kittens(delta: float) -> void:
+	var at := plane.global_position
+	var string := plane.string_points if plane.balloon else PackedVector3Array()
+	for p in world.pieces:
+		for kitten in p.kittens:
+			var near := kitten.global_position.distance_to(at) < Kitten.DRAW_RANGE
+			if kitten.is_processing() != near:
+				kitten.set_process(near)
+			if not near:
+				continue
+			var was := kitten.state
+			var event := kitten.step(delta, at, plane.model.velocity, string)
+			var dist := kitten.centre().distance_to(at)
+			var loud := plane.tuning.kitten_db - 12.0 * clampf(dist / Kitten.NOTICE, 0.0, 1.0)
+			if kitten.state == Kitten.State.LUNGE and was != Kitten.State.LUNGE:
+				kitten_lunges += 1
+				_kitten_sound(_mew, loud)
+			match event:
+				Kitten.WATCHING:
+					_kitten_sound(_mrrp, loud)
+					if not _met.has(kitten.get_instance_id()):
+						_met[kitten.get_instance_id()] = true
+						kittens_met += 1
+					note.emit("kitten %s watching (%d u)" % [kitten.kitten_name(), roundi(dist)])
+					if not kitten_explained:
+						kitten_explained = true
+						show_hint("A kitten! Don't fly too close", 2.5)
+				Kitten.READY:
+					_kitten_sound(_squeak, loud)
+					note.emit("kitten ready (%d u)" % roundi(dist))
+				Kitten.MISSED:
+					kitten_misses += 1
+					var tune := plane.tuning
+					_whoosh.play()
+					swell(4.0, 0.5)
+					camera.kick_fov(tune.arch_pass_fov_kick)
+					show_popup("Missed me!", false)
+					note.emit("kitten lunged: missed by %.1f u, passed %.1f u from her (%s)" % [kitten.closest, kitten.nearest, kitten.kitten_name()])
+				Kitten.BATTED:
+					kitten_bats += 1
+					plane.snag(0.75)
+					note.emit("kitten batted the string")
+				Kitten.CAUGHT:
+					_caught(kitten, dist)
+					return
+
+
+func _kitten_sound(player: AudioStreamPlayer, db: float) -> void:
+	player.volume_db = db
+	player.play()
+
+
+## Caught by a kitten: the run ends as a crash does, but with a hug, hearts and a purr instead of
+## a pop (docs/hazards-plan.md §1.6).
+func _caught(kitten: Kitten, dist: float) -> void:
+	plane.caught(kitten.hug_point())
+	kitten.hearts()
+	_kitten_sound(_mew, plane.tuning.kitten_db)
+	var run := _run_id
+	get_tree().create_timer(0.35).timeout.connect(func() -> void:
+		if run == _run_id:
+			_kitten_sound(_purr, plane.tuning.kitten_db))
+	camera.hold_and_look(kitten.head(), 6.0)
+	note.emit("caught by %s (%.1f u)" % [kitten.kitten_name(), dist])
+	_finish("Caught by %s" % kitten.kitten_name(), plane.tuning.endless_card_delay_caught, "caught by the kitten, %.1f u from it, in %s" % [dist, piece_name])
 
 
 ## A sock off the line, tumbling down to the grass under it (it stays there).

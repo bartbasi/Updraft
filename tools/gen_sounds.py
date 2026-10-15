@@ -292,6 +292,61 @@ def flutter(rng):
     return out
 
 
+def mrrp():
+    """A kitten's "mrrp?" trill: a sine sweeping 420 to 560 Hz, warbled at 28 Hz, with soft overtones."""
+    n = int(0.22 * RATE)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 420 + 140 * t / 0.22
+        phase += 2 * math.pi * f / RATE
+        env = min(1.0, t / 0.01) * min(1.0, (0.22 - t) / 0.06)
+        trill = 1.0 - 0.7 * (0.5 + 0.5 * math.sin(2 * math.pi * 28 * t))
+        out.append(env * trill * (math.sin(phase) + 0.4 * math.sin(2 * phase) + 0.15 * math.sin(3 * phase)))
+    return out
+
+
+def mew(rng):
+    """A kitten's "mew!": a voice gliding up 650 to 900 Hz and settling at 720, with vibrato,
+    overtones and a little breath."""
+    n = int(0.35 * RATE)
+    breath = lowpass(highpass([rng.uniform(-1.0, 1.0) for _ in range(n)], 1200), 2400)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 650 + 250 * t / 0.1 if t < 0.1 else 900 - 180 * min(1.0, (t - 0.1) / 0.15)
+        f += 15 * math.sin(2 * math.pi * 6 * t)
+        phase += 2 * math.pi * f / RATE
+        env = min(1.0, t / 0.015) * min(1.0, (0.35 - t) / 0.08)
+        out.append(env * (math.sin(phase) + 0.5 * math.sin(2 * phase) + 0.25 * math.sin(3 * phase) + 0.3 * breath[i]))
+    return out
+
+
+def squeak():
+    """A tiny squeak as a kitten gets ready to pounce: a sine from 1200 to 1500 Hz."""
+    n = int(0.12 * RATE)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (1200 + 300 * t / 0.12) / RATE
+        env = min(1.0, t / 0.008) * min(1.0, (0.12 - t) / 0.04)
+        out.append(env * math.sin(phase))
+    return out
+
+
+def purr(rng):
+    """A purr: low noise (60-250 Hz) rumbling at 24 Hz, swelling with a slow breath. Loops."""
+    n = int(1.5 * RATE)
+    rumble = lowpass(highpass([rng.uniform(-1.0, 1.0) for _ in range(n)], 60), 250)
+    out = []
+    for i, x in enumerate(rumble):
+        t = i / RATE
+        beat = 1.0 - 0.85 * (0.5 + 0.5 * math.sin(2 * math.pi * 24 * t))
+        swell = 0.7 + 0.3 * math.sin(2 * math.pi * t / 1.5)  # (a whole breath over the loop, so it joins)
+        out.append(x * beat * swell)
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     rng = random.Random(1)
@@ -311,6 +366,11 @@ def main():
     write_wav("splash.wav", splash(rng), peak=0.7)
     write_wav("star.wav", star(), peak=0.4)  # -8 dBFS
     write_wav("flutter.wav", flutter(rng), peak=0.32)  # -10 dBFS
+    kitten = random.Random(7)  # (its own, so the sounds above don't change)
+    write_wav("mrrp.wav", mrrp(), peak=0.25)  # -12 dBFS
+    write_wav("mew.wav", mew(kitten), peak=0.32)  # -10 dBFS
+    write_wav("squeak.wav", squeak(), peak=0.13)  # -18 dBFS
+    write_wav("purr.wav", purr(kitten), peak=0.16, loop=True)  # -16 dBFS
 
 
 if __name__ == "__main__":

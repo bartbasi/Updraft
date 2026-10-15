@@ -38,6 +38,8 @@ class Piece:
 	var origin := Vector3.ZERO
 	var zones := {}  ## Name in the kit -> Thermal.
 	var spawned := false
+	var kittens: Array[Kitten] = []  ## In its homes' windows and its own (the Farmyard's Pip).
+	var homes: Array[Node] = []  ## Its homes' solid bodies (moved by hand on a recentre).
 
 	func first_tile() -> int:
 		return placement.tile
@@ -59,6 +61,8 @@ var _backdrop: Node3D
 var _hills: Node3D
 static var _boat: ArrayMesh
 var _seed := 1
+## The tile of the last kitten spawned (homes keep EndlessHomes.KITTEN_GAP_TILES after it).
+var _last_kitten_tile := -1000
 ## How far the world has been moved toward +z since the run began (see recentre()).
 static var shift := 0.0
 
@@ -82,6 +86,7 @@ func setup(p_tuning: Tuning) -> void:
 ## `with_backdrop` draws the bowl behind the start (a fresh scene; a retry keeps what it has).
 func reset(p_seed: int, with_backdrop: bool, forced: Array[StringName] = [], forced_d := -1.0, forced_h := 0.0, metres_offset := 0.0) -> void:
 	_seed = p_seed
+	_last_kitten_tile = -1000
 	shift = 0.0
 	for p in pieces:
 		if is_instance_valid(p.node):
@@ -128,11 +133,7 @@ func update(plane_at: Vector3, delta: float, all_now := false) -> void:
 	var ahead := here + tuning.endless_tiles_ahead
 	# Placed (and their kits started in the background) a few tiles before they are drawn.
 	while generator.next_tile() <= ahead + PLACE_EARLY:
-		var p := Piece.new()
-		p.placement = generator.next()
-		p.origin = tile_origin(p.placement.tile)
-		p.kit = EndlessPieces.kit_when_ready(p.placement.id, p.placement.d)
-		pieces.append(p)
+		_place_next()
 	EndlessPieces.pump(BUILD_BUDGET_USEC)
 	for p in pieces:
 		if p.spawned or p.first_tile() > ahead:
@@ -159,6 +160,14 @@ func update(plane_at: Vector3, delta: float, all_now := false) -> void:
 		_backdrop.queue_free()
 		_backdrop = null
 	_place_hills(here)
+
+
+func _place_next() -> void:
+	var p := Piece.new()
+	p.placement = generator.next()
+	p.origin = tile_origin(p.placement.tile)
+	p.kit = EndlessPieces.kit_when_ready(p.placement.id, p.placement.d)
+	pieces.append(p)
 
 
 ## The piece a world z is in, or null.
@@ -304,9 +313,42 @@ func _spawn(p: Piece) -> void:
 		mover.mesh = _boat
 		p.node.add_child(mover)
 		mover.sail_round(m["centre"], m["radius"], m["speed"], deg_to_rad(10.0))
+	_add_kittens_and_homes(p)
 	stars.add_piece(p.placement.tile, p.kit.arcs, p.origin, p.zones, p.placement.h_in)
 	sky.add_piece(p.placement.tile, p.kit.clouds, p.kit.birds, p.origin, p.zones)
 	placed.emit(p)
+
+
+## The piece's own kittens, then its homes (and their kittens), chosen from the run's seed and the
+## tile (pieces spawn in placement order, so the kitten gap is the same every flight of a seed).
+func _add_kittens_and_homes(p: Piece) -> void:
+	for spec in p.kit.kittens:
+		var kitten := Kitten.new(spec["coat"], hash([_seed, p.placement.tile, "kitten"]))
+		kitten.position = spec["at"]
+		kitten.rotation.y = float(spec["yaw"])
+		p.node.add_child(kitten)
+		p.kittens.append(kitten)
+		_last_kitten_tile = p.placement.tile
+	if p.kit.home_slots.is_empty():
+		return
+	# A kitten piece within the gap ahead counts too (placed now if need be: the order of placements
+	# is the seed's alone, so this changes nothing else).
+	while generator.next_tile() < p.placement.tile + EndlessHomes.KITTEN_GAP_TILES:
+		_place_next()
+	var last := _last_kitten_tile
+	for q in pieces:
+		if q.placement.tile > p.placement.tile and q.placement.tile - p.placement.tile < EndlessHomes.KITTEN_GAP_TILES 				and bool(EndlessPieces.info(q.placement.id).get("kitten", false)):
+			last = p.placement.tile
+	var plan := EndlessHomes.plan(_seed, p.placement.tile, p.kit.home_slots, metres(p.origin.z), last)
+	if last != _last_kitten_tile and plan["last_kitten_tile"] == last:
+		plan["last_kitten_tile"] = _last_kitten_tile
+	_last_kitten_tile = plan["last_kitten_tile"]
+	for home: Dictionary in plan["homes"]:
+		var built := EndlessHomes.build(p.placement.id, p.kit.home_slots[home["slot"]], home)
+		p.node.add_child(built["node"])
+		p.homes.append_array((built["node"] as Node).get_children().filter(func(n: Node) -> bool: return n is StaticBody3D))
+		if built["kitten"] != null:
+			p.kittens.append(built["kitten"])
 
 
 ## Moves the whole world `by` toward +z, between two physics ticks: the pieces (with their
@@ -322,7 +364,8 @@ func recentre(by: float, near_z: float) -> void:
 			p.node.reset_physics_interpolation()
 			# The physics server hears of a moved body only at the end of the tick; tell it now, so
 			# the flyer's move later in this same tick meets the ground where it now is.
-			for child in p.node.get_children():
+			# (Homes' bodies are a level down.)
+			for child in p.node.get_children() + p.homes:
 				if child is StaticBody3D:
 					PhysicsServer3D.body_set_state(child.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, child.global_transform)
 		for zone: Thermal in p.zones.values():

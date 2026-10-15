@@ -88,7 +88,7 @@ The Gap and the lake: through the notch in the far hills a bowl opens with a lak
 
 ## Endless, place by place
 
-New places turn up the further you fly: the first fork at about 120 m, the Mere after 200 m, the Warm Down after 250 m and the River or the Railway after 400 m.
+New places turn up the further you fly: the Farmyard from about 80 m, the first fork at about 120 m, the Mere after 200 m, the Warm Down after 250 m, and the River or the Railway after 400 m.
 
 Cloud Street: a line of clouds over a long band of rising air. Fly along underneath.
 
@@ -115,6 +115,10 @@ Standing Stones: weave in through the stones, past the big star in the middle. A
 Mere: a lake where the air sinks. Make for the island and spiral up its thermal.
 
 Warm Down: a grassy hill across the valley. Climb the thermal at its foot, cross the low saddle for the big star, swoop down the far side and catch the thermal by the hayrick.
+
+Farmyard: a big red barn with its hayloft door open, and Pip the farm kitten sitting in it. Swing past the end of the barn along the stars for Cat's whiskers!, but not too close: Pip will try to catch you. Then climb the warm air over the rickyard.
+
+Homes: here and there a cottage, farmhouse or barn stands on the hillside. Open pink shutters mean a kitten is at home.
 
 Forks: now and then a wooded hill rises in the middle of the valley and splits it in two. A signpost and two short lines of stars show both ways: the gold arm points to the low road, the blue arm to the high road. The low road has far more stars and tighter flying. The high road starts with a big thermal and leaves you higher. Pick a side before the hill: it is too tall to fly over. The two ways meet again beyond it.
 
@@ -158,6 +162,12 @@ In Endless, kite rings and the washing never crash you: touching one snags you a
 
 A fork's hill is too steep and tall to cross. Fly into it gently and it bumps you off.
 
+## Kittens
+
+Three kittens live in the country: Pip, Smudge and Bramble. They love balloons and paper planes. A kitten always stays in its window or hayloft door, behind open pink shutters. When it sees you coming it sits up and watches you. When it wiggles its bottom, it's about to pounce.
+
+A kitten can reach out about as far as a cottage's walls are tall. Stay a little further off and it only swipes the air (you'll hear a whoosh: "Missed me!"). Fly within its reach and it catches you, and the run ends: "Caught by Pip!". If you're flying the balloon and it only bats your string, it just snags you.
+
 # Updrafts
 
 Rising air lifts you. When it is carrying you up you hear soft beeps, faster and higher the stronger the lift. Each kind looks different.
@@ -197,6 +207,10 @@ Sinking air pushes you down. It is useful for a quick dive, but costly when you 
 ## Always sinking a little
 
 Wherever there is no rising air you sink slowly, and faster when you dive. That is normal gliding, not a downdraft.
+
+## Behind a hill
+
+Late in a run, the air tumbles down behind the Warm Down's high tops. Falling wisps and ticks show it. Cross at the low saddle instead.
 
 ## The stair downdraft
 
@@ -241,7 +255,7 @@ The end card adds it up: distance, style (and how many of the ten moments you sc
 
 Score: 10 points for every metre and 10 for every star.
 
-Stars: 1 each, and big stars are worth 10 (that's 100 points). Stars lie in lines along the best way through each place, so they show you where to fly. Take every star of a line for a bonus (+5), worth 50 points. The bonus pops up with the line's name: Full arc!, Full spiral!, Hoop run!, Hedge-hop!, Under the washing!, Threaded!, Through the stones! or Under the bridges!
+Stars: 1 each, and big stars are worth 10 (that's 100 points). Stars lie in lines along the best way through each place, so they show you where to fly. Take every star of a line for a bonus (+5), worth 50 points. The bonus pops up with the line's name: Full arc!, Full spiral!, Hoop run!, Hedge-hop!, Under the washing!, Threaded!, Through the stones!, Under the bridges! or Cat's whiskers!
 
 Missing a star breaks its line, and the rest of it dims. A bump or a snag breaks the line you are on too. You keep the stars you have already caught, and the run goes on.
 
@@ -295,6 +309,8 @@ A tap: a bump.
 
 A crumple or a pop: a crash.
 
+A little trill or a mew: a kitten has seen you, or pounced. A purr: it caught you.
+
 A splash: down in the water.
 
 # Tips
@@ -310,6 +326,8 @@ Give yourself time: line up with a door, a gap or an arch early, then hold stead
 Watch the clouds and the birds. They mark the rising air before you can feel it.
 
 In Endless, follow the stars. They lead into rising air and through the safe way.
+
+Watch the windows. Fly past a kitten at a few lengths and it can only swipe at the air.
 
 For the island: come through the Gap high, ride the thermal over the beach sand, then glide out over the water with height to spare and settle gently on the island.
 
