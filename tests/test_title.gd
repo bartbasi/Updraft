@@ -1,4 +1,4 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends TestCase
 ## The title screen, Info (the player's guide) and the way back: what PLAY opens and says, Back at

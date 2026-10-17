@@ -1,4 +1,4 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name TitleScreen
 extends Control
@@ -6,7 +6,8 @@ extends Control
 ## with the flyer riding it, in the looks it wears), the name, and the buttons. PLAY flies the mode
 ## flown last (Boot.first_scene(); a caption under it says which), INFO opens the player's guide
 ## and ABOUT the game's details, license and credits; once Endless is unlocked, DAILY flies
-## today's flight (a gold badge shows its bonus while unpaid) and HANGAR spends the stars. The
+## today's flight (a gold badge shows its bonus while unpaid) and HANGAR spends the stars. A small,
+## quiet Buy me a coffee button sits at the bottom, below them all. The
 ## phone's Back steps out of whatever is open, and on the title itself closes the game; Escape
 ## only ever steps back.
 
@@ -23,6 +24,7 @@ var daily: Button  ## DAILY and HANGAR: null until Endless is unlocked.
 var hangar: Button
 var info: Button
 var about: Button
+var coffee: Button  ## Buy me a coffee.
 var daily_badge: Label
 var caption: Label
 ## Where PLAY went (a scene path), once pressed. Tests turn opens_scenes off to see it without
@@ -89,7 +91,7 @@ func _launch(scene: String, pressed: Button) -> void:
 	if launched_to != "":
 		return
 	launched_to = scene
-	for b in [play, daily, hangar, info, about]:
+	for b in [play, daily, hangar, info, about, coffee]:
 		if b:
 			b.disabled = true
 	pressed.text = "Taking off..."
@@ -263,8 +265,22 @@ func _build_menu(unlocked: bool) -> void:
 	box.add_child(row)
 	var first: Button = daily if unlocked else info
 	play.focus_neighbor_bottom = play.get_path_to(first)
+	# Buy me a coffee: small and unboxed, at the bottom centre, so it never competes with PLAY.
+	var bottom := CenterContainer.new()
+	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom.offset_top = -72.0
+	bottom.offset_bottom = -12.0
+	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_menu.add_child(bottom)
+	coffee = Links.coffee_button(22, Vector2(0, 52))
+	coffee.flat = true
+	coffee.add_theme_constant_override("outline_size", 6)
+	coffee.add_theme_color_override("font_outline_color", Color(FlightGame.CREAM, 0.8))
+	bottom.add_child(coffee)
 	for b in row.get_children():
 		(b as Button).focus_neighbor_top = (b as Button).get_path_to(play)
+		(b as Button).focus_neighbor_bottom = (b as Button).get_path_to(coffee)
+	coffee.focus_neighbor_top = coffee.get_path_to(about)
 	var version := _label("Version %s" % AboutPanel.version(), 18)
 	version.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	version.grow_horizontal = Control.GROW_DIRECTION_BEGIN

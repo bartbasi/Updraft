@@ -1,4 +1,4 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends SceneTree
 ## Flies the course with the autopilot in a real window and saves screenshots along the way.

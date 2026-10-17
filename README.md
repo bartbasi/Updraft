@@ -17,9 +17,10 @@ hamlet's chimney smoke, a meadow of ring kites, a viaduct to dive under). A bree
 stay up as long as you can, collecting stars. The run ends at the first touch of the ground. See
 [docs/endless-plan.md](docs/endless-plan.md); this is its first step, a prototype.
 
-Updraft is free and open source: Copyright (C) 2026 Bart Basi, under the GNU GPL v3 with a few
-additional terms (see [License](#license)). Feedback is welcome at bartbasi@gmail.com, or with
-the Send feedback button under Settings > About.
+Updraft is free and open source: Copyright 2026 Play, Inc., under the GNU GPL v3 with a few
+additional terms (see [License](#license)). It was designed and written by Bart Basi, with
+assistance from Claude. Feedback is welcome at bartbasi@gmail.com, or with the Send feedback
+button in About, on the title screen.
 
 ## Scoring
 
@@ -135,7 +136,8 @@ scripts/best_score.gd     the saved best score (validated on load)
 scripts/debug_overlay.gd  debug-build view of the style paths
 scripts/follow_camera.gd  smoothed chase camera
 scripts/game.gd           run flow, lighting, sound, end card, settings
-scripts/about_panel.gd    About, with How to fly, the License and Credits pages and Send feedback
+scripts/about_panel.gd    About: Send feedback, Supporting Updraft, the License and Credits pages
+scripts/links.gd          the addresses handed to the phone, and the Buy me a coffee button
 scripts/how_to_fly.gd     the player's guide (About > How to fly)
 scripts/flight_game.gd    what every flight shares: sounds, settings, About, the end card's frame
 scripts/progress.gd       Endless's save: unlocked, the star bank, bests, the mode flown last
@@ -149,22 +151,24 @@ audio/                    synthesized WAVs (from tools/gen_sounds.py)
 tests/                    headless test runner, suites, autopilot
 tools/                    screenshots, flight log, sound generator, icons, release build
 docs/                     the brief, design plans and reviews, build notes, release guide
-docs/store/               Play store images (icon, feature graphic, screenshots)
+docs/store/               Play store listing, privacy policy (published on GitHub Pages) and
+                          graphics (made by tools/make_store_graphics.sh)
 ```
 
 ## License
 
-Copyright (C) 2026 Bart Basi.
+Copyright 2026 Play, Inc.
 
 Updraft is free software: you can redistribute it and/or modify it under the terms of the
 [GNU General Public License, version 3](LICENSE), with the additional terms in [NOTICE](NOTICE)
 (allowed by the GPL's section 7). In short:
 
 - **Keep the credit.** Anything built from Updraft, in whole or in part, must keep the line
-  "Based on Updraft by Bart Basi" in its source (the NOTICE file) and, if it has a screen, in
-  its About, Credits or License screen.
+  "Based on Updraft, designed and written by Bart Basi, with assistance from Claude. Copyright
+  2026 Play, Inc." in its source (the NOTICE file) and, if it has a screen, in its About,
+  Credits or License screen.
 - **Mark your changes.** A modified version must say it has been changed and must not pass
-  itself off as the original Updraft or as made or endorsed by Bart Basi.
+  itself off as the original Updraft or as made or endorsed by Play, Inc. or Bart Basi.
 - **Use your own name and icon.** The license gives no rights to the name "Updraft" or its icon.
 
 Every source file starts with a two-line notice pointing to LICENSE and NOTICE; please keep it.

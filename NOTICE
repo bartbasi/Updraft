@@ -1,5 +1,7 @@
 Updraft
-Copyright (C) 2026 Bart Basi
+Copyright 2026 Play, Inc.
+
+Designed and written by Bart Basi, with assistance from Claude.
 
 Updraft is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License, version 3, as published by the Free
@@ -21,9 +23,11 @@ These terms apply to all of Updraft: its code, shaders, art, icons, sounds and
 documents.
 
 1. Author attribution (section 7(b)). Any work based on Updraft, in whole or
-   in part, must keep this author attribution:
+   in part, must keep this author attribution, which credits Bart Basi as
+   the creator of the original Updraft and Play, Inc. as its copyright holder:
 
-       Based on Updraft by Bart Basi
+       Based on Updraft, designed and written by Bart Basi, with assistance
+       from Claude. Copyright 2026 Play, Inc.
 
    (a) in its source code, by keeping this NOTICE file or its full text; and
    (b) if the work has an interactive user interface, among the Appropriate
@@ -32,9 +36,9 @@ documents.
 
 2. Marking modified versions (sections 7(c) and 7(d)). A modified version
    must be marked as changed from the original and must not be presented as
-   the original Updraft. Beyond the attribution in term 1, the name Bart Basi
-   may not be used to promote a modified version or to suggest that it was
-   made or endorsed by Bart Basi.
+   the original Updraft. Beyond the attribution in term 1, the names Play,
+   Inc. and Bart Basi may not be used to promote a modified version or to
+   suggest that it was made or endorsed by Play, Inc. or Bart Basi.
 
 3. Name and icon (sections 7(c) and 7(e)). This license grants no rights under
    trademark law to the name "Updraft" or to the Updraft icon. A modified

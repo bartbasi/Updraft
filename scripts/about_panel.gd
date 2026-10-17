@@ -1,13 +1,13 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 class_name AboutPanel
 extends Control
 ## About Updraft, opened from the title screen: what the game is and who made it, a request for
 ## feedback with a button that starts an email, a link to the source code (and both addresses
-## written out), and two pages to read: License (Updraft's notice, with its additional terms, and
-## the GNU GPL) and Credits (the Godot Engine's notices and those of its third-party parts). (The
-## player's guide is Info's.) The title builds this panel the
-## first time it is opened, and each page's text the first time that page is shown, a few
+## written out), how to support the game (Buy me a coffee), and two pages to read: License
+## (Updraft's notice, with its additional terms, and the GNU GPL) and Credits (the Godot Engine's
+## notices and those of its third-party parts). (The player's guide is Info's.) The title builds
+## this panel the first time it is opened, and each page's text the first time that page is shown, a few
 ## paragraphs a frame, so a long page never holds up the game. The labels on those pages don't
 ## word-wrap (re-wrapping every label as the page grew made filling slow): the license texts
 ## come in short lines, and the few long ones are broken here.
@@ -22,8 +22,11 @@ const NOTICE_PATH := "res://NOTICE"
 const BLURB := "Ride warm air through a house, down a valley and out over a lake, in a red balloon or a paper plane. Tilt your phone to steer."
 const FEEDBACK_ASK := "I'd love to hear what you think: what you enjoyed, where you got stuck, and what you'd like to see next."
 const SOURCE_SHOWN := "github.com/bartbasi/Updraft"  ## SOURCE_URL as it is written out.
-const PRIVACY := "Updraft collects nothing: no ads, no tracking, no internet."
-const LEGAL := "Copyright © 2026 Bart Basi. Updraft is free software: you may share and change it under the GNU GPL v3, with the terms on the License page. It comes with no warranty."
+const SUPPORT_HEADING := "Supporting Updraft"
+const SUPPORT := "Updraft is free, with no ads and no tracking, and it always will be. If you'd like to support more games like it, you can buy me a coffee. Never expected, always appreciated."
+const PRIVACY := "Updraft collects nothing: no ads, no tracking, no internet. The Buy me a coffee button only opens a web page in your phone's browser, and the game itself sends nothing."
+const COPYRIGHT := "Copyright 2026 Play, Inc."
+const LEGAL := COPYRIGHT + " Updraft is free software: you may share and change it under the GNU GPL v3, with the terms on the License page. It comes with no warranty."
 ## A page's text is split into labels of about this many characters, at blank lines, so the
 ## labels scrolled out of sight are not drawn.
 const CHUNK_CHARS := 800
@@ -31,11 +34,15 @@ const CHUNK_CHARS := 800
 const WRAP_COLUMN := 92
 ## Microseconds of each frame spent laying out a page's labels while it fills (at least one).
 const FILL_BUDGET_USEC := 4000
+## The width of the About page's paragraphs, and of each of its two columns.
+const PAGE_WIDTH := 1100
+const COLUMN_WIDTH := 530
 const INK := Color("5d5468")  ## The game's ink and lilac (game.gd), for the scroll bar.
 const LILAC := Color("c9b2d6")
 
 var feedback: Button
 var source: Button
+var coffee: Button
 var license: Button
 var credits: Button
 var done: Button
@@ -105,7 +112,7 @@ static func license_text() -> String:
 ## of the third-party parts built into it, and the full text of each of their licenses.
 static func credits_text() -> String:
 	var parts := PackedStringArray([
-		"Updraft\nMade by %s. Its code, art and sounds were made for Updraft and are covered by Updraft's license (see License), except the watercolour look's random-number hash, which is Chris Wellons' public-domain \"lowbias32\"." % AUTHOR,
+		"Updraft\nDesigned and written by %s, with assistance from Claude. %s\n\nIts code, art and sounds were made for Updraft and are covered by Updraft's license (see License), except the watercolour look's random-number hash, which is Chris Wellons' public-domain \"lowbias32\"." % [AUTHOR, COPYRIGHT],
 		"Built with the Godot Engine %s (godotengine.org)\n\n%s" % [_godot_version(), Engine.get_license_text()],
 		"Portions of this software are copyright (c) %s The FreeType Project (www.freetype.org). All rights reserved." % _freetype_years(),
 		"On Android, Updraft also includes the AndroidX libraries and the Kotlin standard library, under the Apache License 2.0 (its text is below).",
@@ -191,17 +198,11 @@ static func _read(path: String) -> String:
 
 
 func _on_feedback() -> void:
-	_open_link(feedback_url(version(), device()))
+	Links.open(feedback_url(version(), device()))
 
 
 func _on_source() -> void:
-	_open_link(SOURCE_URL)
-
-
-func _open_link(url: String) -> void:
-	var err := OS.shell_open(url)
-	if err != OK:
-		push_warning("Could not open %s (%s)" % [url, error_string(err)])
+	Links.open(SOURCE_URL)
 
 
 ## Shows the License or Credits page, filling it the first time (and after the other one).
@@ -256,42 +257,56 @@ func _build_page() -> void:
 	_page.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_page)
 	var box := _panel(_page)
-	var title := _label("Updraft", 52)
+	var title := _label("Updraft", 42)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var byline := _label("Version %s  ·  Made by %s" % [version(), AUTHOR], 22)
 	byline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(byline)
-	box.add_child(_paragraph(BLURB, 26))
-	box.add_child(_paragraph(FEEDBACK_ASK, 26))
+	box.add_child(_paragraph(BLURB, 24))
+	# Two columns: feedback and the source code on the left, supporting the game on the right.
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 40)
+	columns.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(columns)
+	var left := _column(columns)
+	left.add_child(_paragraph(FEEDBACK_ASK, 23, COLUMN_WIDTH))
 	var main_row := HBoxContainer.new()
 	main_row.add_theme_constant_override("separation", 14)
 	main_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	feedback = _button("Send feedback", Vector2(300, 80), 32)
+	feedback = _button("Send feedback", Vector2(250, 60), 26)
 	feedback.pressed.connect(_on_feedback)
-	source = _button("Source code", Vector2(300, 80), 32)
+	source = _button("Source code", Vector2(250, 60), 26)
 	source.pressed.connect(_on_source)
 	main_row.add_child(feedback)
 	main_row.add_child(source)
-	box.add_child(main_row)
+	left.add_child(main_row)
 	# The addresses too, for a phone with no email app or browser (where the buttons can do nothing).
-	var address := _label("%s    %s" % [FEEDBACK_EMAIL, SOURCE_SHOWN], 22)
+	var address := _label("%s    %s" % [FEEDBACK_EMAIL, SOURCE_SHOWN], 20)
 	address.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(address)
+	left.add_child(address)
+	var right := _column(columns)
+	var heading := _label(SUPPORT_HEADING, 25)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	right.add_child(heading)
+	right.add_child(_paragraph(SUPPORT, 21, COLUMN_WIDTH))
+	coffee = Links.coffee_button(24, Vector2(340, 58), 18)
+	coffee.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	right.add_child(coffee)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	license = _button("License", Vector2(180, 64), 26)
+	license = _button("License", Vector2(180, 58), 25)
 	license.pressed.connect(show_page.bind("License"))
-	credits = _button("Credits", Vector2(180, 64), 26)
+	credits = _button("Credits", Vector2(180, 58), 25)
 	credits.pressed.connect(show_page.bind("Credits"))
-	done = _button("Back", Vector2(180, 64), 26)
+	done = _button("Back", Vector2(180, 58), 25)
 	done.pressed.connect(go_back)
 	for b in [license, credits, done]:
 		row.add_child(b)
 	box.add_child(row)
-	box.add_child(_paragraph(PRIVACY, 19))
-	box.add_child(_paragraph(LEGAL, 19))
+	box.add_child(_paragraph(PRIVACY, 18))
+	box.add_child(_paragraph(LEGAL, 18))
 
 
 func _build_reader() -> void:
@@ -366,13 +381,23 @@ func _label(text: String, size: int) -> Label:
 	return label
 
 
-## A centred paragraph that wraps at the About page's width.
-func _paragraph(text: String, size: int) -> Label:
+## A centred paragraph that wraps at `width` (the About page's width unless given).
+func _paragraph(text: String, size: int, width := PAGE_WIDTH) -> Label:
 	var label := _label(text, size)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.custom_minimum_size = Vector2(860, 0)
+	label.custom_minimum_size = Vector2(width, 0)
 	return label
+
+
+## One of the About page's two columns, its contents centred.
+func _column(parent: Control) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.custom_minimum_size = Vector2(COLUMN_WIDTH, 0)
+	parent.add_child(column)
+	return column
 
 
 func _button(text: String, min_size: Vector2, font_size: int) -> Button:

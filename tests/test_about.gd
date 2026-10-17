@@ -1,10 +1,11 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends TestCase
 ## About, the license and the credits: what they say, how they open and close, and that the
-## license notice ships with the game and sits at the top of every source file.
+## license notice ships with the game and sits at the top of every source file. Also the Buy me a
+## coffee button, on the title and in About.
 
-const HEADER := "Updraft. Copyright (C) 2026 Bart Basi."
+const HEADER := "Updraft. Copyright 2026 Play, Inc."
 
 
 func test_feedback_email_is_addressed_and_says_which_version_and_phone() -> void:
@@ -24,7 +25,8 @@ func test_feedback_email_is_addressed_and_says_which_version_and_phone() -> void
 
 func test_license_page_has_the_notice_its_terms_and_the_whole_gpl() -> void:
 	var text := AboutPanel.license_text()
-	for part in ["Copyright (C) 2026 Bart Basi", "Based on Updraft by Bart Basi", "WITHOUT ANY WARRANTY",
+	for part in ["Copyright 2026 Play, Inc.", "Based on Updraft, designed and written by Bart Basi, with assistance", "from Claude. Copyright 2026 Play, Inc.", "WITHOUT ANY WARRANTY",
+			"the names Play,\n   Inc. and Bart Basi may not be used",
 			"https://github.com/bartbasi/Updraft", "GNU GENERAL PUBLIC LICENSE", "Version 3, 29 June 2007",
 			"END OF TERMS AND CONDITIONS"]:
 		check(text.contains(part), "the License page says \"%s\"" % part)
@@ -33,7 +35,7 @@ func test_license_page_has_the_notice_its_terms_and_the_whole_gpl() -> void:
 
 func test_credits_page_has_godots_license_and_every_third_party_license() -> void:
 	var text := AboutPanel.credits_text()
-	check(text.contains("Made by Bart Basi"), "names the author")
+	check(text.contains("Designed and written by Bart Basi, with assistance from Claude. Copyright 2026 Play, Inc."), "names the author and the copyright holder")
 	check(text.contains("The FreeType Project (www.freetype.org)"), "the credit FreeType asks for")
 	check(text.contains("AndroidX") and text.contains("Kotlin"), "the Android libraries in the APK")
 	check(text.contains("Apache License"), "and the Apache License text the AndroidX line points to")
@@ -147,16 +149,75 @@ func test_switching_pages_while_one_fills_shows_only_the_new_page_and_it_fits() 
 	check(front.x <= screen and front.y <= about.get_viewport_rect().size.y, "About's page fits the screen (%s)" % front)
 
 
+## The copyright line is written exactly one way, wherever it is shown.
+func test_the_copyright_line_is_play_inc() -> void:
+	check(AboutPanel.COPYRIGHT == "Copyright 2026 Play, Inc.", "the copyright line: %s" % AboutPanel.COPYRIGHT)
+	check(AboutPanel.LEGAL.begins_with(AboutPanel.COPYRIGHT + " "), "About's legal line starts with it")
+	var notice := FileAccess.get_file_as_string(AboutPanel.NOTICE_PATH)
+	check(notice.contains("\nCopyright 2026 Play, Inc.\n"), "NOTICE gives it on a line of its own")
+	for text: String in [notice, AboutPanel.LEGAL, AboutPanel.credits_text().get_slice("Built with the Godot Engine", 0)]:
+		check(not text.contains("Copyright (C)") and not text.contains("Copyright ©") and not text.contains("Bart Basi. All"), "never the old form")
+
+
+## Buy me a coffee: one fixed address, a small button at the bottom of the title, a support
+## section in About, and a tap only hands the address over (here, to a recorder).
+func test_buy_me_a_coffee() -> void:
+	check(Links.COFFEE_URL == "https://buymeacoffee.com/playinc", "the address: %s" % Links.COFFEE_URL)
+	var opened: Array[String] = []
+	var before := Links.opener
+	Links.opener = func(url: String) -> void: opened.append(url)
+	var title: TitleScreen = add_node(load(TitleScreen.SCENE).instantiate())
+	title.opens_scenes = false
+	await tree.process_frame
+	await tree.process_frame
+	var coffee := title.coffee
+	check(coffee != null and coffee.text == Links.COFFEE_TEXT and coffee.icon != null, "the title has the button, with its cup")
+	check(coffee.get_global_rect().position.y >= title.about.get_global_rect().end.y, "below the other buttons")
+	check(coffee.size.y < title.about.size.y and coffee.size.x < title.play.size.x and coffee.flat, "small and quiet beside PLAY")
+	coffee.pressed.emit()
+	check(opened == [Links.COFFEE_URL], "a tap hands over the address: %s" % [opened])
+	title.show_about()
+	var about := title._about
+	var texts := about.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	check(texts.has(AboutPanel.SUPPORT_HEADING) and texts.has(AboutPanel.SUPPORT), "About has the support section")
+	check(AboutPanel.SUPPORT == "Updraft is free, with no ads and no tracking, and it always will be. If you'd like to support more games like it, you can buy me a coffee. Never expected, always appreciated.", "in the words agreed")
+	check(AboutPanel.PRIVACY.contains("The Buy me a coffee button only opens a web page in your phone's browser, and the game itself sends nothing."), "the privacy line says what the button does")
+	about.coffee.pressed.emit()
+	about.feedback.pressed.emit()
+	about.source.pressed.emit()
+	check(opened.size() == 4 and opened[1] == Links.COFFEE_URL and opened[2].begins_with("mailto:") and opened[3] == AboutPanel.SOURCE_URL, "About's buttons hand over their addresses: %s" % [opened])
+	var shown: Array = texts + title.find_children("*", "Button", true, false).map(func(b: Button) -> String: return b.text)
+	shown += title.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	check(not shown.any(func(t: String) -> bool: return t.to_lower().contains("buymeacoffee")), "the address itself is never shown")
+	var icon := Links.cup_icon(30, 10)
+	check(icon.get_width() == 40 and icon.get_height() == 30, "the cup icon's size, inset included")
+	check(icon.get_image().get_pixel(5, 15).a == 0.0 and icon.get_image().get_pixel(23, 21).a > 0.9, "clear in the inset, solid in the cup")
+	check(title.about.get_node(title.about.focus_neighbor_bottom) == coffee and coffee.get_node(coffee.focus_neighbor_top) == title.about, "Down from the row reaches it, and Up goes back")
+	about.go_back()
+	title.on_play()
+	check(coffee.disabled, "and it is switched off with the rest once PLAY is pressed")
+	Links.opener = before
+	title.queue_free()
+
+
 func test_every_source_file_carries_the_license_header() -> void:
 	var missing := PackedStringArray()
-	for dir in ["res://scripts", "res://tests", "res://tools", "res://shaders"]:
+	var dirs: Array[String] = ["res://scripts", "res://tests", "res://tools", "res://shaders"]
+	var checked := PackedStringArray()
+	while not dirs.is_empty():  # every folder under these too (scripts/endless, ...)
+		var dir: String = dirs.pop_back()
+		for sub in DirAccess.get_directories_at(dir):
+			if sub != "__pycache__":
+				dirs.append(dir.path_join(sub))
 		for file in DirAccess.get_files_at(dir):
 			if not file.get_extension() in ["gd", "gdshader", "py", "sh"]:
 				continue
 			var path: String = dir.path_join(file)
+			checked.append(path)
 			var head := FileAccess.get_file_as_string(path).substr(0, 300)
 			if not head.contains(HEADER):
 				missing.append(path)
+	check(checked.has("res://scripts/endless/kitten.gd"), "subfolders are checked too (%d files)" % checked.size())
 	for path in ["res://icon.svg", "res://icons/background.svg", "res://icons/foreground.svg", "res://icons/monochrome.svg"]:
 		if not FileAccess.get_file_as_string(path).begins_with("<!-- " + HEADER):
 			missing.append(path)

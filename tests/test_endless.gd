@@ -1,4 +1,4 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends TestCase
 ## Endless (docs/endless-plan.md, step 1; marks in §11): the generator's rules, the pieces, stars

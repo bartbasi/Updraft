@@ -1,4 +1,4 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends SceneTree
 ## The kitten sheet (docs/hazards-plan.md §10): Pip, Smudge and Bramble side by side in each pose

@@ -1,4 +1,4 @@
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 extends SceneTree
 ## Headless test runner. From the project folder:
@@ -67,6 +67,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# No test ever hands a link to a browser or email app: the links go nowhere.
+	Links.opener = func(_url: String) -> void: pass
 	# Keep the player's real best score out of the tests (and each run its own files: two can run at once).
 	BestScore.file_path = "user://test_best_score_%d.json" % OS.get_process_id()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
@@ -120,4 +122,5 @@ func _run() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(BestScore.file_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerSettings.file_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Progress.file_path))
+	Links.opener = Callable()  # a lambda left in a static var crashes the engine on quit
 	quit(1 if failed > 0 else 0)

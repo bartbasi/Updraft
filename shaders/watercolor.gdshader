@@ -1,4 +1,4 @@
-// Updraft. Copyright (C) 2026 Bart Basi.
+// Updraft. Copyright 2026 Play, Inc.
 // Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 // Full-screen pass: soft watercolour look on paper.
 // Slight pigment wobble, darker edges where colours meet, paper grain and a gentle vignette.

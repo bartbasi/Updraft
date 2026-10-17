@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Updraft. Copyright (C) 2026 Bart Basi.
+# Updraft. Copyright 2026 Play, Inc.
 # Free software under the GNU GPL v3 with additional terms: see LICENSE and NOTICE.
 # Builds the signed release of Updraft: an .aab for Google Play and an .apk to share directly.
 #   bash tools/build_release.sh
