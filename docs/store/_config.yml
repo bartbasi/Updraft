@@ -1,0 +1,9 @@
+# Updraft. Copyright 2026 Play, Inc.
+# The GitHub Pages site (https://bartbasi.github.io/Updraft/): only the privacy policy and a short
+# index, built from this folder by .github/workflows/pages.yml.
+title: Updraft
+description: A free game by Play, Inc.
+theme: jekyll-theme-primer
+exclude:
+  - listing.md
+  - graphics

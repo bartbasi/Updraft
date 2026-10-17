@@ -9,8 +9,8 @@ Everything needed to put Updraft on Google Play, or to hand the APK to friends d
 | Version | `version/code=1`, `version/name="0.1.0"` (in **both** presets in `export_presets.cfg`) |
 | Android | 7.0 and newer (min SDK 24, target SDK 36), 64-bit ARM phones (arm64-v8a) |
 | Permissions | none |
-| Network, ads, analytics, accounts | none; the game never goes online |
-| Data stored | two small files on the phone: best score and settings. They are not backed up and are deleted on uninstall. |
+| Network, ads, analytics, accounts | none; the game never goes online (Send feedback, Source code and Buy me a coffee only hand an address to the phone's email app or browser) |
+| Data stored | three small files on the phone: settings, the best Course score and Endless progress. They are not backed up and are deleted on uninstall. |
 
 ## 1. Back up the signing key first
 
@@ -75,12 +75,13 @@ app; "Install anyway" is fine for your own build.
 
 ### One-time setup
 
-1. Make a developer account at <https://play.google.com/console/signup>: a personal account and
-   a one-time $25 fee. Google checks your identity, which can take a few days.
-2. **New personal accounts have to run a closed test before going public.** At the time of
-   writing, that means at least 12 testers opted in for 14 days in a row. Check the current
-   rule in the Console. Friends and family count: add their Google accounts as testers and send
-   them the opt-in link.
+1. Updraft goes on **Play, Inc.'s organization account**
+   (<https://play.google.com/console/signup>, a one-time $25 fee). An organization account needs
+   the company's **DUNS number**, which is still on its way: no Play Console work until it
+   arrives. Google checks the organization, which can take a few days.
+2. New *personal* accounts have to run a closed test (at the time of writing, 12 testers for 14
+   days) before going public; organization accounts don't. Check the current rule in the
+   Console.
 3. Create the app: name **Updraft**, default language English (US), **Game**, **Free**
    (free can't be changed to paid later), then accept the declarations.
 
@@ -100,71 +101,11 @@ Start rollout.
 When the closed test has run long enough, Production > Create release, then upload the same or a
 newer `.aab`.
 
-### Store listing (Grow > Store presence > Main store listing)
+### Store listing, App content and countries
 
-All images are in `docs/store/`:
-
-| Asset | File | Play's rule |
-|---|---|---|
-| App icon | `icon_512.png` | 512×512 PNG |
-| Feature graphic | `feature_graphic_1024x500.jpg` | 1024×500 |
-| Phone screenshots | `screenshot_1` to `screenshot_6` (1920×1080) | 2 to 8, 16:9 |
-
-The screenshots were taken from the test pilot's flight with `tools/capture.gd` at
-`--resolution 1920x1080`. Retake them the same way when the world changes.
-
-**App name** (30 characters max): `Updraft`
-
-**Short description** (80 characters max):
-
-> Tilt your phone to fly a red balloon out of the house and up on the warm air.
-
-**Full description**:
-
-> A kid lets go of a little red balloon in the bedroom, and you take it from there. Or swap it
-> for a folded paper plane.
->
-> Tilt your phone to bank out of the door and ride a sunbeam down the long gallery. Dive the
-> stairwell, catch warm air off the radiator and steam from the kettle, swoop under the
-> lamp over the dining table, then burst out of the kitchen window into the valley.
->
-> Outside, circle in the warm air to climb. Go from thermal to thermal over the hay field, the
-> barn roof, the ploughed field and the bonfire smoke, or soar the wind up the ridge. A soft beep
-> tells you when you're rising.
->
-> Every flight scores distance, style, time in the air and where you land. Touch down in the
-> lavender or on the picnic blanket for a bonus, then fly again for a new best.
->
-> • Tilt to fly: one to two minutes a flight
-> • A balloon and a paper plane, with the same physics
-> • No ads, no in-app purchases, no internet, no account
-> • Free and open source (GNU GPL v3): github.com/bartbasi/Updraft
-> • Adjustable tilt sensitivity, sound on or off, swap climb and dive
-
-**Category**: Game > Casual. **Tags**: flying, relaxing, simulation (pick from Play's list).
-**Contact email**: required, and shown publicly: `bartbasi@gmail.com` (the same address as the
-game's Send feedback button).
-
-### App content (Policy > App content)
-
-- **Privacy policy**: Play asks for a URL. The policy is [docs/privacy.md](privacy.md); with the
-  repo public, use https://github.com/bartbasi/Updraft/blob/main/docs/privacy.md
-
-- **Ads**: No.
-- **App access**: all functionality is available without special access.
-- **Content rating**: fill in the IARC questionnaire. Category: Game. Answer **No** to violence,
-  fear, sexuality, language, controlled substances, gambling, user interaction/chat, sharing
-  location, and digital purchases. Expect Everyone / PEGI 3.
-- **Target audience**: an owner decision. "13 and over" is the simplest. Including under-13
-  brings in the Families policy (the privacy policy must cover children; ads and SDK rules).
-  Updraft already meets those, since it has none, but it means more forms and a stricter
-  review.
-- **Data safety**: "Does your app collect or share any of the required user data types?" **No.**
-  Data is encrypted in transit: not applicable (nothing is sent). No account creation. The
-  result shows as "No data collected, no data shared". (Send feedback only opens the player's
-  own email app with a draft; the app itself sends nothing, so this answer stays No.)
-- **Government app**, **financial features**, **health**, **news**: No.
-
-### Countries
-
-Production > Countries/regions: add all, or just where you want.
+Everything to paste in (the listing text, the contact and privacy policy URL, the Data safety,
+Ads, App access, content rating and target audience answers) is in
+[store/listing.md](store/listing.md). The privacy policy is
+[store/privacy-policy.md](store/privacy-policy.md), published at
+https://bartbasi.github.io/Updraft/privacy-policy/. The images are in
+[store/graphics/](store/graphics/), made with `bash tools/make_store_graphics.sh`.

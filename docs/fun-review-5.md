@@ -248,7 +248,7 @@ All eight items are in. Checked one Godot process at a time, in batches of 8 at 
 | 1 Spiral | Skilled ≥ 5 of 6, full in at least half | Lead's skilled ×8: 21 of 21 full | Pass |
 | 1 Spiral | A novice circling about a lap takes 2-4 | Circling star-chaser ×8: 2-5 of 6 per Barley, 1 full in 22 | Pass |
 | 2 Star lines | Arcs completable from the usual entry | Lead: chimneys 95%, street 96%, dive 92%. Chaser ×8: stars median 79% (was 71%) | Pass |
-| 3 Graze rule | — | In the code (steeper than about 25° nudges; flat or a 0.5 s slide ends the run). Not flown by my pilots, which never touched a slope. | Pass; check on the phone along the ridge face |
+| 3 Graze rule | none | In the code (steeper than about 25° nudges; flat or a 0.5 s slide ends the run). Not flown by my pilots, which never touched a slope. | Pass; check on the phone along the ridge face |
 | 4 Look-back | Lake and notch clear of the balloon | `e3_sheet.png` t 0.3: the lake and the island's sand below the balloon, the notch and windmill to its right | Pass |
 | 5 Distance | 400 | `endless_full_distance_m` 400 | Pass |
 | 6-8 | Hint, card title, How to fly | "fly on!" hint, "Touchdown in the Hamlet" titles, all my text changes present | Pass |

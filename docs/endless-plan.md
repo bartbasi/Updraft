@@ -494,7 +494,7 @@ need_in and out are heights above the floor at T 1.5.
 
 | # | Piece | Verbs | Tiles | From | Rest | need_in | out | Stars (big) | Step | Numbers |
 |---|---|---|---|---|---|---|---|---|---|---|
-| L0 | **The Rim** (launch) | — | 1 | fixed | | — | 24 | 8 | 1 | sim |
+| L0 | **The Rim** (launch) | none | 1 | fixed | | none | 24 | 8 | 1 | sim |
 | P1 | **Cloud Street** | lift | 1 | 0 m | yes | 4 / 6 | min(h+14, 24.5) / min(h+13, 24.5) | 12 | 1 | sim |
 | P2 | **Barley Field** | lift (thermal) | 1 | 0 m | yes | 10 | 21 / 17 | 10 | 1 | sim |
 | P3 | **Long Ridge** | lift (ridge) | 2 | 40 m | yes | 11 | 27.5 | 16 (1) | 1 | sim |
